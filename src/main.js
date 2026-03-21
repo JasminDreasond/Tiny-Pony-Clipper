@@ -22,6 +22,9 @@ let ffmpegProcess = null;
 /** @type {NodeJS.Timeout | null} */
 let cleanupInterval = null;
 
+/** @type {boolean} */
+let isClipping = false;
+
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
 
@@ -159,6 +162,11 @@ const startGarbageCollector = (maxMinutes) => {
   if (cleanupInterval) clearInterval(cleanupInterval);
 
   cleanupInterval = setInterval(() => {
+    if (isClipping) {
+      console.log('[CLEANUP] Cleanup paused because a clip is currently being processed.');
+      return;
+    }
+
     if (!fs.existsSync(TEMP_DIR)) return;
 
     /** @type {string[]} */
@@ -359,7 +367,13 @@ const startRecording = (config) => {
  * @returns {void}
  */
 const saveClip = (saveDir) => {
+  if (isClipping) {
+    console.warn('[CLIP WARN] Clipping is already in progress. Ignoring duplicate keypress.');
+    return;
+  }
+
   console.log(`[CLIP] Shortcut triggered! Initiating clip compilation in background...`);
+  isClipping = true;
 
   /** @type {Object[]} */
   const fileStats = fs
@@ -373,6 +387,7 @@ const saveClip = (saveDir) => {
 
   if (fileStats.length === 0) {
     console.warn('[CLIP WARN] No segments available to clip. Is FFmpeg running correctly?');
+    isClipping = false;
     return;
   }
 
@@ -407,6 +422,7 @@ const saveClip = (saveDir) => {
       `[CLIP ERROR] Failed to create destination file in ${saveDir}. Check permissions!`,
       err,
     );
+    isClipping = false;
     return;
   }
 
@@ -438,11 +454,17 @@ const saveClip = (saveDir) => {
   });
 
   concatProcess.on('close', (code) => {
+    isClipping = false;
     if (code === 0) {
       console.log(`[CLIP SUCCESS] Clip successfully saved at: ${outputPath}`);
     } else {
       console.error(`[CLIP ERROR] Concatenation failed with code: ${code}`);
     }
+  });
+
+  concatProcess.on('error', (err) => {
+    isClipping = false;
+    console.error(`[CLIP ERROR] Failed to spawn FFmpeg process:`, err);
   });
 };
 
