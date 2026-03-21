@@ -26,6 +26,35 @@ let cleanupInterval = null;
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
 
 /**
+ * @returns {void}
+ */
+const ensureKmsgrabPermissions = () => {
+    try {
+        /** @type {string} */
+        const ffmpegPath = execSync('which ffmpeg').toString().trim();
+        /** @type {string} */
+        let caps = '';
+        
+        try {
+            caps = execSync(`getcap ${ffmpegPath}`).toString();
+        } catch (e) {
+            // Ignore error if getcap returns nothing
+        }
+
+        if (!caps.includes('cap_sys_admin')) {
+            console.log('[SYSTEM] ffmpeg lacks KMSGrab permissions. Prompting user for authorization...');
+            execSync(`pkexec setcap cap_sys_admin,cap_sys_ptrace=ep ${ffmpegPath}`);
+            console.log('[SYSTEM] KMSGrab permissions fixed successfully!');
+        } else {
+            console.log('[SYSTEM] ffmpeg already has KMSGrab permissions.');
+        }
+    } catch (error) {
+        console.error('[SYSTEM ERROR] Failed to automatically set permissions. Is pkexec installed?');
+        console.error(error);
+    }
+};
+
+/**
  * @returns {string}
  */
 const getDrmDevice = () => {
@@ -213,6 +242,8 @@ const startRecording = (config) => {
     let ffmpegArgs = [];
 
     if (config.captureMethod === 'kmsgrab') {
+        ensureKmsgrabPermissions();
+        
         /** @type {string} */
         const drmDevice = getDrmDevice();
         
@@ -270,7 +301,8 @@ const startRecording = (config) => {
     ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
     ffmpegProcess.stderr.on('data', (data) => {
-        console.log(`[FFMPEG LOG] ${data.toString().trim()}`);
+        // Ignoring most of the buffer output to keep console clean, uncomment below to debug deeply
+        // console.log(`[FFMPEG LOG] ${data.toString().trim()}`);
     });
     
     ffmpegProcess.on('close', (code) => {
@@ -285,20 +317,26 @@ const startRecording = (config) => {
  * @returns {void}
  */
 const saveClip = (saveDir) => {
-    console.log(`[CLIP] Shortcut triggered! Initiating clip compilation...`);
+    console.log(`[CLIP] Shortcut triggered! Initiating clip compilation in background...`);
     
-    /** @type {string[]} */
-    const files = fs.readdirSync(TEMP_DIR)
+    /** @type {Object[]} */
+    const fileStats = fs.readdirSync(TEMP_DIR)
         .filter(f => f.endsWith('.mp4'))
-        .sort()
-        .map(f => `file '${path.join(TEMP_DIR, f)}'`);
+        .map(f => ({
+            name: f,
+            time: fs.statSync(path.join(TEMP_DIR, f)).mtime.getTime()
+        }))
+        .sort((a, b) => a.time - b.time);
 
-    if (files.length === 0) {
+    if (fileStats.length === 0) {
         console.warn('[CLIP WARN] No segments available to clip. Is FFmpeg running correctly?');
         return;
     }
 
-    console.log(`[CLIP] Found ${files.length} segments to concatenate.`);
+    console.log(`[CLIP] Found ${fileStats.length} segments, sorted by modification time.`);
+
+    /** @type {string[]} */
+    const files = fileStats.map(f => `file '${path.join(TEMP_DIR, f.name)}'`);
 
     /** @type {string} */
     const listPath = path.join(TEMP_DIR, 'concat_list.txt');
@@ -312,13 +350,24 @@ const saveClip = (saveDir) => {
     /** @type {string[]} */
     const concatArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outputPath];
 
-    console.log(`[CLIP] Executing concatenation...`);
-    try {
-        execSync(`ffmpeg ${concatArgs.join(' ')}`);
-        console.log(`[CLIP SUCCESS] Clip successfully saved at: ${outputPath}`);
-    } catch (error) {
-        console.error(`[CLIP ERROR] Failed to concatenate segments:`, error);
-    }
+    /** @type {import('child_process').ChildProcessWithoutNullStreams} */
+    const concatProcess = spawn('ffmpeg', concatArgs);
+
+    concatProcess.stderr.on('data', (data) => {
+        /** @type {string} */
+        const msg = data.toString().trim();
+        if (msg.toLowerCase().includes('error')) {
+            console.error(`[CLIP FFmpeg] ${msg}`);
+        }
+    });
+
+    concatProcess.on('close', (code) => {
+        if (code === 0) {
+            console.log(`[CLIP SUCCESS] Clip successfully saved at: ${outputPath}`);
+        } else {
+            console.error(`[CLIP ERROR] Concatenation failed with code: ${code}`);
+        }
+    });
 };
 
 /**
