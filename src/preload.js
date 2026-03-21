@@ -5,4 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getConfig: () => ipcRenderer.invoke('get-config'),
   getHardware: () => ipcRenderer.invoke('get-hardware'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
+  sendVideoChunk: (chunk) => ipcRenderer.send('video-chunk', chunk),
+  onCaptureCommand: (callback) =>
+    ipcRenderer.on('capture-command', (event, data) => callback(data)),
 });

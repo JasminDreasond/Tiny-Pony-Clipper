@@ -7,9 +7,6 @@ const sysInputSelect = document.getElementById('sysInput');
 /** @type {HTMLSelectElement} */
 const micInputSelect = document.getElementById('micInput');
 
-/** @type {HTMLSelectElement} */
-const captureMethodSelect = document.getElementById('captureMethod');
-
 /** @type {HTMLInputElement} */
 const savePathInput = document.getElementById('savePath');
 
@@ -72,7 +69,6 @@ const init = async () => {
   populateSelect(sysInputSelect, hardware.audioDevices, config.sysInput);
   populateSelect(micInputSelect, hardware.audioDevices, config.micInput);
 
-  captureMethodSelect.value = config.captureMethod;
   document.getElementById('bufferMinutes').value = String(config.minutes);
   document.getElementById('separateAudio').checked = config.separateAudio;
   shortcutInput.value = config.shortcut;
@@ -102,7 +98,6 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     shortcut: shortcutInput.value,
     savePath: savePathInput.value,
     monitorId: monitorSelect.value,
-    captureMethod: captureMethodSelect.value,
   };
 
   console.log('[RENDERER] Configuration gathered:', config);
