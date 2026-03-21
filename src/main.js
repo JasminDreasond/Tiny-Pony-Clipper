@@ -26,6 +26,18 @@ let cleanupInterval = null;
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
 
 /**
+ * @param {string} dirPath
+ * @returns {boolean}
+ */
+const isDirectoryValid = (dirPath) => {
+    try {
+        return fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory();
+    } catch (e) {
+        return false;
+    }
+};
+
+/**
  * @returns {void}
  */
 const ensureKmsgrabPermissions = () => {
@@ -150,7 +162,7 @@ const startGarbageCollector = (maxMinutes) => {
         if (!fs.existsSync(TEMP_DIR)) return;
         
         /** @type {string[]} */
-        const files = fs.readdirSync(TEMP_DIR).filter(f => f.endsWith('.mp4'));
+        const files = fs.readdirSync(TEMP_DIR).filter(f => f.endsWith('.ts'));
         if (files.length <= maxMinutes) return;
         
         /** @type {Object[]} */
@@ -164,8 +176,12 @@ const startGarbageCollector = (maxMinutes) => {
         for (let i = 0; i < filesToDelete; i++) {
             /** @type {string} */
             const filePath = path.join(TEMP_DIR, fileStats[i].name);
-            fs.unlinkSync(filePath);
-            console.log(`[CLEANUP] Deleted old segment out of bounds: ${fileStats[i].name}`);
+            try {
+                fs.unlinkSync(filePath);
+                console.log(`[CLEANUP] Deleted old segment: ${fileStats[i].name}`);
+            } catch (e) {
+                console.error(`[CLEANUP ERROR] Could not delete ${fileStats[i].name}`);
+            }
         }
     }, 15000); 
 };
@@ -226,7 +242,7 @@ const startRecording = (config) => {
     /** @type {string[]} */
     const files = fs.readdirSync(TEMP_DIR);
     for (const file of files) {
-        fs.unlinkSync(path.join(TEMP_DIR, file));
+        try { fs.unlinkSync(path.join(TEMP_DIR, file)); } catch (e) {}
     }
 
     /** @type {Electron.Display} */
@@ -293,7 +309,7 @@ const startRecording = (config) => {
         '-c:a', 'aac',
         '-f', 'segment',
         '-segment_time', '60',
-        path.join(TEMP_DIR, 'segment_%03d.mp4')
+        path.join(TEMP_DIR, 'segment_%03d.ts') // Changed to .ts for live stream stability
     );
 
     console.log('[FFMPEG] Starting with arguments:', ffmpegArgs.join(' '));
@@ -301,8 +317,11 @@ const startRecording = (config) => {
     ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
     ffmpegProcess.stderr.on('data', (data) => {
-        // Ignoring most of the buffer output to keep console clean, uncomment below to debug deeply
-        // console.log(`[FFMPEG LOG] ${data.toString().trim()}`);
+        /** @type {string} */
+        const output = data.toString();
+        if (output.includes('error') || output.includes('Error')) {
+            console.log(`[FFMPEG LOG] ${output.trim()}`);
+        }
     });
     
     ffmpegProcess.on('close', (code) => {
@@ -321,7 +340,7 @@ const saveClip = (saveDir) => {
     
     /** @type {Object[]} */
     const fileStats = fs.readdirSync(TEMP_DIR)
-        .filter(f => f.endsWith('.mp4'))
+        .filter(f => f.endsWith('.ts')) // Targeting .ts
         .map(f => ({
             name: f,
             time: fs.statSync(path.join(TEMP_DIR, f)).mtime.getTime()
@@ -345,10 +364,35 @@ const saveClip = (saveDir) => {
     /** @type {string} */
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     /** @type {string} */
-    const outputPath = path.join(saveDir, `Clip_${timestamp}.mp4`);
+    let outputPath = path.join(saveDir, `Clip_${timestamp}.mp4`);
+    /** @type {number} */
+    let counter = 1;
+
+    // Ensure we never overwrite an existing file
+    while (fs.existsSync(outputPath)) {
+        outputPath = path.join(saveDir, `Clip_${timestamp}_${counter}.mp4`);
+        counter++;
+    }
+
+    // Pre-create the empty file to ensure the destination is valid and writeable
+    try {
+        fs.writeFileSync(outputPath, '');
+        console.log(`[CLIP] Pre-created empty destination file: ${outputPath}`);
+    } catch (err) {
+        console.error(`[CLIP ERROR] Failed to create destination file in ${saveDir}. Check permissions!`, err);
+        return;
+    }
 
     /** @type {string[]} */
-    const concatArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outputPath];
+    const concatArgs = [
+        '-y', 
+        '-f', 'concat', 
+        '-safe', '0', 
+        '-i', listPath, 
+        '-c:v', 'copy', // Copy video stream directly without re-encoding
+        '-c:a', 'copy', // Copy audio stream
+        outputPath
+    ];
 
     /** @type {import('child_process').ChildProcessWithoutNullStreams} */
     const concatProcess = spawn('ffmpeg', concatArgs);
@@ -375,6 +419,27 @@ const saveClip = (saveDir) => {
  * @returns {void}
  */
 const applyConfigurationAndStart = (config) => {
+    if (!isDirectoryValid(config.savePath)) {
+        console.error(`[SYSTEM ERROR] Configured save path is invalid or missing: ${config.savePath}`);
+        
+        if (ffmpegProcess) {
+            ffmpegProcess.kill('SIGINT');
+            ffmpegProcess = null;
+        }
+        if (cleanupInterval) {
+            clearInterval(cleanupInterval);
+            cleanupInterval = null;
+        }
+        
+        globalShortcut.unregisterAll();
+        createConfigWindow();
+        dialog.showErrorBox(
+            'Invalid Save Directory', 
+            'The folder configured to save videos does not exist or is invalid. The recording system has been paused. Please configure a valid folder to resume.'
+        );
+        return;
+    }
+
     globalShortcut.unregisterAll();
     console.log(`[SHORTCUT] Registering new global shortcut: ${config.shortcut}`);
     
@@ -463,6 +528,10 @@ app.whenReady().then(() => {
     ipcMain.handle('get-hardware', () => getHardwareInfo());
 
     ipcMain.handle('save-config', (event, config) => {
+        if (!isDirectoryValid(config.savePath)) {
+            console.error(`[IPC] Validation failed: Attempted to save invalid directory: ${config.savePath}`);
+            return false;
+        }
         saveConfig(config);
         applyConfigurationAndStart(config);
         return true;

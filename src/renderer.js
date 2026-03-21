@@ -110,7 +110,11 @@ document.getElementById('btnApply').addEventListener('click', async () => {
 
     /** @type {boolean} */
     const success = await window.electronAPI.saveConfig(config);
-    if (success) alert('Settings saved successfully!');
+    if (success) {
+        alert('Settings saved successfully! The recording system is active.');
+    } else {
+        alert('Validation Error: The selected save directory does not exist or is invalid. Please browse and select a valid folder before applying.');
+    }
 });
 
 init();
