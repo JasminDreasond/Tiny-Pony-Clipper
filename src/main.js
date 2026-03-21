@@ -1,4 +1,14 @@
-import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, dialog } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  Tray,
+  Menu,
+  globalShortcut,
+  ipcMain,
+  screen,
+  dialog,
+  Notification,
+} from 'electron';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -24,6 +34,16 @@ let cleanupInterval = null;
 
 /** @type {boolean} */
 let isClipping = false;
+
+// --- RATE LIMIT VARIABLES ---
+/** @type {number} */
+const RATE_LIMIT_TRIGGER_MS = 3000;
+/** @type {number} */
+const RATE_LIMIT_COOLDOWN_MS = 10000;
+/** @type {number} */
+let lastShortcutTime = 0;
+/** @type {boolean} */
+let isRateLimited = false;
 
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
@@ -368,7 +388,7 @@ const startRecording = (config) => {
  */
 const saveClip = (saveDir) => {
   if (isClipping) {
-    console.warn('[CLIP WARN] Clipping is already in progress. Ignoring duplicate keypress.');
+    console.warn('[CLIP WARN] Clipping is already in progress. Ignoring duplicate request.');
     return;
   }
 
@@ -499,6 +519,35 @@ const applyConfigurationAndStart = (config) => {
 
   /** @type {boolean} */
   const isRegistered = globalShortcut.register(config.shortcut, () => {
+    /** @type {number} */
+    const now = Date.now();
+    /** @type {number} */
+    const timeDiff = now - lastShortcutTime;
+    lastShortcutTime = now;
+
+    if (isRateLimited) {
+      if (timeDiff < RATE_LIMIT_COOLDOWN_MS) {
+        console.log(`[RATELIMIT] User is still spamming. Extending lock silently. (${timeDiff}ms)`);
+        return;
+      } else {
+        console.log('[RATELIMIT] Abuse definitively stopped. System unlocked.');
+        isRateLimited = false;
+      }
+    }
+
+    if (timeDiff < RATE_LIMIT_TRIGGER_MS) {
+      isRateLimited = true;
+      console.warn('[RATELIMIT] Feature abuse detected! Locking system to protect stability.');
+
+      /** @type {Electron.Notification} */
+      const notification = new Notification({
+        title: 'Rate Limit Activated',
+        body: 'Feature abuse detected. Please wait 10 seconds without pressing the shortcut to unlock the recording system.',
+      });
+      notification.show();
+      return;
+    }
+
     saveClip(config.savePath);
   });
 
