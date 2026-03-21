@@ -9,16 +9,12 @@
         .container { max-width: 100%; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: bold; }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], select {
             width: 100%; padding: 10px; box-sizing: border-box;
             background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px;
         }
-        input[type="text"]:focus, input[type="number"]:focus {
-            outline: none; border-color: #cba6f7;
-        }
-        .shortcut-input {
-            text-align: center; font-size: 16px; font-weight: bold; cursor: pointer;
-        }
+        input:focus, select:focus { outline: none; border-color: #cba6f7; }
+        .shortcut-input { text-align: center; font-size: 16px; font-weight: bold; cursor: pointer; }
         button {
             padding: 12px 20px; background: #cba6f7; color: #11111b; 
             border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;
@@ -32,28 +28,42 @@
 </head>
 <body>
     <div class="container">
-        <h2>Recording Settings</h2>
+        <h2>Hardware & Recording Settings</h2>
         
         <div class="form-group">
-            <label for="bufferMinutes">Buffer Size (Minutes)</label>
-            <input type="number" id="bufferMinutes" min="1" max="120">
+            <label for="monitorId">Target Monitor</label>
+            <select id="monitorId"></select>
         </div>
 
         <div class="form-group">
-            <label for="sysInput">System Audio Pulse ID</label>
-            <input type="text" id="sysInput">
+            <label for="captureMethod">Capture Method (Wayland requires KMSGrab or X11 Session)</label>
+            <select id="captureMethod">
+                <option value="x11grab">X11 Grab (Standard / XWayland)</option>
+                <option value="kmsgrab">KMS Grab (Direct GPU / Wayland)</option>
+            </select>
         </div>
 
         <div class="form-group">
-            <label for="micInput">Microphone Pulse ID</label>
-            <input type="text" id="micInput">
+            <label for="sysInput">System Audio Output (Desktop Sound)</label>
+            <select id="sysInput"></select>
+        </div>
+
+        <div class="form-group">
+            <label for="micInput">Microphone Input</label>
+            <select id="micInput">
+                <option value="none">Disabled</option>
+            </select>
         </div>
 
         <div class="form-group">
             <label class="checkbox-label">
-                <input type="checkbox" id="separateAudio">
-                Separate Microphone Audio Track
+                <input type="checkbox" id="separateAudio"> Separate Microphone Audio Track
             </label>
+        </div>
+
+        <div class="form-group">
+            <label for="bufferMinutes">Buffer Size (Minutes)</label>
+            <input type="number" id="bufferMinutes" min="1" max="120">
         </div>
 
         <div class="form-group">

@@ -1,14 +1,37 @@
+/** @type {HTMLSelectElement} */
+const monitorSelect = document.getElementById('monitorId');
+
+/** @type {HTMLSelectElement} */
+const sysInputSelect = document.getElementById('sysInput');
+
+/** @type {HTMLSelectElement} */
+const micInputSelect = document.getElementById('micInput');
+
+/** @type {HTMLSelectElement} */
+const captureMethodSelect = document.getElementById('captureMethod');
+
 /** @type {HTMLInputElement} */
 const savePathInput = document.getElementById('savePath');
 
-/** @type {HTMLButtonElement} */
-const btnBrowse = document.getElementById('btnBrowse');
-
-/** @type {HTMLButtonElement} */
-const btnApply = document.getElementById('btnApply');
-
 /** @type {HTMLInputElement} */
 const shortcutInput = document.getElementById('shortcutKey');
+
+/**
+ * @param {HTMLSelectElement} selectElement
+ * @param {Object[]} items
+ * @param {string} selectedValue
+ * @returns {void}
+ */
+const populateSelect = (selectElement, items, selectedValue) => {
+    for (const item of items) {
+        /** @type {HTMLOptionElement} */
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.name;
+        selectElement.appendChild(option);
+    }
+    selectElement.value = selectedValue;
+};
 
 /**
  * @param {KeyboardEvent} event
@@ -16,10 +39,8 @@ const shortcutInput = document.getElementById('shortcutKey');
  */
 const handleShortcutCapture = (event) => {
     event.preventDefault();
-    
     /** @type {string[]} */
     const keys = [];
-    
     if (event.ctrlKey) keys.push('CommandOrControl');
     if (event.altKey) keys.push('Alt');
     if (event.shiftKey) keys.push('Shift');
@@ -27,14 +48,11 @@ const handleShortcutCapture = (event) => {
 
     /** @type {string} */
     const key = event.key;
-    
     /** @type {string[]} */
     const modifiers = ['Control', 'Alt', 'Shift', 'Meta'];
     
     if (!modifiers.includes(key)) {
-        /** @type {string} */
-        const formattedKey = key.length === 1 ? key.toUpperCase() : key;
-        keys.push(formattedKey);
+        keys.push(key.length === 1 ? key.toUpperCase() : key);
         shortcutInput.value = keys.join('+');
     }
 };
@@ -47,30 +65,23 @@ const init = async () => {
     
     /** @type {Object} */
     const config = await window.electronAPI.getConfig();
-    
-    /** @type {HTMLInputElement} */
-    const bufferMinutesInput = document.getElementById('bufferMinutes');
-    bufferMinutesInput.value = String(config.minutes);
-    
-    /** @type {HTMLInputElement} */
-    const sysInputNode = document.getElementById('sysInput');
-    sysInputNode.value = config.sysInput;
-    
-    /** @type {HTMLInputElement} */
-    const micInputNode = document.getElementById('micInput');
-    micInputNode.value = config.micInput;
-    
-    /** @type {HTMLInputElement} */
-    const separateAudioCheckbox = document.getElementById('separateAudio');
-    separateAudioCheckbox.checked = config.separateAudio;
-    
+    /** @type {Object} */
+    const hardware = await window.electronAPI.getHardware();
+
+    populateSelect(monitorSelect, hardware.monitors, config.monitorId);
+    populateSelect(sysInputSelect, hardware.audioDevices, config.sysInput);
+    populateSelect(micInputSelect, hardware.audioDevices, config.micInput);
+
+    captureMethodSelect.value = config.captureMethod;
+    document.getElementById('bufferMinutes').value = String(config.minutes);
+    document.getElementById('separateAudio').checked = config.separateAudio;
     shortcutInput.value = config.shortcut;
     savePathInput.value = config.savePath;
 
     shortcutInput.addEventListener('keydown', handleShortcutCapture);
 };
 
-btnBrowse.addEventListener('click', async () => {
+document.getElementById('btnBrowse').addEventListener('click', async () => {
     console.log('[RENDERER] Browse button clicked.');
     /** @type {string | null} */
     const folder = await window.electronAPI.selectFolder();
@@ -80,25 +91,18 @@ btnBrowse.addEventListener('click', async () => {
     }
 });
 
-btnApply.addEventListener('click', async () => {
+document.getElementById('btnApply').addEventListener('click', async () => {
     console.log('[RENDERER] Apply button clicked. Gathering configuration...');
-    /** @type {HTMLInputElement} */
-    const bufferMinutesInput = document.getElementById('bufferMinutes');
-    /** @type {HTMLInputElement} */
-    const sysInputNode = document.getElementById('sysInput');
-    /** @type {HTMLInputElement} */
-    const micInputNode = document.getElementById('micInput');
-    /** @type {HTMLInputElement} */
-    const separateAudioCheckbox = document.getElementById('separateAudio');
-
     /** @type {Object} */
     const config = {
-        minutes: Number(bufferMinutesInput.value),
-        sysInput: sysInputNode.value,
-        micInput: micInputNode.value,
-        separateAudio: separateAudioCheckbox.checked,
+        minutes: Number(document.getElementById('bufferMinutes').value),
+        sysInput: sysInputSelect.value,
+        micInput: micInputSelect.value,
+        separateAudio: document.getElementById('separateAudio').checked,
         shortcut: shortcutInput.value,
-        savePath: savePathInput.value
+        savePath: savePathInput.value,
+        monitorId: monitorSelect.value,
+        captureMethod: captureMethodSelect.value
     };
 
     console.log('[RENDERER] Configuration gathered:', config);
@@ -106,9 +110,7 @@ btnApply.addEventListener('click', async () => {
 
     /** @type {boolean} */
     const success = await window.electronAPI.saveConfig(config);
-    if (success) {
-        alert('Settings saved successfully!');
-    }
+    if (success) alert('Settings saved successfully!');
 });
 
 init();

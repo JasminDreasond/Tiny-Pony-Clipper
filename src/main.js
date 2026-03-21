@@ -19,32 +19,63 @@ let tray = null;
 /** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
 let ffmpegProcess = null;
 
+/** @type {NodeJS.Timeout | null} */
+let cleanupInterval = null;
+
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
 
 /**
  * @returns {string}
  */
-const getConfigPath = () => {
-    return path.join(app.getPath('userData'), 'config.json');
+const getDrmDevice = () => {
+    /** @type {string[]} */
+    const paths = ['/dev/dri/card0', '/dev/dri/card1', '/dev/dri/card2'];
+    
+    for (const p of paths) {
+        if (fs.existsSync(p)) {
+            console.log(`[SYSTEM] Found DRM device at: ${p}`);
+            return p;
+        }
+    }
+    
+    console.warn('[SYSTEM WARN] No standard DRM device found. Defaulting to /dev/dri/card0');
+    return '/dev/dri/card0';
 };
 
 /**
- * @returns {Object}
+ * @returns {string}
  */
-const getDefaultConfig = () => {
-    return {
-        minutes: 5,
-        sysInput: 'default',
-        micInput: 'default',
-        separateAudio: true,
-        shortcut: 'F10',
-        savePath: path.join(os.homedir(), 'Videos')
-    };
-};
+const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
 
 /**
- * @returns {Object}
+ * @typedef {Object} AppConfig
+ * @property {number} minutes
+ * @property {string} sysInput
+ * @property {string} micInput
+ * @property {boolean} separateAudio
+ * @property {string} shortcut
+ * @property {string} savePath
+ * @property {string} monitorId
+ * @property {string} captureMethod
+ */
+
+/**
+ * @returns {AppConfig}
+ */
+const getDefaultConfig = () => ({
+    minutes: 5,
+    sysInput: 'default',
+    micInput: 'default',
+    separateAudio: true,
+    shortcut: 'F10',
+    savePath: path.join(os.homedir(), 'Videos'),
+    monitorId: '0',
+    captureMethod: 'x11grab'
+});
+
+/**
+ * @returns {AppConfig}
  */
 const loadConfig = () => {
     /** @type {string} */
@@ -58,7 +89,7 @@ const loadConfig = () => {
 };
 
 /**
- * @param {Object} config
+ * @param {AppConfig} config
  * @returns {void}
  */
 const saveConfig = (config) => {
@@ -80,63 +111,126 @@ const ensureDirExists = (dirPath) => {
 };
 
 /**
- * @param {string} tempDir
+ * @param {number} maxMinutes
  * @returns {void}
  */
-const clearSegments = (tempDir) => {
-    console.log(`[FILE SYSTEM] Clearing old segments in: ${tempDir}`);
-    ensureDirExists(tempDir);
-    /** @type {string[]} */
-    const files = fs.readdirSync(tempDir);
-    for (const file of files) {
-        fs.unlinkSync(path.join(tempDir, file));
-    }
-    console.log(`[FILE SYSTEM] Segments cleared. Total files removed: ${files.length}`);
+const startGarbageCollector = (maxMinutes) => {
+    if (cleanupInterval) clearInterval(cleanupInterval);
+    
+    cleanupInterval = setInterval(() => {
+        if (!fs.existsSync(TEMP_DIR)) return;
+        
+        /** @type {string[]} */
+        const files = fs.readdirSync(TEMP_DIR).filter(f => f.endsWith('.mp4'));
+        if (files.length <= maxMinutes) return;
+        
+        /** @type {Object[]} */
+        const fileStats = files.map(f => ({
+            name: f,
+            time: fs.statSync(path.join(TEMP_DIR, f)).mtime.getTime()
+        })).sort((a, b) => a.time - b.time);
+        
+        /** @type {number} */
+        const filesToDelete = fileStats.length - maxMinutes;
+        for (let i = 0; i < filesToDelete; i++) {
+            /** @type {string} */
+            const filePath = path.join(TEMP_DIR, fileStats[i].name);
+            fs.unlinkSync(filePath);
+            console.log(`[CLEANUP] Deleted old segment out of bounds: ${fileStats[i].name}`);
+        }
+    }, 15000); 
 };
 
 /**
- * @returns {number[]}
+ * @typedef {Object} HardwareInfo
+ * @property {Object[]} monitors
+ * @property {Object[]} audioDevices
  */
-const getScreenResolution = () => {
-    /** @type {Electron.Display} */
-    const primaryDisplay = screen.getPrimaryDisplay();
-    console.log(`[SYSTEM] Detected screen resolution: ${primaryDisplay.bounds.width}x${primaryDisplay.bounds.height}`);
-    return [primaryDisplay.bounds.width, primaryDisplay.bounds.height];
+
+/**
+ * @returns {HardwareInfo}
+ */
+const getHardwareInfo = () => {
+    /** @type {Object[]} */
+    const monitors = screen.getAllDisplays().map((disp, index) => ({
+        id: String(index),
+        name: `Monitor ${index + 1} (${disp.bounds.width}x${disp.bounds.height})`,
+        bounds: disp.bounds
+    }));
+
+    /** @type {Object[]} */
+    const audioDevices = [];
+    try {
+        /** @type {string} */
+        const output = execSync('pactl list short sources', { encoding: 'utf-8' });
+        /** @type {string[]} */
+        const lines = output.trim().split('\n');
+        
+        for (const line of lines) {
+            /** @type {string[]} */
+            const parts = line.split('\t');
+            if (parts.length >= 2) {
+                audioDevices.push({ id: parts[1], name: parts[1] });
+            }
+        }
+    } catch (error) {
+        console.error('[SYSTEM] Failed to fetch PulseAudio devices.', error);
+        audioDevices.push({ id: 'default', name: 'Default Audio System' });
+    }
+
+    return { monitors, audioDevices };
 };
 
 /**
- * @param {Object} config
- * @param {number} config.minutes
- * @param {string} config.micInput
- * @param {string} config.sysInput
- * @param {boolean} config.separateAudio
+ * @param {AppConfig} config
  * @returns {void}
  */
 const startRecording = (config) => {
     console.log('[FFMPEG] Initialization requested with config:', config);
-
     if (ffmpegProcess) {
         console.log('[FFMPEG] Killing previous active process...');
         ffmpegProcess.kill('SIGINT');
     }
 
-    clearSegments(TEMP_DIR);
+    ensureDirExists(TEMP_DIR);
     
-    /** @type {number[]} */
-    const [width, height] = getScreenResolution();
-
     /** @type {string[]} */
-    const ffmpegArgs = [
-        '-y',
-        '-f', 'x11grab',
-        '-video_size', `${width}x${height}`,
-        '-framerate', '60',
-        '-i', process.env.DISPLAY || ':0.0', 
-        '-f', 'pulse',
-        '-i', config.sysInput,
-    ];
+    const files = fs.readdirSync(TEMP_DIR);
+    for (const file of files) {
+        fs.unlinkSync(path.join(TEMP_DIR, file));
+    }
 
-    if (config.separateAudio && config.micInput) {
+    /** @type {Electron.Display} */
+    const display = screen.getAllDisplays()[Number(config.monitorId)] || screen.getPrimaryDisplay();
+    
+    /** @type {string[]} */
+    let ffmpegArgs = [];
+
+    if (config.captureMethod === 'kmsgrab') {
+        /** @type {string} */
+        const drmDevice = getDrmDevice();
+        
+        ffmpegArgs = [
+            '-y',
+            '-device', drmDevice,
+            '-f', 'kmsgrab',
+            '-i', '-',
+            '-vf', `hwmap=derive_device=cuda,scale_cuda=format=yuv420p`,
+            '-framerate', '60'
+        ];
+    } else {
+        ffmpegArgs = [
+            '-y',
+            '-f', 'x11grab',
+            '-video_size', `${display.bounds.width}x${display.bounds.height}`,
+            '-framerate', '60',
+            '-i', `${process.env.DISPLAY || ':0.0'}+${display.bounds.x},${display.bounds.y}`
+        ];
+    }
+
+    ffmpegArgs.push('-f', 'pulse', '-i', config.sysInput);
+
+    if (config.separateAudio && config.micInput !== 'none') {
         console.log('[FFMPEG] Separate audio track enabled.');
         ffmpegArgs.push('-f', 'pulse', '-i', config.micInput);
         ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
@@ -150,29 +244,21 @@ const startRecording = (config) => {
         '-c:a', 'aac',
         '-f', 'segment',
         '-segment_time', '60',
-        '-segment_wrap', String(config.minutes),
         path.join(TEMP_DIR, 'segment_%03d.mp4')
     );
 
-    console.log('[FFMPEG] Spawning process with arguments:', ffmpegArgs.join(' '));
-    
-    // The fix is here: passing process.env so FFmpeg gets the X11/Wayland authorization keys
+    console.log('[FFMPEG] Starting with arguments:', ffmpegArgs.join(' '));
     ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
     ffmpegProcess.stderr.on('data', (data) => {
-        /** @type {string} */
-        const output = data.toString().trim();
-        // FFmpeg writes normal logs to stderr, so we log it as standard info unless it's a real error.
-        console.log(`[FFMPEG LOG] ${output}`);
+        console.log(`[FFMPEG LOG] ${data.toString().trim()}`);
     });
-
+    
     ffmpegProcess.on('close', (code) => {
         console.log(`[FFMPEG] Process exited with code ${code}`);
     });
-
-    ffmpegProcess.on('error', (err) => {
-        console.error(`[FFMPEG ERROR] Failed to start process:`, err);
-    });
+    
+    startGarbageCollector(config.minutes);
 };
 
 /**
@@ -185,12 +271,8 @@ const saveClip = (saveDir) => {
     /** @type {string[]} */
     const files = fs.readdirSync(TEMP_DIR)
         .filter(f => f.endsWith('.mp4'))
-        .map(f => ({
-            name: f,
-            time: fs.statSync(path.join(TEMP_DIR, f)).mtime.getTime()
-        }))
-        .sort((a, b) => a.time - b.time)
-        .map(f => `file '${path.join(TEMP_DIR, f.name)}'`);
+        .sort()
+        .map(f => `file '${path.join(TEMP_DIR, f)}'`);
 
     if (files.length === 0) {
         console.warn('[CLIP WARN] No segments available to clip. Is FFmpeg running correctly?');
@@ -209,14 +291,7 @@ const saveClip = (saveDir) => {
     const outputPath = path.join(saveDir, `Clip_${timestamp}.mp4`);
 
     /** @type {string[]} */
-    const concatArgs = [
-        '-y',
-        '-f', 'concat',
-        '-safe', '0',
-        '-i', listPath,
-        '-c', 'copy',
-        outputPath
-    ];
+    const concatArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outputPath];
 
     console.log(`[CLIP] Executing concatenation...`);
     try {
@@ -228,7 +303,7 @@ const saveClip = (saveDir) => {
 };
 
 /**
- * @param {Object} config
+ * @param {AppConfig} config
  * @returns {void}
  */
 const applyConfigurationAndStart = (config) => {
@@ -261,18 +336,14 @@ const createConfigWindow = () => {
     }
 
     configWindow = new BrowserWindow({
-        width: 600,
-        height: 700,
-        show: false,
-        autoHideMenuBar: true,
+        width: 650, height: 750, show: false, autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true,
-            nodeIntegration: false
+            contextIsolation: true, nodeIntegration: false
         }
     });
 
-    configWindow.setMenu(null);
+    // configWindow.setMenu(null);
     configWindow.loadFile(path.join(__dirname, 'index.html'));
     
     configWindow.once('ready-to-show', () => {
@@ -286,14 +357,10 @@ const createConfigWindow = () => {
     });
 };
 
-/**
- * @returns {void}
- */
-const setupTray = () => {
+app.whenReady().then(() => {
     console.log('[TRAY] Setting up system tray...');
     /** @type {string} */
     const iconPath = path.join(__dirname, '../assets/tray-icon.png');
-    
     try {
         tray = new Tray(iconPath);
         /** @type {Electron.Menu} */
@@ -310,15 +377,8 @@ const setupTray = () => {
     } catch (error) {
         console.error('[TRAY ERROR] Failed to set up tray icon.', error);
     }
-};
 
-app.whenReady().then(() => {
-    console.log('[SYSTEM] Electron App is ready.');
-    setupTray();
-
-    /** @type {Object} */
-    const initialConfig = loadConfig();
-    applyConfigurationAndStart(initialConfig);
+    applyConfigurationAndStart(loadConfig());
 
     ipcMain.handle('select-folder', async () => {
         console.log('[IPC] Folder selection dialog requested.');
@@ -332,9 +392,8 @@ app.whenReady().then(() => {
         return result.filePaths[0];
     });
 
-    ipcMain.handle('get-config', () => {
-        return loadConfig();
-    });
+    ipcMain.handle('get-config', () => loadConfig());
+    ipcMain.handle('get-hardware', () => getHardwareInfo());
 
     ipcMain.handle('save-config', (event, config) => {
         saveConfig(config);
@@ -344,13 +403,13 @@ app.whenReady().then(() => {
 });
 
 app.on('will-quit', () => {
-    console.log('[SYSTEM] Application is quitting. Cleaning up...');
     globalShortcut.unregisterAll();
+    console.log('[SYSTEM] Application is quitting. Cleaning up...');
     if (ffmpegProcess) {
         console.log('[SYSTEM] Killing FFmpeg process...');
         ffmpegProcess.kill('SIGKILL');
     }
-    clearSegments(TEMP_DIR);
+    if (cleanupInterval) clearInterval(cleanupInterval);
     console.log('[SYSTEM] Cleanup complete. Goodbye!');
 });
 
