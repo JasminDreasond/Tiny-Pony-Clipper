@@ -1,13 +1,13 @@
 import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, dialog } from 'electron';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
-
 import { fileURLToPath } from 'url';
-
 import os from 'os';
 import fs from 'fs';
 
+/** @type {string} */
 const __filename = fileURLToPath(import.meta.url);
+/** @type {string} */
 const __dirname = path.dirname(__filename);
 
 /** @type {BrowserWindow | null} */
@@ -203,6 +203,12 @@ const startRecording = (config) => {
     /** @type {Electron.Display} */
     const display = screen.getAllDisplays()[Number(config.monitorId)] || screen.getPrimaryDisplay();
     
+    /** @type {boolean} */
+    const isWayland = !!process.env.WAYLAND_DISPLAY;
+    if (isWayland) {
+        console.warn('[SYSTEM WARN] Wayland detected. Standard x11grab might capture a black screen. Use KMSGrab.');
+    }
+
     /** @type {string[]} */
     let ffmpegArgs = [];
 
@@ -214,6 +220,7 @@ const startRecording = (config) => {
             '-y',
             '-device', drmDevice,
             '-f', 'kmsgrab',
+            '-format', 'xrgb8888', // Solves the black screen bug on NVIDIA + KMSGrab
             '-i', '-',
             '-vf', `hwmap=derive_device=cuda,scale_cuda=format=yuv420p`,
             '-framerate', '60'
@@ -230,10 +237,21 @@ const startRecording = (config) => {
 
     ffmpegArgs.push('-f', 'pulse', '-i', config.sysInput);
 
-    if (config.separateAudio && config.micInput !== 'none') {
-        console.log('[FFMPEG] Separate audio track enabled.');
+    // Audio mixing logic safely implemented
+    if (config.micInput !== 'none') {
         ffmpegArgs.push('-f', 'pulse', '-i', config.micInput);
-        ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
+        
+        if (config.separateAudio) {
+            console.log('[FFMPEG] Separate audio tracks enabled.');
+            ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
+        } else {
+            console.log('[FFMPEG] Merged audio track enabled (amix filter).');
+            ffmpegArgs.push('-filter_complex', '[1:a][2:a]amix=inputs=2:duration=longest[aout]');
+            ffmpegArgs.push('-map', '0:v', '-map', '[aout]');
+        }
+    } else {
+        console.log('[FFMPEG] Single system audio track enabled.');
+        ffmpegArgs.push('-map', '0:v', '-map', '1:a');
     }
 
     ffmpegArgs.push(
@@ -248,6 +266,7 @@ const startRecording = (config) => {
     );
 
     console.log('[FFMPEG] Starting with arguments:', ffmpegArgs.join(' '));
+
     ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
     ffmpegProcess.stderr.on('data', (data) => {
@@ -343,7 +362,6 @@ const createConfigWindow = () => {
         }
     });
 
-    // configWindow.setMenu(null);
     configWindow.loadFile(path.join(__dirname, 'index.html'));
     
     configWindow.once('ready-to-show', () => {
