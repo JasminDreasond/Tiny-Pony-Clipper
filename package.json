@@ -1,5 +1,5 @@
 {
-  "name": "pony-clipper",
+  "name": "tiny-pony-clipper",
   "version": "1.0.0",
   "main": "src/main.js",
   "type": "module",
