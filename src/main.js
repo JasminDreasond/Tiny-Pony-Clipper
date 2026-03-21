@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, dialog } from 'electron';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
+
 import { fileURLToPath } from 'url';
 
 import os from 'os';
@@ -18,11 +19,58 @@ let tray = null;
 /** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
 let ffmpegProcess = null;
 
+/** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
-const DEFAULT_SAVE_DIR = path.join(os.homedir(), 'Videos');
+
+/**
+ * @returns {string}
+ */
+const getConfigPath = () => {
+    return path.join(app.getPath('userData'), 'config.json');
+};
+
+/**
+ * @returns {Object}
+ */
+const getDefaultConfig = () => {
+    return {
+        minutes: 5,
+        sysInput: 'default',
+        micInput: 'default',
+        separateAudio: true,
+        shortcut: 'F10',
+        savePath: path.join(os.homedir(), 'Videos')
+    };
+};
+
+/**
+ * @returns {Object}
+ */
+const loadConfig = () => {
+    /** @type {string} */
+    const configPath = getConfigPath();
+    if (fs.existsSync(configPath)) {
+        /** @type {string} */
+        const rawData = fs.readFileSync(configPath, 'utf-8');
+        return JSON.parse(rawData);
+    }
+    return getDefaultConfig();
+};
+
+/**
+ * @param {Object} config
+ * @returns {void}
+ */
+const saveConfig = (config) => {
+    /** @type {string} */
+    const configPath = getConfigPath();
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 4));
+    console.log(`[CONFIG] Settings saved to: ${configPath}`);
+};
 
 /**
  * @param {string} dirPath
+ * @returns {void}
  */
 const ensureDirExists = (dirPath) => {
     if (!fs.existsSync(dirPath)) {
@@ -33,10 +81,12 @@ const ensureDirExists = (dirPath) => {
 
 /**
  * @param {string} tempDir
+ * @returns {void}
  */
 const clearSegments = (tempDir) => {
     console.log(`[FILE SYSTEM] Clearing old segments in: ${tempDir}`);
     ensureDirExists(tempDir);
+    /** @type {string[]} */
     const files = fs.readdirSync(tempDir);
     for (const file of files) {
         fs.unlinkSync(path.join(tempDir, file));
@@ -48,6 +98,7 @@ const clearSegments = (tempDir) => {
  * @returns {number[]}
  */
 const getScreenResolution = () => {
+    /** @type {Electron.Display} */
     const primaryDisplay = screen.getPrimaryDisplay();
     console.log(`[SYSTEM] Detected screen resolution: ${primaryDisplay.bounds.width}x${primaryDisplay.bounds.height}`);
     return [primaryDisplay.bounds.width, primaryDisplay.bounds.height];
@@ -59,6 +110,7 @@ const getScreenResolution = () => {
  * @param {string} config.micInput
  * @param {string} config.sysInput
  * @param {boolean} config.separateAudio
+ * @returns {void}
  */
 const startRecording = (config) => {
     console.log('[FFMPEG] Initialization requested with config:', config);
@@ -69,14 +121,17 @@ const startRecording = (config) => {
     }
 
     clearSegments(TEMP_DIR);
+    
+    /** @type {number[]} */
     const [width, height] = getScreenResolution();
 
+    /** @type {string[]} */
     const ffmpegArgs = [
         '-y',
         '-f', 'x11grab',
         '-video_size', `${width}x${height}`,
         '-framerate', '60',
-        '-i', ':0.0', 
+        '-i', process.env.DISPLAY || ':0.0', 
         '-f', 'pulse',
         '-i', config.sysInput,
     ];
@@ -100,9 +155,12 @@ const startRecording = (config) => {
     );
 
     console.log('[FFMPEG] Spawning process with arguments:', ffmpegArgs.join(' '));
-    ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+    
+    // The fix is here: passing process.env so FFmpeg gets the X11/Wayland authorization keys
+    ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
     ffmpegProcess.stderr.on('data', (data) => {
+        /** @type {string} */
         const output = data.toString().trim();
         // FFmpeg writes normal logs to stderr, so we log it as standard info unless it's a real error.
         console.log(`[FFMPEG LOG] ${output}`);
@@ -119,10 +177,12 @@ const startRecording = (config) => {
 
 /**
  * @param {string} saveDir
+ * @returns {void}
  */
 const saveClip = (saveDir) => {
     console.log(`[CLIP] Shortcut triggered! Initiating clip compilation...`);
     
+    /** @type {string[]} */
     const files = fs.readdirSync(TEMP_DIR)
         .filter(f => f.endsWith('.mp4'))
         .map(f => ({
@@ -139,12 +199,16 @@ const saveClip = (saveDir) => {
 
     console.log(`[CLIP] Found ${files.length} segments to concatenate.`);
 
+    /** @type {string} */
     const listPath = path.join(TEMP_DIR, 'concat_list.txt');
     fs.writeFileSync(listPath, files.join('\n'));
 
+    /** @type {string} */
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    /** @type {string} */
     const outputPath = path.join(saveDir, `Clip_${timestamp}.mp4`);
 
+    /** @type {string[]} */
     const concatArgs = [
         '-y',
         '-f', 'concat',
@@ -163,6 +227,31 @@ const saveClip = (saveDir) => {
     }
 };
 
+/**
+ * @param {Object} config
+ * @returns {void}
+ */
+const applyConfigurationAndStart = (config) => {
+    globalShortcut.unregisterAll();
+    console.log(`[SHORTCUT] Registering new global shortcut: ${config.shortcut}`);
+    
+    /** @type {boolean} */
+    const isRegistered = globalShortcut.register(config.shortcut, () => {
+        saveClip(config.savePath);
+    });
+
+    if (!isRegistered) {
+        console.error(`[SHORTCUT ERROR] Failed to register shortcut: ${config.shortcut}`);
+    } else {
+        console.log(`[SHORTCUT SUCCESS] Shortcut ${config.shortcut} registered globally.`);
+    }
+    
+    startRecording(config);
+};
+
+/**
+ * @returns {void}
+ */
 const createConfigWindow = () => {
     console.log('[UI] Requesting configuration window...');
     if (configWindow) {
@@ -175,6 +264,7 @@ const createConfigWindow = () => {
         width: 600,
         height: 700,
         show: false,
+        autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -182,6 +272,7 @@ const createConfigWindow = () => {
         }
     });
 
+    configWindow.setMenu(null);
     configWindow.loadFile(path.join(__dirname, 'index.html'));
     
     configWindow.once('ready-to-show', () => {
@@ -195,12 +286,17 @@ const createConfigWindow = () => {
     });
 };
 
+/**
+ * @returns {void}
+ */
 const setupTray = () => {
     console.log('[TRAY] Setting up system tray...');
+    /** @type {string} */
     const iconPath = path.join(__dirname, '../assets/tray-icon.png');
     
     try {
         tray = new Tray(iconPath);
+        /** @type {Electron.Menu} */
         const contextMenu = Menu.buildFromTemplate([
             { label: 'Settings', click: createConfigWindow },
             { type: 'separator' },
@@ -212,7 +308,7 @@ const setupTray = () => {
         tray.on('click', createConfigWindow);
         console.log('[TRAY] Tray setup completed successfully.');
     } catch (error) {
-        console.error('[TRAY ERROR] Failed to set up tray icon. Make sure assets/tray-icon.png exists!', error);
+        console.error('[TRAY ERROR] Failed to set up tray icon.', error);
     }
 };
 
@@ -220,8 +316,13 @@ app.whenReady().then(() => {
     console.log('[SYSTEM] Electron App is ready.');
     setupTray();
 
+    /** @type {Object} */
+    const initialConfig = loadConfig();
+    applyConfigurationAndStart(initialConfig);
+
     ipcMain.handle('select-folder', async () => {
         console.log('[IPC] Folder selection dialog requested.');
+        /** @type {Electron.OpenDialogReturnValue} */
         const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
         if (result.canceled) {
             console.log('[IPC] Folder selection canceled by user.');
@@ -231,28 +332,14 @@ app.whenReady().then(() => {
         return result.filePaths[0];
     });
 
-    ipcMain.handle('get-default-path', () => {
-        console.log(`[IPC] Sending default path to UI: ${DEFAULT_SAVE_DIR}`);
-        return DEFAULT_SAVE_DIR;
+    ipcMain.handle('get-config', () => {
+        return loadConfig();
     });
 
-    ipcMain.on('apply-settings', (event, config) => {
-        console.log('[IPC] Received new settings from UI:', config);
-        
-        globalShortcut.unregisterAll();
-        console.log(`[SHORTCUT] Registering new global shortcut: ${config.shortcut}`);
-        
-        const isRegistered = globalShortcut.register(config.shortcut, () => {
-            saveClip(config.savePath);
-        });
-
-        if (!isRegistered) {
-            console.error(`[SHORTCUT ERROR] Failed to register shortcut: ${config.shortcut}`);
-        } else {
-            console.log(`[SHORTCUT SUCCESS] Shortcut ${config.shortcut} registered globally.`);
-        }
-        
-        startRecording(config);
+    ipcMain.handle('save-config', (event, config) => {
+        saveConfig(config);
+        applyConfigurationAndStart(config);
+        return true;
     });
 });
 

@@ -5,61 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pony Clipper Settings</title>
     <style>
-        body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; }
-        input[type="text"], input[type="number"], select {
-            width: 100%; padding: 8px; box-sizing: border-box;
-            background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px;
+        body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 20px; margin: 0; }
+        .container { max-width: 100%; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input[type="text"], input[type="number"] {
+            width: 100%; padding: 10px; box-sizing: border-box;
+            background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px;
+        }
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none; border-color: #cba6f7;
+        }
+        .shortcut-input {
+            text-align: center; font-size: 16px; font-weight: bold; cursor: pointer;
         }
         button {
-            padding: 10px 15px; background: #cba6f7; color: #11111b; 
-            border: none; border-radius: 4px; cursor: pointer; font-weight: bold;
+            padding: 12px 20px; background: #cba6f7; color: #11111b; 
+            border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;
         }
         button:hover { background: #b4befe; }
         .row { display: flex; gap: 10px; }
         .row input { flex-grow: 1; }
+        .row button { width: auto; }
+        .checkbox-label { font-weight: normal; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h2>Recording Settings</h2>
-    
-    <div class="form-group">
-        <label for="bufferMinutes">Buffer Size (Minutes)</label>
-        <input type="number" id="bufferMinutes" value="5" min="1" max="120">
-    </div>
-
-    <div class="form-group">
-        <label for="sysInput">System Audio Pulse ID</label>
-        <input type="text" id="sysInput" value="default">
-    </div>
-
-    <div class="form-group">
-        <label for="micInput">Microphone Pulse ID</label>
-        <input type="text" id="micInput" value="default">
-    </div>
-
-    <div class="form-group">
-        <label>
-            <input type="checkbox" id="separateAudio" checked>
-            Separate Microphone Audio Track
-        </label>
-    </div>
-
-    <div class="form-group">
-        <label for="shortcutKey">Clip Shortcut</label>
-        <input type="text" id="shortcutKey" value="F10">
-    </div>
-
-    <div class="form-group">
-        <label>Save Directory</label>
-        <div class="row">
-            <input type="text" id="savePath" readonly>
-            <button id="btnBrowse">Browse</button>
+    <div class="container">
+        <h2>Recording Settings</h2>
+        
+        <div class="form-group">
+            <label for="bufferMinutes">Buffer Size (Minutes)</label>
+            <input type="number" id="bufferMinutes" min="1" max="120">
         </div>
-    </div>
 
-    <button id="btnApply">Apply and Start Recording</button>
+        <div class="form-group">
+            <label for="sysInput">System Audio Pulse ID</label>
+            <input type="text" id="sysInput">
+        </div>
+
+        <div class="form-group">
+            <label for="micInput">Microphone Pulse ID</label>
+            <input type="text" id="micInput">
+        </div>
+
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="separateAudio">
+                Separate Microphone Audio Track
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="shortcutKey">Clip Shortcut (Click and press keys)</label>
+            <input type="text" id="shortcutKey" class="shortcut-input" readonly placeholder="Press a key combination...">
+        </div>
+
+        <div class="form-group">
+            <label>Save Directory</label>
+            <div class="row">
+                <input type="text" id="savePath" readonly>
+                <button id="btnBrowse">Browse Folder</button>
+            </div>
+        </div>
+
+        <button id="btnApply">Save Configuration & Restart Recording</button>
+    </div>
 
     <script type="module" src="./renderer.js"></script>
 </body>
