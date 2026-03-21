@@ -8,8 +8,7 @@
     "fix:prettier": "prettier --write ./src/*"
   },
   "dependencies": {
-    "electron": "^29.0.0",
-    "prettier": "^3.8.1",
-    "uiohook-napi": "^1.5.4"
+    "electron": "^41.0.3",
+    "prettier": "^3.8.1"
   }
 }
