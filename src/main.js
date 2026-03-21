@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, dialog } from 'electron';
+import { app, BrowserWindow, Tray, Menu, ipcMain, screen, dialog, Notification } from 'electron';
+import { uIOhook, UiohookKey } from 'uiohook-napi';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -31,9 +32,9 @@ let isHardwareDebouncing = false;
 
 // --- RATE LIMIT VARIABLES ---
 /** @type {number} */
-const RATE_LIMIT_TRIGGER_MS = 3000;
+const RATE_LIMIT_TRIGGER_MS = 500;
 /** @type {number} */
-const RATE_LIMIT_COOLDOWN_MS = 10000;
+const RATE_LIMIT_COOLDOWN_MS = 5000;
 /** @type {number} */
 let lastShortcutTime = 0;
 /** @type {boolean} */
@@ -55,6 +56,83 @@ const isDirectoryValid = (dirPath) => {
 };
 
 /**
+ * @param {string} keyString
+ * @returns {number | undefined}
+ */
+const getUiohookKeyCode = (keyString) => {
+  /** @type {Object<string, number>} */
+  const map = {
+    F1: UiohookKey.F1,
+    F2: UiohookKey.F2,
+    F3: UiohookKey.F3,
+    F4: UiohookKey.F4,
+    F5: UiohookKey.F5,
+    F6: UiohookKey.F6,
+    F7: UiohookKey.F7,
+    F8: UiohookKey.F8,
+    F9: UiohookKey.F9,
+    F10: UiohookKey.F10,
+    F11: UiohookKey.F11,
+    F12: UiohookKey.F12,
+    A: UiohookKey.A,
+    B: UiohookKey.B,
+    C: UiohookKey.C,
+    D: UiohookKey.D,
+    E: UiohookKey.E,
+    F: UiohookKey.F,
+    G: UiohookKey.G,
+    H: UiohookKey.H,
+    I: UiohookKey.I,
+    J: UiohookKey.J,
+    K: UiohookKey.K,
+    L: UiohookKey.L,
+    M: UiohookKey.M,
+    N: UiohookKey.N,
+    O: UiohookKey.O,
+    P: UiohookKey.P,
+    Q: UiohookKey.Q,
+    R: UiohookKey.R,
+    S: UiohookKey.S,
+    T: UiohookKey.T,
+    U: UiohookKey.U,
+    V: UiohookKey.V,
+    W: UiohookKey.W,
+    X: UiohookKey.X,
+    Y: UiohookKey.Y,
+    Z: UiohookKey.Z,
+  };
+  return map[keyString.toUpperCase()];
+};
+
+/**
+ * @param {string} shortcutString
+ * @param {Object} event
+ * @returns {boolean}
+ */
+const isShortcutMatch = (shortcutString, event) => {
+  /** @type {string[]} */
+  const parts = shortcutString.split('+');
+  /** @type {string} */
+  const mainKey = parts[parts.length - 1];
+
+  /** @type {boolean} */
+  const needsCtrl = parts.includes('CommandOrControl') || parts.includes('Control');
+  /** @type {boolean} */
+  const needsAlt = parts.includes('Alt');
+  /** @type {boolean} */
+  const needsShift = parts.includes('Shift');
+  /** @type {boolean} */
+  const needsMeta = parts.includes('Super') || parts.includes('Meta');
+
+  if (needsCtrl !== event.ctrlKey) return false;
+  if (needsAlt !== event.altKey) return false;
+  if (needsShift !== event.shiftKey) return false;
+  if (needsMeta !== event.metaKey) return false;
+
+  return event.keycode === getUiohookKeyCode(mainKey);
+};
+
+/**
  * @returns {void}
  */
 const ensureKmsgrabPermissions = () => {
@@ -67,7 +145,7 @@ const ensureKmsgrabPermissions = () => {
     try {
       caps = execSync(`getcap ${ffmpegPath}`).toString();
     } catch (e) {
-      // Ignore error if getcap returns nothing
+      // Silence inner errors
     }
 
     if (!caps.includes('cap_sys_admin')) {
@@ -89,7 +167,6 @@ const ensureKmsgrabPermissions = () => {
 const getDrmDevice = () => {
   /** @type {string[]} */
   const paths = ['/dev/dri/card0', '/dev/dri/card1', '/dev/dri/card2'];
-
   for (const p of paths) {
     if (fs.existsSync(p)) {
       console.log(`[SYSTEM] Found DRM device at: ${p}`);
@@ -325,7 +402,6 @@ const startRecording = (config) => {
   // Audio mixing logic safely implemented
   if (config.micInput !== 'none') {
     ffmpegArgs.push('-f', 'pulse', '-i', config.micInput);
-
     if (config.separateAudio) {
       console.log('[FFMPEG] Separate audio tracks enabled.');
       ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
@@ -381,12 +457,9 @@ const startRecording = (config) => {
  * @returns {void}
  */
 const saveClip = (saveDir) => {
-  if (isClipping) {
-    console.warn('[CLIP WARN] Clipping is already in progress. Ignoring duplicate request.');
-    return;
-  }
+  if (isClipping) return;
 
-  console.log(`[CLIP] Shortcut triggered! Initiating clip compilation in background...`);
+  console.log(`[CLIP] Shortcut triggered! Initiating clip compilation...`);
   isClipping = true;
 
   /** @type {Object[]} */
@@ -430,7 +503,6 @@ const saveClip = (saveDir) => {
   // Pre-create the empty file to ensure the destination is valid and writeable
   try {
     fs.writeFileSync(outputPath, '');
-    console.log(`[CLIP] Pre-created empty destination file: ${outputPath}`);
   } catch (err) {
     console.error(
       `[CLIP ERROR] Failed to create destination file in ${saveDir}. Check permissions!`,
@@ -470,9 +542,9 @@ const saveClip = (saveDir) => {
   concatProcess.on('close', (code) => {
     isClipping = false;
     if (code === 0) {
-      console.log(`[CLIP SUCCESS] Clip successfully saved at: ${outputPath}`);
+      console.log(`[CLIP SUCCESS] Clip saved at: ${outputPath}`);
     } else {
-      console.error(`[CLIP ERROR] Concatenation failed with code: ${code}`);
+      console.error(`[CLIP ERROR] Concatenation failed.`);
     }
   });
 
@@ -499,7 +571,9 @@ const applyConfigurationAndStart = (config) => {
       cleanupInterval = null;
     }
 
-    globalShortcut.unregisterAll();
+    uIOhook.removeAllListeners('keydown');
+    uIOhook.stop();
+
     createConfigWindow();
     dialog.showErrorBox(
       'Invalid Save Directory',
@@ -508,13 +582,13 @@ const applyConfigurationAndStart = (config) => {
     return;
   }
 
-  globalShortcut.unregisterAll();
+  uIOhook.removeAllListeners('keydown');
   console.log(`[SHORTCUT] Registering new global shortcut: ${config.shortcut}`);
 
-  /** @type {boolean} */
-  const isRegistered = globalShortcut.register(config.shortcut, () => {
+  uIOhook.on('keydown', (e) => {
     // --- HARDWARE DEBOUNCE SHIELD ---
     // If Electron triggers a ghost event storm, this drops them immediately.
+    if (!isShortcutMatch(config.shortcut, e)) return;
     if (isHardwareDebouncing) return;
     isHardwareDebouncing = true;
     setTimeout(() => {
@@ -528,26 +602,36 @@ const applyConfigurationAndStart = (config) => {
     lastShortcutTime = now;
 
     if (isRateLimited) {
-      if (timeDiff < RATE_LIMIT_COOLDOWN_MS) return;
-      else {
-        console.log('[RATELIMIT] Abuse definitively stopped. System unlocked.');
+      if (timeDiff < RATE_LIMIT_COOLDOWN_MS) {
+        console.log(`[RATELIMIT] User is still spamming. Extending lock.`);
+        return;
+      } else {
+        console.log('[RATELIMIT] Abuse stopped. System unlocked.');
         isRateLimited = false;
       }
     }
 
     if (timeDiff < RATE_LIMIT_TRIGGER_MS) {
       isRateLimited = true;
-      console.warn('[RATELIMIT] Feature abuse detected! Locking system to protect stability.');
+      console.warn('[RATELIMIT] Abuse detected! Locking system.');
+
+      /** @type {Electron.Notification} */
+      const notification = new Notification({
+        title: 'Rate Limit Activated',
+        body: 'Feature abuse detected. Please wait 10 seconds.',
+      });
+      notification.show();
       return;
     }
 
     saveClip(config.savePath);
   });
 
-  if (!isRegistered) {
-    console.error(`[SHORTCUT ERROR] Failed to register shortcut: ${config.shortcut}`);
-  } else {
-    console.log(`[SHORTCUT SUCCESS] Shortcut ${config.shortcut} registered globally.`);
+  try {
+    uIOhook.start();
+    console.log(`[SHORTCUT SUCCESS] Hardware hook active for: ${config.shortcut}`);
+  } catch (err) {
+    console.error(`[SHORTCUT ERROR] Hook failed to start:`, err);
   }
 
   startRecording(config);
@@ -642,7 +726,8 @@ app.whenReady().then(() => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  console.log('[SYSTEM] Application is quitting. Cleaning up...');
+  console.log('[SYSTEM] Quitting. Cleaning up hardware hooks...');
+  uIOhook.stop();
   if (ffmpegProcess) {
     console.log('[SYSTEM] Killing FFmpeg process...');
     ffmpegProcess.kill('SIGKILL');
@@ -653,4 +738,8 @@ app.on('will-quit', () => {
 
 app.on('window-all-closed', () => {
   console.log('[SYSTEM] All windows closed, but keeping app running in tray.');
+});
+
+app.on('window-all-closed', () => {
+  // Keep app running in tray
 });
