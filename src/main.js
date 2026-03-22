@@ -27,6 +27,16 @@ const __filename = fileURLToPath(import.meta.url);
 /** @type {string} */
 const __dirname = path.dirname(__filename);
 
+/**
+ * @param {Electron.NotificationConstructorOptions} options
+ * @param {string} [soundFile]
+ */
+const sendNotification = (options, soundFile) => {
+  const noti = new Notification({ ...options, sound: soundFile ? false : true });
+  noti.show();
+  return noti;
+};
+
 /** @type {BrowserWindow | null} */
 let configWindow = null;
 
@@ -271,6 +281,11 @@ const saveClip = (saveDir) => {
   console.log(`[CLIP] Shortcut triggered! Engaging FFmpeg hardware transcoding...`);
   isClipping = true;
 
+  sendNotification({
+    title: 'Tiny Pony Clipper',
+    body: 'Processing your clip... Please wait a moment.',
+  });
+
   if (!currentConfig) {
     isClipping = false;
     return;
@@ -283,6 +298,10 @@ const saveClip = (saveDir) => {
 
   if (videoFiles.length === 0) {
     console.warn('[CLIP WARN] No segments available to clip.');
+    sendNotification({
+      title: 'Clipping Failed',
+      body: 'No recorded segments available yet. Please wait a bit longer.',
+    });
     isClipping = false;
     return;
   }
@@ -401,8 +420,20 @@ const saveClip = (saveDir) => {
     isClipping = false;
     concatProcess.stdin.write('q\n');
     concatProcess = null;
-    if (code === 0) console.log(`[CLIP SUCCESS] MP4 Assembly complete: ${outputPath}`);
-    else console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
+
+    if (code === 0) {
+      console.log(`[CLIP SUCCESS] MP4 Assembly complete: ${outputPath}`);
+      sendNotification({
+        title: 'Clip Saved!',
+        body: `Successfully saved: ${path.basename(outputPath)}`,
+      });
+    } else {
+      console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
+      sendNotification({
+        title: 'Clipping Error',
+        body: `Failed to save clip. FFmpeg exited with code ${code}.`,
+      });
+    }
   });
 
   concatProcess.on('error', (err) => {
@@ -410,6 +441,10 @@ const saveClip = (saveDir) => {
     concatProcess.stdin.write('q\n');
     concatProcess = null;
     console.error(`[CLIP ERROR] Failed to spawn FFmpeg process:`, err);
+    sendNotification({
+      title: 'System Error',
+      body: 'Could not start the video processing engine.',
+    });
   });
 };
 
@@ -461,7 +496,7 @@ const applyConfigurationAndStart = (config) => {
 
     if (timeDiff < RATE_LIMIT_TRIGGER_MS) {
       isRateLimited = true;
-      new Notification({ title: 'Rate Limit', body: 'Please wait 10 seconds.' }).show();
+      sendNotification({ title: 'Rate Limit', body: 'Please wait 10 seconds.' });
       return;
     }
 
@@ -475,6 +510,11 @@ const applyConfigurationAndStart = (config) => {
   }
 
   startRecording(config);
+
+  sendNotification({
+    title: 'Tiny Pony Clipper',
+    body: `Engine is active! Press ${config.shortcut} to save a clip.`,
+  });
 };
 
 /**
@@ -567,13 +607,9 @@ app.whenReady().then(async () => {
   await createHiddenCaptureWindow();
 
   /**
+   * @param {Electron.IpcMainEvent} event
    * @param {string} timestamp
-   * @param {object} currentConfig
-   * @param {string} currentConfig.sysInput
-   * @param {string} currentConfig.micInput
-   * @param {any} audioProcess
-   * @param {string} TEMP_DIR
-   * @returns {any}
+   * @returns {void}
    */
   ipcMain.on('start-segment', (event, timestamp) => {
     if (audioProcess) {
