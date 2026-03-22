@@ -11,11 +11,14 @@ import {
   session,
   desktopCapturer,
 } from 'electron';
-import { spawn, execSync } from 'child_process';
+import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
 import fs from 'fs';
+
+ipcMain.on('console.log', (event, ...args) => console.log(...args));
+ipcMain.on('console.error', (event, ...args) => console.error(...args));
 
 // Enable usage of Portal's globalShortcuts. This is essential for cases when
 // the app runs in a Wayland session.
@@ -34,9 +37,6 @@ let captureWindow = null;
 
 /** @type {Tray | null} */
 let tray = null;
-
-/** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
-let ffmpegProcess = null;
 
 /** @type {NodeJS.Timeout | null} */
 let cleanupInterval = null;
@@ -95,8 +95,8 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
 const getDefaultConfig = () => ({
   minutes: 5,
   sysInput: 'default',
-  micInput: 'default',
-  separateAudio: true,
+  micInput: 'none',
+  separateAudio: false,
   shortcut: 'F10',
   savePath: path.join(os.homedir(), 'Videos'),
   monitorId: '0',
@@ -109,9 +109,7 @@ const loadConfig = () => {
   /** @type {string} */
   const configPath = getConfigPath();
   if (fs.existsSync(configPath)) {
-    /** @type {string} */
-    const rawData = fs.readFileSync(configPath, 'utf-8');
-    return JSON.parse(rawData);
+    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   }
   return getDefaultConfig();
 };
@@ -154,7 +152,7 @@ const startGarbageCollector = (maxMinutes) => {
     if (!fs.existsSync(TEMP_DIR)) return;
 
     /** @type {string[]} */
-    const files = fs.readdirSync(TEMP_DIR).filter((f) => f.endsWith('.ts'));
+    const files = fs.readdirSync(TEMP_DIR).filter((f) => f.endsWith('.webm'));
     if (files.length <= maxMinutes) return;
 
     /** @type {Object[]} */
@@ -178,13 +176,7 @@ const startGarbageCollector = (maxMinutes) => {
 };
 
 /**
- * @typedef {Object} HardwareInfo
- * @property {Object[]} monitors
- * @property {Object[]} audioDevices
- */
-
-/**
- * @returns {HardwareInfo}
+ * @returns {Object}
  */
 const getHardwareInfo = () => {
   /** @type {Object[]} */
@@ -193,55 +185,16 @@ const getHardwareInfo = () => {
     name: `Monitor ${index + 1} (${disp.bounds.width}x${disp.bounds.height})`,
     bounds: disp.bounds,
   }));
-
-  /** @type {Object[]} */
-  const audioDevices = [];
-  try {
-    /** @type {string} */
-    const output = execSync('pactl list short sources', { encoding: 'utf-8' });
-    /** @type {string[]} */
-    const lines = output.trim().split('\n');
-    for (const line of lines) {
-      /** @type {string[]} */
-      const parts = line.split('\t');
-      if (parts.length >= 2) {
-        audioDevices.push({ id: parts[1], name: parts[1] });
-      }
-    }
-  } catch (error) {
-    console.error('[SYSTEM] Failed to fetch PulseAudio devices.', error);
-    audioDevices.push({ id: 'default', name: 'Default Audio System' });
-  }
-
-  return { monitors, audioDevices };
+  return { monitors };
 };
 
 /**
  * Starts the FFmpeg recording process based on the provided configuration.
- * * @param {Object} config - The application configuration object.
- * @param {string} config.monitorId - The ID of the monitor to capture.
- * @param {string} config.sysInput - The PulseAudio input for system sound.
- * @param {string} config.micInput - The PulseAudio input for the microphone.
- * @param {boolean} config.separateAudio - Whether to keep audio tracks separate.
- * @param {number} config.minutes - Duration for the garbage collector cycle.
+ * @param {AppConfig} config
  * @returns {void}
  */
 const startRecording = (config) => {
-  const { monitorId, sysInput, micInput, separateAudio, minutes } = config;
-  console.log('[FFMPEG] Initialization requested...');
-
-  // Check if there is an existing FFmpeg process and terminate it safely
-  if (ffmpegProcess) {
-    console.log('[FFMPEG] Killing previous active process...');
-
-    // Close stdin to allow FFmpeg to finish writing the file header if possible
-    if (ffmpegProcess.stdin && !ffmpegProcess.stdin.destroyed) {
-      ffmpegProcess.stdin.end();
-    }
-
-    // Send SIGINT (Ctrl+C equivalent) to ensure a clean shutdown of the encoder
-    ffmpegProcess.kill('SIGINT');
-  }
+  console.log('[SYSTEM] Waking up capture engine...');
 
   // Notify the capture window to stop any current stream capture
   if (captureWindow) {
@@ -266,89 +219,17 @@ const startRecording = (config) => {
 
   // Determine the target display using the provided ID or fallback to the primary one
   /** @type {Electron.Display} */
-  const display = screen.getAllDisplays()[Number(monitorId)] || screen.getPrimaryDisplay();
-
-  // Initialize the FFmpeg arguments with the WebM pipe (from Electron) and System Audio
-  /** @type {string[]} */
-  let ffmpegArgs = ['-y', '-f', 'webm', '-i', 'pipe:0', '-f', 'pulse', '-i', sysInput];
-
-  // Logic to handle Microphone input and Audio mixing/mapping
-  if (micInput !== 'none') {
-    // Add the microphone as a second PulseAudio input source
-    ffmpegArgs.push('-f', 'pulse', '-i', micInput);
-
-    if (separateAudio) {
-      console.log('[FFMPEG] Separate audio tracks enabled.');
-      // Map Video from input 0, System Audio from input 1, and Mic from input 2
-      ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
-    } else {
-      console.log('[FFMPEG] Merged audio track enabled (amix filter).');
-      // Mix the two audio inputs into a single output stream named [aout]
-      ffmpegArgs.push('-filter_complex', '[1:a][2:a]amix=inputs=2:duration=longest[aout]');
-      // Map Video from input 0 and the mixed audio stream
-      ffmpegArgs.push('-map', '0:v', '-map', '[aout]');
-    }
-  } else {
-    console.log('[FFMPEG] Single system audio track enabled.');
-    // Map only Video and the first audio input (System Audio)
-    ffmpegArgs.push('-map', '0:v', '-map', '1:a');
-  }
-
-  // Add Video encoding (NVIDIA Hardware Acceleration), quality, and segmentation settings
-  ffmpegArgs.push(
-    '-c:v',
-    'h264_nvenc', // Use NVIDIA NVENC H.264 encoder
-    '-preset',
-    'p6', // High-quality preset (p1 to p7)
-    '-cq',
-    '19', // Constant Quantization for variable bitrate quality
-    '-b:v',
-    '15M', // Target bitrate of 15 Mbps
-    '-c:a',
-    'aac', // Encode audio using AAC codec
-    '-f',
-    'segment', // Enable the segmenter muxer
-    '-segment_time',
-    '60', // Split the video into 60-second chunks
-    path.join(TEMP_DIR, 'segment_%03d.ts'), // Output filename pattern for segments
-  );
-
-  // Log the final command for debugging purposes
-  console.log(
-    '[FFMPEG] Starting with arguments:',
-    ffmpegArgs.length > 0 ? ffmpegArgs.join(' ') : 'None',
-  );
-
-  // Execute FFmpeg as a child process, inheriting the current environment variables
-  ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
-
-  // Listen to stderr for logs since FFmpeg writes its progress/errors there
-  ffmpegProcess.stderr.on('data', (data) => {
-    /** @type {string} */
-    const output = data.toString();
-    // Only log lines that contain error messages to keep the console clean
-    if (output.includes('error') || output.includes('Error')) {
-      console.log(`[FFMPEG LOG] ${output.trim()}`);
-    }
-  });
-
-  // Handle process termination cleanup
-  ffmpegProcess.on('close', (code) => {
-    console.log(`[FFMPEG] Process exited with code ${code}`);
-  });
+  const display = screen.getAllDisplays()[Number(config.monitorId)] || screen.getPrimaryDisplay();
 
   // Instruct the renderer process to start sending the video stream with specific bounds
   captureWindow.webContents.send('capture-command', {
-    /** @type {string} */
     action: 'start',
-    /** @type {Object} */
     config: config,
     /** @type {Electron.Rectangle} */
     bounds: display.bounds,
   });
 
-  // Start the background routine to delete old segments based on the config
-  startGarbageCollector(minutes);
+  startGarbageCollector(config.minutes);
 };
 
 /**
@@ -357,23 +238,23 @@ const startRecording = (config) => {
  */
 const saveClip = (saveDir) => {
   if (isClipping) return;
-  console.log(`[CLIP] Shortcut triggered!`);
+  console.log(`[CLIP] Shortcut triggered! Engaging FFmpeg hardware transcoding...`);
   isClipping = true;
 
   /** @type {Object[]} */
   const fileStats = fs
     .readdirSync(TEMP_DIR)
-    .filter((f) => f.endsWith('.ts'))
+    .filter((f) => f.endsWith('.webm'))
     .map((f) => ({ name: f, time: fs.statSync(path.join(TEMP_DIR, f)).mtime.getTime() }))
     .sort((a, b) => a.time - b.time);
 
   if (fileStats.length === 0) {
-    console.warn('[CLIP WARN] No segments available to clip. Is FFmpeg running correctly?');
+    console.warn('[CLIP WARN] No segments available to clip.');
     isClipping = false;
     return;
   }
 
-  console.log(`[CLIP] Found ${fileStats.length} segments, sorted by modification time.`);
+  console.log(`[CLIP] Joining ${fileStats.length} segments.`);
 
   /** @type {string[]} */
   const files = fileStats.map((f) => `file '${path.join(TEMP_DIR, f.name)}'`);
@@ -388,7 +269,6 @@ const saveClip = (saveDir) => {
   /** @type {number} */
   let counter = 1;
 
-  // Ensure we never overwrite an existing file
   while (fs.existsSync(outputPath)) {
     outputPath = path.join(saveDir, `Clip_${timestamp}_${counter}.mp4`);
     counter++;
@@ -406,9 +286,12 @@ const saveClip = (saveDir) => {
     return;
   }
 
+  // Uses hardware NVENC transcoding to rebuild timestamps starting from 0 perfectly
   /** @type {string[]} */
   const concatArgs = [
     '-y',
+    '-fflags',
+    '+genpts',
     '-f',
     'concat',
     '-safe',
@@ -416,11 +299,18 @@ const saveClip = (saveDir) => {
     '-i',
     listPath,
     '-c:v',
-    'copy', // Copy video stream directly without re-encoding
+    'h264_nvenc',
+    '-preset',
+    'p6',
+    '-cq',
+    '19',
     '-c:a',
-    'copy', // Copy audio stream
+    'aac',
+    '-avoid_negative_ts',
+    'make_zero',
     outputPath,
   ];
+
   /** @type {import('child_process').ChildProcessWithoutNullStreams} */
   const concatProcess = spawn('ffmpeg', concatArgs);
 
@@ -434,8 +324,8 @@ const saveClip = (saveDir) => {
 
   concatProcess.on('close', (code) => {
     isClipping = false;
-    if (code === 0) console.log(`[CLIP SUCCESS] Saved at: ${outputPath}`);
-    else console.error(`[CLIP ERROR] Concatenation failed with code: ${code}`);
+    if (code === 0) console.log(`[CLIP SUCCESS] MP4 Assembly complete: ${outputPath}`);
+    else console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
   });
 
   concatProcess.on('error', (err) => {
@@ -451,22 +341,17 @@ const saveClip = (saveDir) => {
 const applyConfigurationAndStart = (config) => {
   if (!isDirectoryValid(config.savePath)) {
     console.error(`[SYSTEM ERROR] Configured save path is invalid or missing: ${config.savePath}`);
-
-    if (ffmpegProcess) {
-      if (ffmpegProcess.stdin) ffmpegProcess.stdin.end();
-      ffmpegProcess.kill('SIGINT');
-      ffmpegProcess = null;
-    }
     if (cleanupInterval) {
       clearInterval(cleanupInterval);
       cleanupInterval = null;
     }
+    if (captureWindow) captureWindow.webContents.send('capture-command', { action: 'stop' });
 
     globalShortcut.unregisterAll();
     createConfigWindow();
     dialog.showErrorBox(
       'Invalid Save Directory',
-      'The folder configured to save videos does not exist or is invalid. The recording system has been paused. Please configure a valid folder to resume.',
+      'The folder configured to save videos does not exist or is invalid.',
     );
     return;
   }
@@ -554,7 +439,6 @@ const createConfigWindow = () => {
     console.log('[UI] Window ready to show.');
     configWindow.show();
   });
-
   configWindow.on('closed', () => {
     console.log('[UI] Window closed.');
     configWindow = null;
@@ -563,22 +447,25 @@ const createConfigWindow = () => {
 
 app.whenReady().then(async () => {
   // --- WAYLAND PORTAL HANDLER ---
-  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
-    desktopCapturer
-      .getSources({ types: ['screen'] })
-      .then((sources) => {
-        if (sources && sources.length > 0) {
-          callback({ video: sources[0] });
-        } else {
-          console.warn('[SYSTEM WARN] Wayland portal canceled by user.');
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen', 'window'] })
+        .then((sources) => {
+          if (sources && sources.length > 0) {
+            callback({ video: sources[0] });
+          } else {
+            console.warn('[SYSTEM WARN] Portal canceled by user.');
+            callback(null);
+          }
+        })
+        .catch((err) => {
+          console.error('[SYSTEM ERROR] Failed to fetch desktop sources:', err);
           callback(null);
-        }
-      })
-      .catch((err) => {
-        console.error('[SYSTEM ERROR] Failed to fetch desktop sources:', err);
-        callback(null);
-      });
-  });
+        });
+    },
+    { useSystemPicker: true },
+  );
 
   /** @type {string} */
   const iconPath = path.join(__dirname, '../assets/tray-icon.png');
@@ -600,9 +487,21 @@ app.whenReady().then(async () => {
 
   await createHiddenCaptureWindow();
 
-  ipcMain.on('video-chunk', (event, chunk) => {
-    if (ffmpegProcess && ffmpegProcess.stdin && !ffmpegProcess.stdin.destroyed) {
-      ffmpegProcess.stdin.write(Buffer.from(chunk));
+  ipcMain.on('video-chunk', (event, payload) => {
+    /** @type {ArrayBuffer} */
+    const buffer = payload.buffer;
+    /** @type {number} */
+    const segmentIndex = payload.segmentIndex;
+
+    /** @type {string} */
+    const fileName = `segment_${String(segmentIndex).padStart(3, '0')}.webm`;
+    /** @type {string} */
+    const filePath = path.join(TEMP_DIR, fileName);
+
+    try {
+      fs.appendFileSync(filePath, Buffer.from(buffer));
+    } catch (e) {
+      console.error(`[FS ERROR] Failed to write chunk to ${fileName}`, e);
     }
   });
 
@@ -638,20 +537,10 @@ app.whenReady().then(async () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  console.log('[SYSTEM] Application is quitting. Cleaning up...');
-  if (ffmpegProcess) {
-    console.log('[SYSTEM] Killing FFmpeg process...');
-    if (ffmpegProcess.stdin) ffmpegProcess.stdin.end();
-    ffmpegProcess.kill('SIGKILL');
-  }
+  console.log('[SYSTEM] Application is quitting.');
   if (cleanupInterval) clearInterval(cleanupInterval);
-  console.log('[SYSTEM] Cleanup complete. Goodbye!');
 });
 
 app.on('window-all-closed', () => {
   console.log('[SYSTEM] All windows closed, but keeping app running in tray.');
-});
-
-app.on('window-all-closed', () => {
-  // Keep app running in tray
 });

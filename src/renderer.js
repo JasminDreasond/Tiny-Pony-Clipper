@@ -20,6 +20,7 @@ const shortcutInput = document.getElementById('shortcutKey');
  * @returns {void}
  */
 const populateSelect = (selectElement, items, selectedValue) => {
+  selectElement.innerHTML = '';
   for (const item of items) {
     /** @type {HTMLOptionElement} */
     const option = document.createElement('option');
@@ -62,12 +63,30 @@ const init = async () => {
 
   /** @type {Object} */
   const config = await window.electronAPI.getConfig();
+
+  // Requesting audio permission to unlock explicit device labels in Chromium
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {}
+
+  /** @type {MediaDeviceInfo[]} */
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  /** @type {Object[]} */
+  const audioDevices = devices
+    .filter((d) => d.kind === 'audioinput')
+    .map((d) => ({ id: d.deviceId, name: d.label || `Device ${d.deviceId.slice(0, 5)}` }));
+
+  audioDevices.unshift({ id: 'default', name: 'Default System Audio' });
+
   /** @type {Object} */
   const hardware = await window.electronAPI.getHardware();
 
   populateSelect(monitorSelect, hardware.monitors, config.monitorId);
-  populateSelect(sysInputSelect, hardware.audioDevices, config.sysInput);
-  populateSelect(micInputSelect, hardware.audioDevices, config.micInput);
+  populateSelect(sysInputSelect, audioDevices, config.sysInput);
+
+  /** @type {Object[]} */
+  const micDevices = [{ id: 'none', name: 'Disabled' }, ...audioDevices];
+  populateSelect(micInputSelect, micDevices, config.micInput);
 
   document.getElementById('bufferMinutes').value = String(config.minutes);
   document.getElementById('separateAudio').checked = config.separateAudio;
@@ -100,17 +119,12 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     monitorId: monitorSelect.value,
   };
 
-  console.log('[RENDERER] Configuration gathered:', config);
-  console.log('[RENDERER] Sending configuration to Main process via IPC.');
-
   /** @type {boolean} */
   const success = await window.electronAPI.saveConfig(config);
   if (success) {
     alert('Settings saved successfully! The recording system is active.');
   } else {
-    alert(
-      'Validation Error: The selected save directory does not exist or is invalid. Please browse and select a valid folder before applying.',
-    );
+    alert('Validation Error: The selected save directory does not exist or is invalid.');
   }
 });
 

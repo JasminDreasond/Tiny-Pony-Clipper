@@ -1,6 +1,124 @@
 /** @type {MediaRecorder | null} */
 let mediaRecorder = null;
 
+/** @type {number} */
+let currentSegment = 0;
+
+/** @type {NodeJS.Timeout | null} */
+let segmentTimer = null;
+
+/** @type {MediaStream | null} */
+let activeStream = null;
+
+/**
+ * @param {string} deviceId
+ * @param {boolean} isMic
+ * @returns {Promise<MediaStream | null>}
+ */
+const getAudioStream = async (deviceId, isMic) => {
+  if (!deviceId || deviceId === 'none') return null;
+  try {
+    /** @type {Object} */
+    const constraints = {
+      audio: {
+        deviceId: deviceId !== 'default' ? { exact: deviceId } : undefined,
+        echoCancellation: isMic,
+        noiseSuppression: isMic,
+        autoGainControl: isMic,
+      },
+    };
+    return await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (e) {
+    console.error('[CAPTURE ERROR] Failed to capture audio device:', deviceId, e);
+    return null;
+  }
+};
+
+/**
+ * @param {MediaStream} videoStream
+ * @param {Object} config
+ * @returns {Promise<MediaStream>}
+ */
+const setupAudioMixer = async (videoStream, config) => {
+  try {
+    /** @type {AudioContext} */
+    const audioCtx = new AudioContext();
+
+    /** @type {MediaStreamAudioDestinationNode} */
+    const dest = audioCtx.createMediaStreamDestination();
+
+    /** @type {boolean} */
+    let hasAudio = false;
+
+    // Wayland getDisplayMedia audio usually fails, so we rely on getUserMedia for system sound (PulseAudio Monitor)
+    /** @type {MediaStream | null} */
+    const sysStream = await getAudioStream(config.sysInput, false);
+    if (sysStream && sysStream.getAudioTracks().length > 0) {
+      electronAPI.log(`[CAPTURE] System Audio Length:`, sysStream.getAudioTracks().length);
+      audioCtx.createMediaStreamSource(sysStream).connect(dest);
+      hasAudio = true;
+    }
+
+    if (config.micInput !== 'none') {
+      /** @type {MediaStream | null} */
+      const micStream = await getAudioStream(config.micInput, true);
+      if (micStream && micStream.getAudioTracks().length > 0) {
+        electronAPI.log(`[CAPTURE] Mic Audio Length:`, micStream.getAudioTracks().length);
+        audioCtx.createMediaStreamSource(micStream).connect(dest);
+        hasAudio = true;
+      }
+    }
+
+    if (hasAudio) {
+      const streamAudios = dest.stream.getAudioTracks();
+      const streamVideos = videoStream.getVideoTracks();
+      electronAPI.log(`[CAPTURE] Stream Audio Length:`, streamAudios.length);
+      electronAPI.log(`[CAPTURE] Stream Video Length:`, streamVideos.length);
+      return new MediaStream([streamVideos[0], streamAudios[0]]);
+    }
+  } catch (error) {
+    console.warn('[CAPTURE WARN] Audio mixer failed, using video only.', error);
+  }
+
+  const streamVideos = videoStream.getVideoTracks();
+  electronAPI.log(`[CAPTURE] Stream Video Length:`, streamVideos.length);
+  return new MediaStream([streamVideos[0]]);
+};
+
+/**
+ * @param {MediaStream} stream
+ * @returns {void}
+ */
+const recordSegment = (stream) => {
+  const options = { mimeType: 'video/webm; codecs=vp8', videoBitsPerSecond: 15000000 };
+  if (MediaRecorder.isTypeSupported('video/webm; codecs=h264')) {
+    options.mimeType = 'video/webm; codecs=h264'
+  }
+
+  mediaRecorder = new MediaRecorder(stream, options);
+
+  mediaRecorder.ondataavailable = async (e) => {
+    if (e.data.size > 0) {
+      /** @type {ArrayBuffer} */
+      const buffer = await e.data.arrayBuffer();
+      window.electronAPI.sendVideoChunk({
+        buffer: buffer,
+        segmentIndex: currentSegment,
+      });
+    }
+  };
+
+  mediaRecorder.start(1000);
+
+  segmentTimer = setTimeout(() => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      currentSegment++;
+      recordSegment(stream);
+    }
+  }, 60000);
+};
+
 window.electronAPI.onCaptureCommand(async (data) => {
   if (data.action === 'start') {
     /** @type {Object} */
@@ -8,48 +126,39 @@ window.electronAPI.onCaptureCommand(async (data) => {
     /** @type {Object} */
     const bounds = data.bounds;
 
+    currentSegment = 0;
+
     try {
       /** @type {MediaStream} */
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      const rawStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
+          cursor: 'always',
           width: { ideal: bounds.width },
           height: { ideal: bounds.height },
           frameRate: { ideal: 60, max: 60 },
         },
+        audio: false, // We explicitly disable this and let setupAudioMixer handle it
       });
 
-      /** @type {Object} */
-      let options = { mimeType: 'video/webm; codecs=h264', videoBitsPerSecond: 15000000 };
+      activeStream = await setupAudioMixer(rawStream, config);
 
-      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        console.warn('[CAPTURE WARN] H264 not supported. Falling back to VP8.');
-        options = { mimeType: 'video/webm; codecs=vp8', videoBitsPerSecond: 15000000 };
-      }
+      electronAPI.log(`[CAPTURE] Engine started: ${bounds.width}x${bounds.height} @ 60fps`);
+      recordSegment(activeStream);
 
-      mediaRecorder = new MediaRecorder(stream, options);
-
-      mediaRecorder.ondataavailable = async (e) => {
-        if (e.data.size > 0) {
-          /** @type {ArrayBuffer} */
-          const buffer = await e.data.arrayBuffer();
-          window.electronAPI.sendVideoChunk(buffer);
-        }
-      };
-
-      mediaRecorder.start(100);
-      console.log(`[CAPTURE] WebRTC Stream started: ${bounds.width}x${bounds.height} @ 60fps`);
-
-      stream.getVideoTracks()[0].onended = () => {
-        console.log('[CAPTURE] Wayland stream ended by user.');
+      rawStream.getVideoTracks()[0].onended = () => {
+        electronAPI.log('[CAPTURE] Wayland stream ended by user.');
       };
     } catch (error) {
-      console.error('[CAPTURE ERROR] Wayland Portal denied or failed.', error);
+      electronAPI.error('[CAPTURE ERROR] Wayland Portal denied or failed.', error);
     }
   } else if (data.action === 'stop') {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
-      mediaRecorder.stream.getTracks().forEach((track) => track.stop());
-      console.log('[CAPTURE] WebRTC Stream stopped.');
     }
+    if (segmentTimer) clearTimeout(segmentTimer);
+    if (activeStream) {
+      activeStream.getTracks().forEach((track) => track.stop());
+    }
+    electronAPI.log('[CAPTURE] Engine completely stopped.');
   }
 });
