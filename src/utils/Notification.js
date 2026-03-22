@@ -1,17 +1,8 @@
 import { Notification } from 'electron';
-import { fileURLToPath } from 'url';
 
 import { spawn } from 'child_process';
 import fs from 'fs';
-import path from 'path';
-
-/** @type {string} */
-const __filename = fileURLToPath(import.meta.url);
-/** @type {string} */
-const __dirname = path.dirname(__filename);
-
-/** @type {string} */
-const appIconPath = path.join(__dirname, '../../assets/tray-icon.png');
+import { appIconPath } from '../values.js';
 
 /**
  * @param {Electron.NotificationConstructorOptions} options

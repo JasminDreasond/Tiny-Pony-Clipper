@@ -17,6 +17,7 @@ import { fileURLToPath } from 'url';
 import os from 'os';
 import fs from 'fs';
 import { sendNotification } from './utils/Notification.js';
+import { appIconPath } from './values.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -44,9 +45,6 @@ if (!gotTheLock) {
 const __filename = fileURLToPath(import.meta.url);
 /** @type {string} */
 const __dirname = path.dirname(__filename);
-
-/** @type {string} */
-const appIconPath = path.join(__dirname, '../assets/tray-icon.png');
 
 /** @type {BrowserWindow | null} */
 let configWindow = null;
