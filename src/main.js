@@ -38,6 +38,7 @@ const sendNotification = (options, soundFile, onClick) => {
   /** @type {Notification} */
   const noti = new Notification({
     ...options,
+    sound: soundFile ? path.join(__dirname, soundFile) : undefined,
     silent: soundFile ? false : true,
     timeoutType: 'default',
   });
@@ -444,18 +445,21 @@ const saveClip = (saveDir) => {
           urgency: 'critical',
           body: `Successfully saved: ${path.basename(outputPath)}\nClick here to view.`,
         },
-        undefined,
+        './sounds/clip-saved.mp3',
         () => {
           shell.showItemInFolder(outputPath);
         },
       );
     } else {
       console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
-      sendNotification({
-        title: 'Clipping Error',
-        urgency: 'critical',
-        body: `Failed to save clip. FFmpeg exited with code ${code}.`,
-      });
+      sendNotification(
+        {
+          title: 'Clipping Error',
+          urgency: 'critical',
+          body: `Failed to save clip. FFmpeg exited with code ${code}.`,
+        },
+        './sounds/clip-saved.mp3',
+      );
     }
   });
 
@@ -464,11 +468,14 @@ const saveClip = (saveDir) => {
     concatProcess.stdin.write('q\n');
     concatProcess = null;
     console.error(`[CLIP ERROR] Failed to spawn FFmpeg process:`, err);
-    sendNotification({
-      title: 'System Error',
-      urgency: 'critical',
-      body: 'Could not start the video processing engine.',
-    });
+    sendNotification(
+      {
+        title: 'System Error',
+        urgency: 'critical',
+        body: 'Could not start the video processing engine.',
+      },
+      './sounds/clip-saved.mp3',
+    );
   });
 };
 
