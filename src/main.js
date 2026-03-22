@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 import os from 'os';
 import fs from 'fs';
 import { sendNotification } from './utils/Notification.js';
-import { appIconPath } from './values.js';
+import { appIconPath } from './utils/values.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));

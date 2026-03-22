@@ -2,7 +2,7 @@ import { Notification } from 'electron';
 
 import { spawn } from 'child_process';
 import fs from 'fs';
-import { appIconPath } from '../values.js';
+import { appIconPath } from './values.js';
 
 /**
  * @param {Electron.NotificationConstructorOptions} options

@@ -7,4 +7,4 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /** @type {string} */
-export const appIconPath = path.join(__dirname, '../assets/tray-icon.png');
+export const appIconPath = path.join(__dirname, '../../assets/tray-icon.png');
