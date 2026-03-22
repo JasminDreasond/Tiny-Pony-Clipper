@@ -217,124 +217,138 @@ const getHardwareInfo = () => {
 };
 
 /**
- * @param {AppConfig} config
+ * Starts the FFmpeg recording process based on the provided configuration.
+ * * @param {Object} config - The application configuration object.
+ * @param {string} config.monitorId - The ID of the monitor to capture.
+ * @param {string} config.sysInput - The PulseAudio input for system sound.
+ * @param {string} config.micInput - The PulseAudio input for the microphone.
+ * @param {boolean} config.separateAudio - Whether to keep audio tracks separate.
+ * @param {number} config.minutes - Duration for the garbage collector cycle.
  * @returns {void}
  */
 const startRecording = (config) => {
+  const { monitorId, sysInput, micInput, separateAudio, minutes } = config;
   console.log('[FFMPEG] Initialization requested...');
 
+  // Check if there is an existing FFmpeg process and terminate it safely
   if (ffmpegProcess) {
     console.log('[FFMPEG] Killing previous active process...');
+
+    // Close stdin to allow FFmpeg to finish writing the file header if possible
     if (ffmpegProcess.stdin && !ffmpegProcess.stdin.destroyed) {
       ffmpegProcess.stdin.end();
     }
+
+    // Send SIGINT (Ctrl+C equivalent) to ensure a clean shutdown of the encoder
     ffmpegProcess.kill('SIGINT');
   }
 
+  // Notify the capture window to stop any current stream capture
   if (captureWindow) {
     captureWindow.webContents.send('capture-command', { action: 'stop' });
   }
 
+  // Ensure the temporary directory exists before starting operations
   ensureDirExists(TEMP_DIR);
 
+  // Clean up the temporary directory by removing all previous segments
   /** @type {string[]} */
   const files = fs.readdirSync(TEMP_DIR);
   for (const file of files) {
     try {
+      // Synchronously delete each file in the temp folder
       fs.unlinkSync(path.join(TEMP_DIR, file));
-    } catch (e) {}
+    } catch (e) {
+      console.error(e);
+      // Ignore errors if a file cannot be deleted (e.g., locked by another process)
+    }
   }
 
+  // Determine the target display using the provided ID or fallback to the primary one
   /** @type {Electron.Display} */
-  const display = screen.getAllDisplays()[Number(config.monitorId)] || screen.getPrimaryDisplay();
+  const display = screen.getAllDisplays()[Number(monitorId)] || screen.getPrimaryDisplay();
 
+  // Initialize the FFmpeg arguments with the WebM pipe (from Electron) and System Audio
   /** @type {string[]} */
-  let ffmpegArgs = [];
+  let ffmpegArgs = ['-y', '-f', 'webm', '-i', 'pipe:0', '-f', 'pulse', '-i', sysInput];
 
-  // Critical fix: Using thread_queue_size and wallclock to fix A/V desync
-  ffmpegArgs = [
-    '-y',
-    '-thread_queue_size',
-    '4096',
-    '-use_wallclock_as_timestamps',
-    '1',
-    '-f',
-    'webm',
-    '-i',
-    'pipe:0',
-  ];
+  // Logic to handle Microphone input and Audio mixing/mapping
+  if (micInput !== 'none') {
+    // Add the microphone as a second PulseAudio input source
+    ffmpegArgs.push('-f', 'pulse', '-i', micInput);
 
-  ffmpegArgs.push('-thread_queue_size', '4096', '-f', 'pulse', '-i', config.sysInput);
-
-  // Audio mixing logic safely implemented
-  if (config.micInput !== 'none') {
-    ffmpegArgs.push('-thread_queue_size', '4096', '-f', 'pulse', '-i', config.micInput);
-    if (config.separateAudio) {
+    if (separateAudio) {
       console.log('[FFMPEG] Separate audio tracks enabled.');
+      // Map Video from input 0, System Audio from input 1, and Mic from input 2
       ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
     } else {
       console.log('[FFMPEG] Merged audio track enabled (amix filter).');
+      // Mix the two audio inputs into a single output stream named [aout]
       ffmpegArgs.push('-filter_complex', '[1:a][2:a]amix=inputs=2:duration=longest[aout]');
+      // Map Video from input 0 and the mixed audio stream
       ffmpegArgs.push('-map', '0:v', '-map', '[aout]');
     }
   } else {
     console.log('[FFMPEG] Single system audio track enabled.');
+    // Map only Video and the first audio input (System Audio)
     ffmpegArgs.push('-map', '0:v', '-map', '1:a');
   }
 
+  // Add Video encoding (NVIDIA Hardware Acceleration), quality, and segmentation settings
   ffmpegArgs.push(
     '-c:v',
-    'h264_nvenc',
+    'h264_nvenc', // Use NVIDIA NVENC H.264 encoder
     '-preset',
-    'p6',
+    'p6', // High-quality preset (p1 to p7)
     '-cq',
-    '19',
+    '19', // Constant Quantization for variable bitrate quality
     '-b:v',
-    '15M',
-    '-fps_mode',
-    'cfr', // Forces Constant Frame Rate
-    '-r',
-    '60',
-    '-g',
-    '60', // CRITICAL: Forces 1 Keyframe per second. Fixes Segmenter bug.
+    '15M', // Target bitrate of 15 Mbps
     '-c:a',
-    'aac',
+    'aac', // Encode audio using AAC codec
     '-f',
-    'segment',
+    'segment', // Enable the segmenter muxer
     '-segment_time',
-    '60',
-    '-reset_timestamps',
-    '1', // CRITICAL: Resets time for clean concatenation.
-    path.join(TEMP_DIR, 'segment_%03d.ts'),
+    '60', // Split the video into 60-second chunks
+    path.join(TEMP_DIR, 'segment_%03d.ts'), // Output filename pattern for segments
   );
 
+  // Log the final command for debugging purposes
   console.log(
     '[FFMPEG] Starting with arguments:',
     ffmpegArgs.length > 0 ? ffmpegArgs.join(' ') : 'None',
   );
 
+  // Execute FFmpeg as a child process, inheriting the current environment variables
   ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
+  // Listen to stderr for logs since FFmpeg writes its progress/errors there
   ffmpegProcess.stderr.on('data', (data) => {
     /** @type {string} */
     const output = data.toString();
+    // Only log lines that contain error messages to keep the console clean
     if (output.includes('error') || output.includes('Error')) {
       console.log(`[FFMPEG LOG] ${output.trim()}`);
     }
   });
 
+  // Handle process termination cleanup
   ffmpegProcess.on('close', (code) => {
     console.log(`[FFMPEG] Process exited with code ${code}`);
   });
 
-  // Send the configuration and the bounds so capture.js respects the settings
+  // Instruct the renderer process to start sending the video stream with specific bounds
   captureWindow.webContents.send('capture-command', {
+    /** @type {string} */
     action: 'start',
+    /** @type {Object} */
     config: config,
+    /** @type {Electron.Rectangle} */
     bounds: display.bounds,
   });
 
-  startGarbageCollector(config.minutes);
+  // Start the background routine to delete old segments based on the config
+  startGarbageCollector(minutes);
 };
 
 /**
