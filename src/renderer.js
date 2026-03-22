@@ -68,25 +68,22 @@ const init = async () => {
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {}
-
-  /** @type {MediaDeviceInfo[]} */
   const devices = await navigator.mediaDevices.enumerateDevices();
-  /** @type {Object[]} */
-  const audioDevices = devices
+
+  const audioInputs = devices
     .filter((d) => d.kind === 'audioinput')
     .map((d) => ({ id: d.deviceId, name: d.label || `Device ${d.deviceId.slice(0, 5)}` }));
 
-  audioDevices.unshift({ id: 'default', name: 'Default System Audio' });
+  const audioOutputs = devices
+    .filter((d) => d.kind === 'audiooutput')
+    .map((d) => ({ id: d.deviceId, name: d.label || `Device ${d.deviceId.slice(0, 5)}` }));
 
   /** @type {Object} */
   const hardware = await window.electronAPI.getHardware();
 
   populateSelect(monitorSelect, hardware.monitors, config.monitorId);
-  populateSelect(sysInputSelect, audioDevices, config.sysInput);
-
-  /** @type {Object[]} */
-  const micDevices = [{ id: 'none', name: 'Disabled' }, ...audioDevices];
-  populateSelect(micInputSelect, micDevices, config.micInput);
+  populateSelect(sysInputSelect, [{ id: 'none', name: 'Disabled' }, ...audioOutputs], config.sysInput);
+  populateSelect(micInputSelect, [{ id: 'none', name: 'Disabled' }, ...audioInputs], config.micInput);
 
   document.getElementById('bufferMinutes').value = String(config.minutes);
   document.getElementById('separateAudio').checked = config.separateAudio;
