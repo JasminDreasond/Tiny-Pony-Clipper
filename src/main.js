@@ -59,6 +59,9 @@ let isRateLimited = false;
 /** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
 let audioProcess = null;
 
+/** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
+let concatProcess;
+
 /** @type {AppConfig | null} */
 let currentConfig = null;
 
@@ -384,7 +387,7 @@ const saveClip = (saveDir) => {
   );
 
   /** @type {import('child_process').ChildProcessWithoutNullStreams} */
-  const concatProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
+  concatProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
   concatProcess.stderr.on('data', (data) => {
     /** @type {string} */
@@ -396,12 +399,16 @@ const saveClip = (saveDir) => {
 
   concatProcess.on('close', (code) => {
     isClipping = false;
+    concatProcess.stdin.write('q\n');
+    concatProcess = null;
     if (code === 0) console.log(`[CLIP SUCCESS] MP4 Assembly complete: ${outputPath}`);
     else console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
   });
 
   concatProcess.on('error', (err) => {
     isClipping = false;
+    concatProcess.stdin.write('q\n');
+    concatProcess = null;
     console.error(`[CLIP ERROR] Failed to spawn FFmpeg process:`, err);
   });
 };
@@ -652,9 +659,16 @@ app.whenReady().then(async () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   console.log('[SYSTEM] Application is quitting.');
-  if (cleanupInterval) clearInterval(cleanupInterval);
-});
 
-app.on('window-all-closed', () => {
-  console.log('[SYSTEM] All windows closed, but keeping app running in tray.');
+  if (audioProcess) {
+    console.log('[SYSTEM] Killing audio process...');
+    audioProcess.kill('SIGKILL');
+  }
+
+  if (concatProcess) {
+    console.log('[SYSTEM] Killing concat process...');
+    concatProcess.kill('SIGKILL');
+  }
+
+  if (cleanupInterval) clearInterval(cleanupInterval);
 });
