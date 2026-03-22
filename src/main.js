@@ -47,6 +47,9 @@ let isClipping = false;
 /** @type {boolean} */
 let isHardwareDebouncing = false;
 
+/** @type {number} */
+let activeSegmentTimestamp = 0;
+
 const clipSound = path.join(__dirname, './sounds/clip-saved.mp3');
 const saveSound = path.join(__dirname, './sounds/saving-clip.mp3');
 const failSound = path.join(__dirname, './sounds/clip-fail.mp3');
@@ -73,6 +76,9 @@ let currentConfig = null;
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
 
+/**
+ * @returns {{ monitors: Object[], audioDevices: Object[] }}
+ */
 const getHardwareInfo = () => {
   /** @type {Object[]} */
   const monitors = screen.getAllDisplays().map((disp, index) => ({
@@ -206,6 +212,8 @@ const startGarbageCollector = (maxMinutes) => {
     /** @type {number} */
     const filesToDelete = segments.length - maxMinutes;
     for (let i = 0; i < filesToDelete; i++) {
+      if (segments[i].time === activeSegmentTimestamp) continue;
+
       /** @type {string} */
       const ts = segments[i].timestamp;
       try {
@@ -434,6 +442,37 @@ const saveClip = (saveDir) => {
           shell.showItemInFolder(outputPath);
         },
       );
+
+      console.log('[CLIP] Resetting segment buffer to prevent overlap...');
+      for (const seg of segments) {
+        if (seg.time === activeSegmentTimestamp) {
+          console.log(`[CLIP] Keeping active segment protected: ${seg.timestamp}`);
+          continue;
+        }
+
+        /** @type {string} */
+        const vPath = path.join(TEMP_DIR, `video_${seg.timestamp}.webm`);
+        /** @type {string} */
+        const sPath = path.join(TEMP_DIR, `sys_${seg.timestamp}.wav`);
+        /** @type {string} */
+        const mPath = path.join(TEMP_DIR, `mic_${seg.timestamp}.wav`);
+
+        try {
+          if (fs.existsSync(vPath)) fs.unlinkSync(vPath);
+          if (fs.existsSync(sPath)) fs.unlinkSync(sPath);
+          if (fs.existsSync(mPath)) fs.unlinkSync(mPath);
+        } catch (e) {
+          console.error(`[FS ERROR] Could not delete segment ${seg.timestamp}:`, e);
+        }
+      }
+
+      try {
+        if (fs.existsSync(listVideoPath)) fs.unlinkSync(listVideoPath);
+        if (fs.existsSync(listSysPath)) fs.unlinkSync(listSysPath);
+        if (fs.existsSync(listMicPath)) fs.unlinkSync(listMicPath);
+      } catch (e) {
+        console.error(e);
+      }
     } else {
       console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
       sendNotification(
@@ -635,6 +674,8 @@ app.whenReady().then(async () => {
    * @returns {void}
    */
   ipcMain.on('start-segment', (event, timestamp) => {
+    activeSegmentTimestamp = Number(timestamp);
+
     if (audioProcess) {
       audioProcess.stdin.write('q\n');
       audioProcess = null;
