@@ -10,6 +10,7 @@ import {
   Notification,
   session,
   desktopCapturer,
+  shell,
 } from 'electron';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
@@ -30,9 +31,21 @@ const __dirname = path.dirname(__filename);
 /**
  * @param {Electron.NotificationConstructorOptions} options
  * @param {string} [soundFile]
+ * @param {(details: Electron.Event<Electron.NotificationActionEventParams>, actionIndex: number, selectionIndex: number) => void} [onClick]
+ * @returns {Notification}
  */
-const sendNotification = (options, soundFile) => {
-  const noti = new Notification({ ...options, sound: soundFile ? false : true });
+const sendNotification = (options, soundFile, onClick) => {
+  /** @type {Notification} */
+  const noti = new Notification({
+    ...options,
+    silent: soundFile ? false : true,
+    timeoutType: 'default',
+  });
+
+  if (onClick) {
+    noti.on('click', onClick);
+  }
+
   noti.show();
   return noti;
 };
@@ -283,6 +296,7 @@ const saveClip = (saveDir) => {
 
   sendNotification({
     title: 'Tiny Pony Clipper',
+    urgency: 'normal',
     body: 'Processing your clip... Please wait a moment.',
   });
 
@@ -300,6 +314,7 @@ const saveClip = (saveDir) => {
     console.warn('[CLIP WARN] No segments available to clip.');
     sendNotification({
       title: 'Clipping Failed',
+      urgency: 'critical',
       body: 'No recorded segments available yet. Please wait a bit longer.',
     });
     isClipping = false;
@@ -423,14 +438,22 @@ const saveClip = (saveDir) => {
 
     if (code === 0) {
       console.log(`[CLIP SUCCESS] MP4 Assembly complete: ${outputPath}`);
-      sendNotification({
-        title: 'Clip Saved!',
-        body: `Successfully saved: ${path.basename(outputPath)}`,
-      });
+      sendNotification(
+        {
+          title: 'Clip Saved!',
+          urgency: 'critical',
+          body: `Successfully saved: ${path.basename(outputPath)}\nClick here to view.`,
+        },
+        undefined,
+        () => {
+          shell.showItemInFolder(outputPath);
+        },
+      );
     } else {
       console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
       sendNotification({
         title: 'Clipping Error',
+        urgency: 'critical',
         body: `Failed to save clip. FFmpeg exited with code ${code}.`,
       });
     }
@@ -443,6 +466,7 @@ const saveClip = (saveDir) => {
     console.error(`[CLIP ERROR] Failed to spawn FFmpeg process:`, err);
     sendNotification({
       title: 'System Error',
+      urgency: 'critical',
       body: 'Could not start the video processing engine.',
     });
   });
@@ -496,7 +520,11 @@ const applyConfigurationAndStart = (config) => {
 
     if (timeDiff < RATE_LIMIT_TRIGGER_MS) {
       isRateLimited = true;
-      sendNotification({ title: 'Rate Limit', body: 'Please wait 10 seconds.' });
+      sendNotification({
+        title: 'Rate Limit',
+        body: 'Please wait 10 seconds.',
+        urgency: 'critical',
+      });
       return;
     }
 
@@ -513,6 +541,7 @@ const applyConfigurationAndStart = (config) => {
 
   sendNotification({
     title: 'Tiny Pony Clipper',
+    urgency: 'normal',
     body: `Engine is active! Press ${config.shortcut} to save a clip.`,
   });
 };
