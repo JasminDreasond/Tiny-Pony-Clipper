@@ -1,8 +1,17 @@
 {
   "name": "tiny-pony-clipper",
   "version": "1.0.0",
+  "repository": "https://github.com/JasminDreasond/Tiny-Pony-Clipper.git",
+  "bugs": {
+    "url": "https://github.com/JasminDreasond/Tiny-Pony-Clipper/issues"
+  },
+  "homepage": "https://github.com/JasminDreasond/Tiny-Pony-Clipper#readme",
+  "description": "",
+  "author": "Yasmin Seidel (JasminDreasond)",
   "main": "src/main.js",
   "type": "module",
+  "license": "AGPL-3.0-only",
+  "keywords": [],
   "scripts": {
     "start": "electron .",
     "fix:prettier": "prettier --write ./src/*"
