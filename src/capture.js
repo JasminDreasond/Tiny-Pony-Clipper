@@ -50,10 +50,8 @@ const setupAudioMixer = async (videoStream, config) => {
     /** @type {boolean} */
     let hasAudio = false;
 
-    // Wayland getDisplayMedia audio usually fails, so we rely on getUserMedia for system sound (PulseAudio Monitor)
-    /** @type {MediaStream | null} */
+    electronAPI.log(`[CAPTURE] Selected sysInput`, config.sysInput);
     if (config.sysInput !== 'none') {
-      electronAPI.log(`Selected sysInput`, config.sysInput);
       const sysStream = await getAudioStream(config.sysInput, false);
       if (sysStream && sysStream.getAudioTracks().length > 0) {
         electronAPI.log(`[CAPTURE] System Audio Length:`, sysStream.getAudioTracks().length);
@@ -63,7 +61,7 @@ const setupAudioMixer = async (videoStream, config) => {
     }
 
     if (config.micInput !== 'none') {
-      electronAPI.log(`Selected micInput`, config.micInput);
+      electronAPI.log(`[CAPTURE] Selected micInput`, config.micInput);
       /** @type {MediaStream | null} */
       const micStream = await getAudioStream(config.micInput, true);
       if (micStream && micStream.getAudioTracks().length > 0) {
@@ -137,7 +135,7 @@ window.electronAPI.onCaptureCommand(async (data) => {
           cursor: 'always',
           frameRate: { ideal: 60, max: 60 },
         },
-        audio: false, // We explicitly disable this and let setupAudioMixer handle it
+        audio: true,
       });
 
       activeStream = await setupAudioMixer(rawStream, config);
