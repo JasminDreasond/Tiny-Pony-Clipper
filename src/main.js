@@ -7,7 +7,6 @@ import {
   ipcMain,
   screen,
   dialog,
-  Notification,
   session,
   desktopCapturer,
   shell,
@@ -17,6 +16,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
 import fs from 'fs';
+import { sendNotification } from './utils/Notification.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -27,29 +27,6 @@ app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal,WebRTCPip
 const __filename = fileURLToPath(import.meta.url);
 /** @type {string} */
 const __dirname = path.dirname(__filename);
-
-/**
- * @param {Electron.NotificationConstructorOptions} options
- * @param {string} [soundFile]
- * @param {(details: Electron.Event<Electron.NotificationActionEventParams>, actionIndex: number, selectionIndex: number) => void} [onClick]
- * @returns {Notification}
- */
-const sendNotification = (options, soundFile, onClick) => {
-  /** @type {Notification} */
-  const noti = new Notification({
-    ...options,
-    sound: soundFile ? path.join(__dirname, soundFile) : undefined,
-    silent: soundFile ? false : true,
-    timeoutType: 'default',
-  });
-
-  if (onClick) {
-    noti.on('click', onClick);
-  }
-
-  noti.show();
-  return noti;
-};
 
 /** @type {BrowserWindow | null} */
 let configWindow = null;
@@ -69,6 +46,8 @@ let isClipping = false;
 // --- HARDWARE DEBOUNCE (Fixes Electron infinite loop bug) ---
 /** @type {boolean} */
 let isHardwareDebouncing = false;
+
+const clipSound = path.join(__dirname, './sounds/clip-saved.mp3');
 
 // --- RATE LIMIT VARIABLES ---
 /** @type {number} */
@@ -92,9 +71,6 @@ let currentConfig = null;
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
 
-/**
- * @returns {HardwareInfo}
- */
 const getHardwareInfo = () => {
   /** @type {Object[]} */
   const monitors = screen.getAllDisplays().map((disp, index) => ({
@@ -445,7 +421,7 @@ const saveClip = (saveDir) => {
           urgency: 'critical',
           body: `Successfully saved: ${path.basename(outputPath)}\nClick here to view.`,
         },
-        './sounds/clip-saved.mp3',
+        clipSound,
         () => {
           shell.showItemInFolder(outputPath);
         },
@@ -458,7 +434,7 @@ const saveClip = (saveDir) => {
           urgency: 'critical',
           body: `Failed to save clip. FFmpeg exited with code ${code}.`,
         },
-        './sounds/clip-saved.mp3',
+        clipSound,
       );
     }
   });
@@ -474,7 +450,7 @@ const saveClip = (saveDir) => {
         urgency: 'critical',
         body: 'Could not start the video processing engine.',
       },
-      './sounds/clip-saved.mp3',
+      clipSound,
     );
   });
 };
