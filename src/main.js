@@ -48,6 +48,8 @@ let isClipping = false;
 let isHardwareDebouncing = false;
 
 const clipSound = path.join(__dirname, './sounds/clip-saved.mp3');
+const saveSound = path.join(__dirname, './sounds/saving-clip.mp3');
+const failSound = path.join(__dirname, './sounds/clip-fail.mp3');
 
 // --- RATE LIMIT VARIABLES ---
 /** @type {number} */
@@ -271,11 +273,14 @@ const saveClip = (saveDir) => {
   console.log(`[CLIP] Shortcut triggered! Engaging FFmpeg hardware transcoding...`);
   isClipping = true;
 
-  sendNotification({
-    title: 'Tiny Pony Clipper',
-    urgency: 'normal',
-    body: 'Processing your clip... Please wait a moment.',
-  });
+  sendNotification(
+    {
+      title: 'Tiny Pony Clipper',
+      urgency: 'normal',
+      body: 'Processing your clip... Please wait a moment.',
+    },
+    saveSound,
+  );
 
   if (!currentConfig) {
     isClipping = false;
@@ -289,11 +294,14 @@ const saveClip = (saveDir) => {
 
   if (videoFiles.length === 0) {
     console.warn('[CLIP WARN] No segments available to clip.');
-    sendNotification({
-      title: 'Clipping Failed',
-      urgency: 'critical',
-      body: 'No recorded segments available yet. Please wait a bit longer.',
-    });
+    sendNotification(
+      {
+        title: 'Clipping Failed',
+        urgency: 'critical',
+        body: 'No recorded segments available yet. Please wait a bit longer.',
+      },
+      failSound,
+    );
     isClipping = false;
     return;
   }
@@ -434,7 +442,7 @@ const saveClip = (saveDir) => {
           urgency: 'critical',
           body: `Failed to save clip. FFmpeg exited with code ${code}.`,
         },
-        clipSound,
+        failSound,
       );
     }
   });
@@ -450,7 +458,7 @@ const saveClip = (saveDir) => {
         urgency: 'critical',
         body: 'Could not start the video processing engine.',
       },
-      clipSound,
+      failSound,
     );
   });
 };
@@ -503,11 +511,14 @@ const applyConfigurationAndStart = (config) => {
 
     if (timeDiff < RATE_LIMIT_TRIGGER_MS) {
       isRateLimited = true;
-      sendNotification({
-        title: 'Rate Limit',
-        body: 'Please wait 10 seconds.',
-        urgency: 'critical',
-      });
+      sendNotification(
+        {
+          title: 'Rate Limit',
+          body: 'Please wait 10 seconds.',
+          urgency: 'critical',
+        },
+        failSound,
+      );
       return;
     }
 
