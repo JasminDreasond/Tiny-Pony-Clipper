@@ -677,6 +677,12 @@ app.whenReady().then(async () => {
 
   applyConfigurationAndStart(loadConfig());
 
+  ipcMain.handle('is-wayland', () => {
+    /** @type {boolean} */
+    const isWayland = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+    return isWayland;
+  });
+
   ipcMain.handle('select-folder', async () => {
     console.log('[IPC] Folder selection dialog requested.');
     /** @type {Electron.OpenDialogReturnValue} */

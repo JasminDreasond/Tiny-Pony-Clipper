@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendVideoChunk: (chunk) => ipcRenderer.send('video-chunk', chunk),
   startSegment: (timestamp) => ipcRenderer.send('start-segment', timestamp),
   getHardware: () => ipcRenderer.invoke('get-hardware'),
+  isWayland: () => ipcRenderer.invoke('is-wayland'),
   onCaptureCommand: (callback) =>
     ipcRenderer.on('capture-command', (event, data) => callback(data)),
 });

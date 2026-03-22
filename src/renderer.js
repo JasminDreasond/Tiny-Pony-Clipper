@@ -13,6 +13,9 @@ const savePathInput = document.getElementById('savePath');
 /** @type {HTMLInputElement} */
 const shortcutInput = document.getElementById('shortcutKey');
 
+/** @type {boolean} */
+let isWaylandEnvironment = false;
+
 /**
  * @param {HTMLSelectElement} selectElement
  * @param {Object[]} items
@@ -66,14 +69,27 @@ const init = async () => {
   /** @type {Object} */
   const hardware = await window.electronAPI.getHardware();
 
+  isWaylandEnvironment = await window.electronAPI.isWayland();
+
   populateSelect(sysInputSelect, hardware.audioDevices, config.sysInput);
   populateSelect(micInputSelect, hardware.audioDevices, config.micInput);
   document.getElementById('bufferMinutes').value = String(config.minutes);
   document.getElementById('separateAudio').checked = config.separateAudio;
-  shortcutInput.value = config.shortcut;
   savePathInput.value = config.savePath;
 
-  shortcutInput.addEventListener('keydown', handleShortcutCapture);
+  if (isWaylandEnvironment) {
+    console.log('[RENDERER] Wayland detected. Forcing F10 shortcut and hiding input.');
+    shortcutInput.value = 'F10';
+    shortcutInput.disabled = true;
+    shortcutInput.style.display = 'none';
+
+    if (shortcutInput.parentElement) {
+      shortcutInput.parentElement.style.display = 'none';
+    }
+  } else {
+    shortcutInput.value = config.shortcut;
+    shortcutInput.addEventListener('keydown', handleShortcutCapture);
+  }
 };
 
 document.getElementById('btnBrowse').addEventListener('click', async () => {
@@ -88,13 +104,17 @@ document.getElementById('btnBrowse').addEventListener('click', async () => {
 
 document.getElementById('btnApply').addEventListener('click', async () => {
   console.log('[RENDERER] Apply button clicked. Gathering configuration...');
+
+  /** @type {string} */
+  const finalShortcut = isWaylandEnvironment ? 'F10' : shortcutInput.value;
+
   /** @type {Object} */
   const config = {
     minutes: Number(document.getElementById('bufferMinutes').value),
     sysInput: sysInputSelect.value,
     micInput: micInputSelect.value,
     separateAudio: document.getElementById('separateAudio').checked,
-    shortcut: shortcutInput.value,
+    shortcut: finalShortcut,
     savePath: savePathInput.value,
   };
 
