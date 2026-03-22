@@ -1,7 +1,4 @@
 /** @type {HTMLSelectElement} */
-const monitorSelect = document.getElementById('monitorId');
-
-/** @type {HTMLSelectElement} */
 const sysInputSelect = document.getElementById('sysInput');
 
 /** @type {HTMLSelectElement} */
@@ -78,10 +75,6 @@ const init = async () => {
     .filter((d) => d.kind === 'audiooutput')
     .map((d) => ({ id: d.deviceId, name: d.label || `Device ${d.deviceId.slice(0, 5)}` }));
 
-  /** @type {Object} */
-  const hardware = await window.electronAPI.getHardware();
-
-  populateSelect(monitorSelect, hardware.monitors, config.monitorId);
   populateSelect(
     sysInputSelect,
     [{ id: 'none', name: 'Disabled' }, ...audioOutputs],
@@ -121,7 +114,6 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     separateAudio: document.getElementById('separateAudio').checked,
     shortcut: shortcutInput.value,
     savePath: savePathInput.value,
-    monitorId: monitorSelect.value,
   };
 
   /** @type {boolean} */

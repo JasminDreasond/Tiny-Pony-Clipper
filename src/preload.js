@@ -5,7 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   error: (...args) => console.error(...args),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   getConfig: () => ipcRenderer.invoke('get-config'),
-  getHardware: () => ipcRenderer.invoke('get-hardware'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
   sendVideoChunk: (chunk) => ipcRenderer.send('video-chunk', chunk),
   onCaptureCommand: (callback) =>

@@ -127,8 +127,6 @@ window.electronAPI.onCaptureCommand(async (data) => {
   if (data.action === 'start') {
     /** @type {Object} */
     const config = data.config;
-    /** @type {Object} */
-    const bounds = data.bounds;
 
     currentSegment = 0;
 
@@ -137,9 +135,6 @@ window.electronAPI.onCaptureCommand(async (data) => {
       const rawStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           cursor: 'always',
-          width: { ideal: bounds.width },
-          height: { ideal: bounds.height },
-          deviceId: config.monitorId,
           frameRate: { ideal: 60, max: 60 },
         },
         audio: false, // We explicitly disable this and let setupAudioMixer handle it
@@ -147,7 +142,7 @@ window.electronAPI.onCaptureCommand(async (data) => {
 
       activeStream = await setupAudioMixer(rawStream, config);
 
-      electronAPI.log(`[CAPTURE] Engine started: ${bounds.width}x${bounds.height} @ 60fps`);
+      electronAPI.log(`[CAPTURE] Engine started: @ 60fps`);
       recordSegment(activeStream);
 
       rawStream.getVideoTracks()[0].onended = () => {

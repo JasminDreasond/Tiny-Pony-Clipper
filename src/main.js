@@ -86,7 +86,6 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {boolean} separateAudio
  * @property {string} shortcut
  * @property {string} savePath
- * @property {string} monitorId
  */
 
 /**
@@ -99,7 +98,6 @@ const getDefaultConfig = () => ({
   separateAudio: false,
   shortcut: 'F10',
   savePath: path.join(os.homedir(), 'Videos'),
-  monitorId: '0',
 });
 
 /**
@@ -176,19 +174,6 @@ const startGarbageCollector = (maxMinutes) => {
 };
 
 /**
- * @returns {Object}
- */
-const getHardwareInfo = () => {
-  /** @type {Object[]} */
-  const monitors = screen.getAllDisplays().map((disp, index) => ({
-    id: String(index),
-    name: `Monitor ${index + 1} (${disp.bounds.width}x${disp.bounds.height})`,
-    bounds: disp.bounds,
-  }));
-  return { monitors };
-};
-
-/**
  * Starts the FFmpeg recording process based on the provided configuration.
  * @param {AppConfig} config
  * @returns {void}
@@ -217,16 +202,10 @@ const startRecording = (config) => {
     }
   }
 
-  // Determine the target display using the provided ID or fallback to the primary one
-  /** @type {Electron.Display} */
-  const display = screen.getAllDisplays()[Number(config.monitorId)] || screen.getPrimaryDisplay();
-
-  // Instruct the renderer process to start sending the video stream with specific bounds
+  // Instruct the renderer process to start sending the video stream
   captureWindow.webContents.send('capture-command', {
     action: 'start',
     config: config,
-    /** @type {Electron.Rectangle} */
-    bounds: display.bounds,
   });
 
   startGarbageCollector(config.minutes);
@@ -450,7 +429,7 @@ app.whenReady().then(async () => {
   session.defaultSession.setDisplayMediaRequestHandler(
     (request, callback) => {
       desktopCapturer
-        .getSources({ types: ['screen', 'window'] })
+        .getSources({ types: ['screen', 'window'], fetchWindowIcons: true })
         .then((sources) => {
           if (sources && sources.length > 0) {
             callback({ video: sources[0] });
@@ -520,8 +499,6 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('get-config', () => loadConfig());
-  ipcMain.handle('get-hardware', () => getHardwareInfo());
-
   ipcMain.handle('save-config', (event, config) => {
     if (!isDirectoryValid(config.savePath)) {
       console.error(
