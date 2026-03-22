@@ -96,7 +96,7 @@ const setupAudioMixer = async (videoStream, config) => {
 const recordSegment = (stream) => {
   const options = { mimeType: 'video/webm; codecs=vp8', videoBitsPerSecond: 15000000 };
   if (MediaRecorder.isTypeSupported('video/webm; codecs=h264')) {
-    options.mimeType = 'video/webm; codecs=h264'
+    options.mimeType = 'video/webm; codecs=h264';
   }
 
   mediaRecorder = new MediaRecorder(stream, options);
@@ -139,6 +139,7 @@ window.electronAPI.onCaptureCommand(async (data) => {
           cursor: 'always',
           width: { ideal: bounds.width },
           height: { ideal: bounds.height },
+          deviceId: config.monitorId,
           frameRate: { ideal: 60, max: 60 },
         },
         audio: false, // We explicitly disable this and let setupAudioMixer handle it
@@ -153,7 +154,7 @@ window.electronAPI.onCaptureCommand(async (data) => {
         electronAPI.log('[CAPTURE] Wayland stream ended by user.');
       };
     } catch (error) {
-      electronAPI.error('[CAPTURE ERROR] Wayland Portal denied or failed.', error);
+      electronAPI.log('[CAPTURE ERROR] Wayland Portal denied or failed.', error.message);
     }
   } else if (data.action === 'stop') {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {

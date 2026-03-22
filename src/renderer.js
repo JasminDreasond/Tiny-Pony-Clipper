@@ -82,8 +82,16 @@ const init = async () => {
   const hardware = await window.electronAPI.getHardware();
 
   populateSelect(monitorSelect, hardware.monitors, config.monitorId);
-  populateSelect(sysInputSelect, [{ id: 'none', name: 'Disabled' }, ...audioOutputs], config.sysInput);
-  populateSelect(micInputSelect, [{ id: 'none', name: 'Disabled' }, ...audioInputs], config.micInput);
+  populateSelect(
+    sysInputSelect,
+    [{ id: 'none', name: 'Disabled' }, ...audioOutputs],
+    config.sysInput,
+  );
+  populateSelect(
+    micInputSelect,
+    [{ id: 'none', name: 'Disabled' }, ...audioInputs],
+    config.micInput,
+  );
 
   document.getElementById('bufferMinutes').value = String(config.minutes);
   document.getElementById('separateAudio').checked = config.separateAudio;
