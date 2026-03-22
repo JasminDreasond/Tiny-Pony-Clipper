@@ -13,11 +13,10 @@ import {
 } from 'electron';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import os from 'os';
 import fs from 'fs';
 import { sendNotification } from './utils/Notification.js';
-import { appIconPath } from './utils/values.js';
+import { appIconPath, assetsFolder, srcFolder } from './utils/values.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -41,11 +40,6 @@ if (!gotTheLock) {
   });
 }
 
-/** @type {string} */
-const __filename = fileURLToPath(import.meta.url);
-/** @type {string} */
-const __dirname = path.dirname(__filename);
-
 /** @type {BrowserWindow | null} */
 let configWindow = null;
 
@@ -68,9 +62,9 @@ let isHardwareDebouncing = false;
 /** @type {number} */
 let activeSegmentTimestamp = 0;
 
-const clipSound = path.join(__dirname, './sounds/clip-saved.mp3');
-const saveSound = path.join(__dirname, './sounds/saving-clip.mp3');
-const failSound = path.join(__dirname, './sounds/clip-fail.mp3');
+const clipSound = path.join(assetsFolder, './sounds/clip-saved.mp3');
+const saveSound = path.join(assetsFolder, './sounds/saving-clip.mp3');
+const failSound = path.join(assetsFolder, './sounds/clip-fail.mp3');
 
 // --- RATE LIMIT VARIABLES ---
 /** @type {number} */
@@ -605,12 +599,12 @@ const createHiddenCaptureWindow = async () => {
     show: false,
     icon: appIconPath,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(srcFolder, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
-  await captureWindow.loadFile(path.join(__dirname, 'capture.html'));
+  await captureWindow.loadFile(path.join(srcFolder, 'capture.html'));
 };
 
 /**
@@ -630,12 +624,12 @@ const createConfigWindow = () => {
     autoHideMenuBar: true,
     icon: appIconPath,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(srcFolder, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
-  configWindow.loadFile(path.join(__dirname, 'index.html'));
+  configWindow.loadFile(path.join(srcFolder, 'index.html'));
   configWindow.once('ready-to-show', () => {
     console.log('[UI] Window ready to show.');
     configWindow.show();
