@@ -2,7 +2,7 @@
 let mediaRecorder = null;
 
 /** @type {number} */
-let currentSegment = 0;
+let currentTimestamp = 0;
 
 /** @type {NodeJS.Timeout | null} */
 let segmentTimer = null;
@@ -11,92 +11,17 @@ let segmentTimer = null;
 let activeStream = null;
 
 /**
- * @param {string} deviceId
- * @param {boolean} isMic
- * @returns {Promise<MediaStream | null>}
- */
-const getAudioStream = async (deviceId, isMic) => {
-  if (!deviceId || deviceId === 'none') return null;
-  try {
-    /** @type {Object} */
-    const constraints = {
-      audio: {
-        deviceId: deviceId !== 'default' ? { exact: deviceId } : undefined,
-        echoCancellation: isMic,
-        noiseSuppression: isMic,
-        autoGainControl: isMic,
-      },
-    };
-    return await navigator.mediaDevices.getUserMedia(constraints);
-  } catch (e) {
-    console.error('[CAPTURE ERROR] Failed to capture audio device:', deviceId, e);
-    return null;
-  }
-};
-
-/**
- * @param {MediaStream} videoStream
- * @param {Object} config
- * @returns {Promise<{ mediaStream: MediaStream, hasAudio: boolean, hasStreamAudio: boolean }>}
- */
-const setupAudioMixer = async (videoStream, config) => {
-  try {
-    /** @type {AudioContext} */
-    const audioCtx = new AudioContext();
-
-    /** @type {MediaStreamAudioDestinationNode} */
-    const dest = audioCtx.createMediaStreamDestination();
-
-    /** @type {boolean} */
-    let hasAudio = false;
-
-    /** @type {boolean} */
-    let hasStreamAudio = false;
-
-    const videoAudios = videoStream.getAudioTracks();
-    electronAPI.log(`[CAPTURE] System Audio Length:`, videoAudios.length);
-    if (videoAudios.length > 0) {
-      audioCtx.createMediaStreamSource(videoStream).connect(dest);
-      hasAudio = true;
-      hasStreamAudio = true;
-    }
-
-    if (config.micInput !== 'none') {
-      electronAPI.log(`[CAPTURE] Selected micInput`, config.micInput);
-      /** @type {MediaStream | null} */
-      const micStream = await getAudioStream(config.micInput, true);
-      if (micStream && micStream.getAudioTracks().length > 0) {
-        electronAPI.log(`[CAPTURE] Mic Audio Length:`, micStream.getAudioTracks().length);
-        audioCtx.createMediaStreamSource(micStream).connect(dest);
-        hasAudio = true;
-      }
-    }
-
-    if (hasAudio) {
-      const streamAudios = dest.stream.getAudioTracks();
-      const streamVideos = videoStream.getVideoTracks();
-      electronAPI.log(`[CAPTURE] Stream Audio Length:`, streamAudios.length);
-      electronAPI.log(`[CAPTURE] Stream Video Length:`, streamVideos.length);
-      return {
-        mediaStream: new MediaStream([streamVideos[0], streamAudios[0]]),
-        hasStreamAudio,
-        hasAudio,
-      };
-    }
-  } catch (error) {
-    console.warn('[CAPTURE WARN] Audio mixer failed, using video only.', error);
-  }
-
-  const streamVideos = videoStream.getVideoTracks();
-  electronAPI.log(`[CAPTURE] Stream Video Length:`, streamVideos.length);
-  return { mediaStream: new MediaStream([streamVideos[0]]), hasStreamAudio, hasAudio };
-};
-
-/**
  * @param {MediaStream} stream
  * @returns {void}
  */
 const recordSegment = (stream) => {
+  /** @type {number} */
+  const timestamp = Date.now();
+  currentTimestamp = timestamp;
+
+  window.electronAPI.startSegment(timestamp);
+
+  /** @type {Object} */
   const options = { mimeType: 'video/webm; codecs=vp8', videoBitsPerSecond: 15000000 };
   if (MediaRecorder.isTypeSupported('video/webm; codecs=h264')) {
     options.mimeType = 'video/webm; codecs=h264';
@@ -110,7 +35,7 @@ const recordSegment = (stream) => {
       const buffer = await e.data.arrayBuffer();
       window.electronAPI.sendVideoChunk({
         buffer: buffer,
-        segmentIndex: currentSegment,
+        timestamp: timestamp,
       });
     }
   };
@@ -120,7 +45,6 @@ const recordSegment = (stream) => {
   segmentTimer = setTimeout(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
-      currentSegment++;
       recordSegment(stream);
     }
   }, 60000);
@@ -128,11 +52,6 @@ const recordSegment = (stream) => {
 
 window.electronAPI.onCaptureCommand(async (data) => {
   if (data.action === 'start') {
-    /** @type {Object} */
-    const config = data.config;
-
-    currentSegment = 0;
-
     try {
       /** @type {MediaStream} */
       const rawStream = await navigator.mediaDevices.getDisplayMedia({
@@ -140,13 +59,12 @@ window.electronAPI.onCaptureCommand(async (data) => {
           cursor: 'always',
           frameRate: { ideal: 60, max: 60 },
         },
-        audio: true,
+        audio: false,
       });
 
-      const { mediaStream } = await setupAudioMixer(rawStream, config);
-      activeStream = mediaStream;
+      activeStream = rawStream;
 
-      electronAPI.log(`[CAPTURE] Engine started: @ 60fps`);
+      electronAPI.log(`[CAPTURE] Video engine started: @ 60fps`);
       recordSegment(activeStream);
 
       rawStream.getVideoTracks()[0].onended = () => {
@@ -163,6 +81,6 @@ window.electronAPI.onCaptureCommand(async (data) => {
     if (activeStream) {
       activeStream.getTracks().forEach((track) => track.stop());
     }
-    electronAPI.log('[CAPTURE] Engine completely stopped.');
+    electronAPI.log('[CAPTURE] Video engine completely stopped.');
   }
 });

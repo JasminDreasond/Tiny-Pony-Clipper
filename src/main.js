@@ -11,7 +11,7 @@ import {
   session,
   desktopCapturer,
 } from 'electron';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
@@ -20,8 +20,6 @@ import fs from 'fs';
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
 
-// Enable usage of Portal's globalShortcuts. This is essential for cases when
-// the app runs in a Wayland session.
 app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal,WebRTCPipeWireCapturer');
 
 /** @type {string} */
@@ -58,8 +56,48 @@ let lastShortcutTime = 0;
 /** @type {boolean} */
 let isRateLimited = false;
 
+/** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
+let audioProcess = null;
+
+/** @type {AppConfig | null} */
+let currentConfig = null;
+
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
+
+/**
+ * @returns {HardwareInfo}
+ */
+const getHardwareInfo = () => {
+  /** @type {Object[]} */
+  const monitors = screen.getAllDisplays().map((disp, index) => ({
+    id: String(index),
+    name: `Monitor ${index + 1} (${disp.bounds.width}x${disp.bounds.height})`,
+    bounds: disp.bounds,
+  }));
+
+  /** @type {Object[]} */
+  const audioDevices = [];
+  try {
+    /** @type {string} */
+    const output = execSync('pactl list short sources', { encoding: 'utf-8' });
+    /** @type {string[]} */
+    const lines = output.trim().split('\n');
+
+    for (const line of lines) {
+      /** @type {string[]} */
+      const parts = line.split('\t');
+      if (parts.length >= 2) {
+        audioDevices.push({ id: parts[1], name: parts[1] });
+      }
+    }
+  } catch (error) {
+    console.error('[SYSTEM] Failed to fetch PulseAudio devices.', error);
+    audioDevices.push({ id: 'default', name: 'Default Audio System' });
+  }
+
+  return { monitors, audioDevices };
+};
 
 /**
  * @param {string} dirPath
@@ -142,32 +180,39 @@ const startGarbageCollector = (maxMinutes) => {
   if (cleanupInterval) clearInterval(cleanupInterval);
 
   cleanupInterval = setInterval(() => {
-    if (isClipping) {
-      console.log('[CLEANUP] Cleanup paused because a clip is currently being processed.');
-      return;
-    }
-
+    if (isClipping) return;
     if (!fs.existsSync(TEMP_DIR)) return;
 
     /** @type {string[]} */
-    const files = fs.readdirSync(TEMP_DIR).filter((f) => f.endsWith('.webm'));
+    const files = fs
+      .readdirSync(TEMP_DIR)
+      .filter((f) => f.startsWith('video_') && f.endsWith('.webm'));
     if (files.length <= maxMinutes) return;
 
     /** @type {Object[]} */
-    const fileStats = files
-      .map((f) => ({ name: f, time: fs.statSync(path.join(TEMP_DIR, f)).mtime.getTime() }))
+    const segments = files
+      .map((f) => {
+        /** @type {string} */
+        const ts = f.replace('video_', '').replace('.webm', '');
+        return { timestamp: ts, time: parseInt(ts, 10) };
+      })
       .sort((a, b) => a.time - b.time);
 
     /** @type {number} */
-    const filesToDelete = fileStats.length - maxMinutes;
+    const filesToDelete = segments.length - maxMinutes;
     for (let i = 0; i < filesToDelete; i++) {
       /** @type {string} */
-      const filePath = path.join(TEMP_DIR, fileStats[i].name);
+      const ts = segments[i].timestamp;
       try {
-        fs.unlinkSync(filePath);
-        console.log(`[CLEANUP] Deleted old segment: ${fileStats[i].name}`);
+        if (fs.existsSync(path.join(TEMP_DIR, `video_${ts}.webm`)))
+          fs.unlinkSync(path.join(TEMP_DIR, `video_${ts}.webm`));
+        if (fs.existsSync(path.join(TEMP_DIR, `sys_${ts}.wav`)))
+          fs.unlinkSync(path.join(TEMP_DIR, `sys_${ts}.wav`));
+        if (fs.existsSync(path.join(TEMP_DIR, `mic_${ts}.wav`)))
+          fs.unlinkSync(path.join(TEMP_DIR, `mic_${ts}.wav`));
+        console.log(`[CLEANUP] Deleted old segment blocks for: ${ts}`);
       } catch (e) {
-        console.error(`[CLEANUP ERROR] Could not delete ${fileStats[i].name}`);
+        console.error(`[CLEANUP ERROR] Could not delete cache for ${ts}`);
       }
     }
   }, 15000);
@@ -186,6 +231,13 @@ const startRecording = (config) => {
     captureWindow.webContents.send('capture-command', { action: 'stop' });
   }
 
+  if (audioProcess) {
+    audioProcess.stdin.write('q\n');
+    audioProcess = null;
+  }
+
+  currentConfig = config;
+
   // Ensure the temporary directory exists before starting operations
   ensureDirExists(TEMP_DIR);
 
@@ -203,11 +255,7 @@ const startRecording = (config) => {
   }
 
   // Instruct the renderer process to start sending the video stream
-  captureWindow.webContents.send('capture-command', {
-    action: 'start',
-    config: config,
-  });
-
+  captureWindow.webContents.send('capture-command', { action: 'start' });
   startGarbageCollector(config.minutes);
 };
 
@@ -220,26 +268,58 @@ const saveClip = (saveDir) => {
   console.log(`[CLIP] Shortcut triggered! Engaging FFmpeg hardware transcoding...`);
   isClipping = true;
 
-  /** @type {Object[]} */
-  const fileStats = fs
-    .readdirSync(TEMP_DIR)
-    .filter((f) => f.endsWith('.webm'))
-    .map((f) => ({ name: f, time: fs.statSync(path.join(TEMP_DIR, f)).mtime.getTime() }))
-    .sort((a, b) => a.time - b.time);
+  if (!currentConfig) {
+    isClipping = false;
+    return;
+  }
 
-  if (fileStats.length === 0) {
+  /** @type {string[]} */
+  const videoFiles = fs
+    .readdirSync(TEMP_DIR)
+    .filter((f) => f.startsWith('video_') && f.endsWith('.webm'));
+
+  if (videoFiles.length === 0) {
     console.warn('[CLIP WARN] No segments available to clip.');
     isClipping = false;
     return;
   }
 
-  console.log(`[CLIP] Joining ${fileStats.length} segments.`);
+  /** @type {Object[]} */
+  const segments = videoFiles
+    .map((f) => {
+      /** @type {string} */
+      const ts = f.replace('video_', '').replace('.webm', '');
+      return { timestamp: ts, time: parseInt(ts, 10) };
+    })
+    .sort((a, b) => a.time - b.time);
 
   /** @type {string[]} */
-  const files = fileStats.map((f) => `file '${path.join(TEMP_DIR, f.name)}'`);
+  const listVideo = [];
+  /** @type {string[]} */
+  const listSys = [];
+  /** @type {string[]} */
+  const listMic = [];
+
+  for (const seg of segments) {
+    listVideo.push(`file '${path.join(TEMP_DIR, `video_${seg.timestamp}.webm`)}'`);
+    listSys.push(`file '${path.join(TEMP_DIR, `sys_${seg.timestamp}.wav`)}'`);
+    if (currentConfig.micInput !== 'none') {
+      listMic.push(`file '${path.join(TEMP_DIR, `mic_${seg.timestamp}.wav`)}'`);
+    }
+  }
+
   /** @type {string} */
-  const listPath = path.join(TEMP_DIR, 'concat_list.txt');
-  fs.writeFileSync(listPath, files.join('\n'));
+  const listVideoPath = path.join(TEMP_DIR, 'concat_video.txt');
+  /** @type {string} */
+  const listSysPath = path.join(TEMP_DIR, 'concat_sys.txt');
+  /** @type {string} */
+  const listMicPath = path.join(TEMP_DIR, 'concat_mic.txt');
+
+  fs.writeFileSync(listVideoPath, listVideo.join('\n'));
+  fs.writeFileSync(listSysPath, listSys.join('\n'));
+  if (currentConfig.micInput !== 'none') {
+    fs.writeFileSync(listMicPath, listMic.join('\n'));
+  }
 
   /** @type {string} */
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -253,21 +333,8 @@ const saveClip = (saveDir) => {
     counter++;
   }
 
-  // Pre-create the empty file to ensure the destination is valid and writeable
-  try {
-    fs.writeFileSync(outputPath, '');
-  } catch (err) {
-    console.error(
-      `[CLIP ERROR] Failed to create destination file in ${saveDir}. Check permissions!`,
-      err,
-    );
-    isClipping = false;
-    return;
-  }
-
-  // Uses hardware NVENC transcoding to rebuild timestamps starting from 0 perfectly
   /** @type {string[]} */
-  const concatArgs = [
+  const ffmpegArgs = [
     '-y',
     '-fflags',
     '+genpts',
@@ -276,7 +343,33 @@ const saveClip = (saveDir) => {
     '-safe',
     '0',
     '-i',
-    listPath,
+    listVideoPath,
+    '-f',
+    'concat',
+    '-safe',
+    '0',
+    '-i',
+    listSysPath,
+  ];
+
+  // Your requested audio mixing logic safely implemented for assembly!
+  if (currentConfig.micInput !== 'none') {
+    ffmpegArgs.push('-f', 'concat', '-safe', '0', '-i', listMicPath);
+
+    if (currentConfig.separateAudio) {
+      console.log('[FFMPEG] Separate audio tracks enabled.');
+      ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
+    } else {
+      console.log('[FFMPEG] Merged audio track enabled (amix filter).');
+      ffmpegArgs.push('-filter_complex', '[1:a][2:a]amix=inputs=2:duration=longest[aout]');
+      ffmpegArgs.push('-map', '0:v', '-map', '[aout]');
+    }
+  } else {
+    console.log('[FFMPEG] Single system audio track enabled.');
+    ffmpegArgs.push('-map', '0:v', '-map', '1:a');
+  }
+
+  ffmpegArgs.push(
     '-c:v',
     'h264_nvenc',
     '-preset',
@@ -288,10 +381,10 @@ const saveClip = (saveDir) => {
     '-avoid_negative_ts',
     'make_zero',
     outputPath,
-  ];
+  );
 
   /** @type {import('child_process').ChildProcessWithoutNullStreams} */
-  const concatProcess = spawn('ffmpeg', concatArgs);
+  const concatProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
 
   concatProcess.stderr.on('data', (data) => {
     /** @type {string} */
@@ -466,14 +559,57 @@ app.whenReady().then(async () => {
 
   await createHiddenCaptureWindow();
 
+  /**
+   * @param {string} timestamp
+   * @param {object} currentConfig
+   * @param {string} currentConfig.sysInput
+   * @param {string} currentConfig.micInput
+   * @param {any} audioProcess
+   * @param {string} TEMP_DIR
+   * @returns {any}
+   */
+  ipcMain.on('start-segment', (event, timestamp) => {
+    if (audioProcess) {
+      audioProcess.stdin.write('q\n');
+      audioProcess = null;
+    }
+
+    if (!currentConfig) return;
+
+    /** @type {string} */
+    let sysDevice = currentConfig.sysInput;
+
+    // PulseAudio logic: 'default' points to the mic. We need the monitor for desktop audio.
+    if (sysDevice === 'default') {
+      sysDevice = 'default.monitor';
+    }
+
+    /** @type {string[]} */
+    const audioArgs = ['-y', '-f', 'pulse', '-i', sysDevice];
+
+    if (currentConfig.micInput !== 'none') {
+      /** @type {string} */
+      let micDevice = currentConfig.micInput;
+
+      audioArgs.push('-f', 'pulse', '-i', micDevice);
+      audioArgs.push('-map', '0:a', path.join(TEMP_DIR, `sys_${timestamp}.wav`));
+      audioArgs.push('-map', '1:a', path.join(TEMP_DIR, `mic_${timestamp}.wav`));
+    } else {
+      audioArgs.push('-map', '0:a', path.join(TEMP_DIR, `sys_${timestamp}.wav`));
+    }
+
+    console.log(`[SYSTEM] ffmpeg`, audioArgs.join(' '));
+    audioProcess = spawn('ffmpeg', audioArgs, { env: process.env });
+  });
+
   ipcMain.on('video-chunk', (event, payload) => {
     /** @type {ArrayBuffer} */
     const buffer = payload.buffer;
     /** @type {number} */
-    const segmentIndex = payload.segmentIndex;
+    const timestamp = payload.timestamp;
 
     /** @type {string} */
-    const fileName = `segment_${String(segmentIndex).padStart(3, '0')}.webm`;
+    const fileName = `video_${timestamp}.webm`;
     /** @type {string} */
     const filePath = path.join(TEMP_DIR, fileName);
 
@@ -499,6 +635,7 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('get-config', () => loadConfig());
+  ipcMain.handle('get-hardware', () => getHardwareInfo());
   ipcMain.handle('save-config', (event, config) => {
     if (!isDirectoryValid(config.savePath)) {
       console.error(

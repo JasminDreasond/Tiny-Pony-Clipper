@@ -1,4 +1,7 @@
 /** @type {HTMLSelectElement} */
+const monitorSelect = document.getElementById('monitorId');
+
+/** @type {HTMLSelectElement} */
 const sysInputSelect = document.getElementById('sysInput');
 
 /** @type {HTMLSelectElement} */
@@ -60,32 +63,11 @@ const init = async () => {
 
   /** @type {Object} */
   const config = await window.electronAPI.getConfig();
+  /** @type {Object} */
+  const hardware = await window.electronAPI.getHardware();
 
-  // Requesting audio permission to unlock explicit device labels in Chromium
-  try {
-    await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (e) {}
-  const devices = await navigator.mediaDevices.enumerateDevices();
-
-  const audioInputs = devices
-    .filter((d) => d.kind === 'audioinput')
-    .map((d) => ({ id: d.deviceId, name: d.label || `Device ${d.deviceId.slice(0, 5)}` }));
-
-  const audioOutputs = devices
-    .filter((d) => d.kind === 'audiooutput')
-    .map((d) => ({ id: d.deviceId, name: d.label || `Device ${d.deviceId.slice(0, 5)}` }));
-
-  populateSelect(
-    sysInputSelect,
-    [{ id: 'none', name: 'Disabled' }, ...audioOutputs],
-    config.sysInput,
-  );
-  populateSelect(
-    micInputSelect,
-    [{ id: 'none', name: 'Disabled' }, ...audioInputs],
-    config.micInput,
-  );
-
+  populateSelect(sysInputSelect, hardware.audioDevices, config.sysInput);
+  populateSelect(micInputSelect, hardware.audioDevices, config.micInput);
   document.getElementById('bufferMinutes').value = String(config.minutes);
   document.getElementById('separateAudio').checked = config.separateAudio;
   shortcutInput.value = config.shortcut;
@@ -116,12 +98,17 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     savePath: savePathInput.value,
   };
 
+  console.log('[RENDERER] Configuration gathered:', config);
+  console.log('[RENDERER] Sending configuration to Main process via IPC.');
+
   /** @type {boolean} */
   const success = await window.electronAPI.saveConfig(config);
   if (success) {
     alert('Settings saved successfully! The recording system is active.');
   } else {
-    alert('Validation Error: The selected save directory does not exist or is invalid.');
+    alert(
+      'Validation Error: The selected save directory does not exist or is invalid. Please browse and select a valid folder before applying.',
+    );
   }
 });
 
