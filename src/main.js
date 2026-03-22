@@ -22,11 +22,31 @@ ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
 
 app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal,WebRTCPipeWireCapturer');
+app.setAppUserModelId('TinyPonyClipper');
+
+/** @type {boolean} */
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    if (configWindow) {
+      if (configWindow.isMinimized()) configWindow.restore();
+      configWindow.focus();
+    } else {
+      createConfigWindow();
+    }
+  });
+}
 
 /** @type {string} */
 const __filename = fileURLToPath(import.meta.url);
 /** @type {string} */
 const __dirname = path.dirname(__filename);
+
+/** @type {string} */
+const appIconPath = path.join(__dirname, '../assets/tray-icon.png');
 
 /** @type {BrowserWindow | null} */
 let configWindow = null;
@@ -585,6 +605,7 @@ const applyConfigurationAndStart = (config) => {
 const createHiddenCaptureWindow = async () => {
   captureWindow = new BrowserWindow({
     show: false,
+    icon: appIconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -609,6 +630,7 @@ const createConfigWindow = () => {
     height: 750,
     show: false,
     autoHideMenuBar: true,
+    icon: appIconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -626,155 +648,160 @@ const createConfigWindow = () => {
   });
 };
 
-app.whenReady().then(async () => {
-  // --- WAYLAND PORTAL HANDLER ---
-  session.defaultSession.setDisplayMediaRequestHandler(
-    (request, callback) => {
-      desktopCapturer
-        .getSources({ types: ['screen', 'window'], fetchWindowIcons: true })
-        .then((sources) => {
-          if (sources && sources.length > 0) {
-            callback({ video: sources[0] });
-          } else {
-            console.warn('[SYSTEM WARN] Portal canceled by user.');
+if (gotTheLock) {
+  app.whenReady().then(async () => {
+    // --- WAYLAND PORTAL HANDLER ---
+    session.defaultSession.setDisplayMediaRequestHandler(
+      (request, callback) => {
+        desktopCapturer
+          .getSources({ types: ['screen', 'window'], fetchWindowIcons: true })
+          .then((sources) => {
+            if (sources && sources.length > 0) {
+              callback({ video: sources[0] });
+            } else {
+              console.warn('[SYSTEM WARN] Portal canceled by user.');
+              callback(null);
+            }
+          })
+          .catch((err) => {
+            console.error('[SYSTEM ERROR] Failed to fetch desktop sources:', err);
             callback(null);
-          }
-        })
-        .catch((err) => {
-          console.error('[SYSTEM ERROR] Failed to fetch desktop sources:', err);
-          callback(null);
-        });
-    },
-    { useSystemPicker: true },
-  );
-
-  /** @type {string} */
-  const iconPath = path.join(__dirname, '../assets/tray-icon.png');
-  try {
-    tray = new Tray(iconPath);
-    tray.setToolTip('Tiny Pony Clipper');
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: 'Settings', click: createConfigWindow },
-        { type: 'separator' },
-        { label: 'Quit', click: () => app.quit() },
-      ]),
+          });
+      },
+      { useSystemPicker: true },
     );
-    tray.on('click', createConfigWindow);
-    console.log('[TRAY] Tray setup completed successfully.');
-  } catch (error) {
-    console.error('[TRAY ERROR] Failed to set up tray icon.', error);
-  }
-
-  await createHiddenCaptureWindow();
-
-  /**
-   * @param {Electron.IpcMainEvent} event
-   * @param {string} timestamp
-   * @returns {void}
-   */
-  ipcMain.on('start-segment', (event, timestamp) => {
-    activeSegmentTimestamp = Number(timestamp);
-
-    if (audioProcess) {
-      audioProcess.stdin.write('q\n');
-      audioProcess = null;
-    }
-
-    if (!currentConfig) return;
-
-    /** @type {string} */
-    let sysDevice = currentConfig.sysInput;
-
-    // PulseAudio logic: 'default' points to the mic. We need the monitor for desktop audio.
-    if (sysDevice === 'default') {
-      sysDevice = 'default.monitor';
-    }
-
-    /** @type {string[]} */
-    const audioArgs = ['-y', '-f', 'pulse', '-i', sysDevice];
-
-    if (currentConfig.micInput !== 'none') {
-      /** @type {string} */
-      let micDevice = currentConfig.micInput;
-
-      audioArgs.push('-f', 'pulse', '-i', micDevice);
-      audioArgs.push('-map', '0:a', path.join(TEMP_DIR, `sys_${timestamp}.wav`));
-      audioArgs.push('-map', '1:a', path.join(TEMP_DIR, `mic_${timestamp}.wav`));
-    } else {
-      audioArgs.push('-map', '0:a', path.join(TEMP_DIR, `sys_${timestamp}.wav`));
-    }
-
-    console.log(`[SYSTEM] ffmpeg`, audioArgs.join(' '));
-    audioProcess = spawn('ffmpeg', audioArgs, { env: process.env });
-  });
-
-  ipcMain.on('video-chunk', (event, payload) => {
-    /** @type {ArrayBuffer} */
-    const buffer = payload.buffer;
-    /** @type {number} */
-    const timestamp = payload.timestamp;
-
-    /** @type {string} */
-    const fileName = `video_${timestamp}.webm`;
-    /** @type {string} */
-    const filePath = path.join(TEMP_DIR, fileName);
 
     try {
-      fs.appendFileSync(filePath, Buffer.from(buffer));
-    } catch (e) {
-      console.error(`[FS ERROR] Failed to write chunk to ${fileName}`, e);
-    }
-  });
-
-  applyConfigurationAndStart(loadConfig());
-
-  ipcMain.handle('is-wayland', () => {
-    /** @type {boolean} */
-    const isWayland = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
-    return isWayland;
-  });
-
-  ipcMain.handle('select-folder', async () => {
-    console.log('[IPC] Folder selection dialog requested.');
-    /** @type {Electron.OpenDialogReturnValue} */
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-    if (result.canceled) {
-      console.log('[IPC] Folder selection canceled by user.');
-      return null;
-    }
-    console.log(`[IPC] Folder selected: ${result.filePaths[0]}`);
-    return result.filePaths[0];
-  });
-
-  ipcMain.handle('get-config', () => loadConfig());
-  ipcMain.handle('get-hardware', () => getHardwareInfo());
-  ipcMain.handle('save-config', (event, config) => {
-    if (!isDirectoryValid(config.savePath)) {
-      console.error(
-        `[IPC] Validation failed: Attempted to save invalid directory: ${config.savePath}`,
+      tray = new Tray(appIconPath);
+      tray.setToolTip('Tiny Pony Clipper');
+      tray.setContextMenu(
+        Menu.buildFromTemplate([
+          { label: 'Settings', click: createConfigWindow },
+          { type: 'separator' },
+          { label: 'Quit', click: () => app.quit() },
+        ]),
       );
-      return false;
+      tray.on('click', createConfigWindow);
+      console.log('[TRAY] Tray setup completed successfully.');
+    } catch (error) {
+      console.error('[TRAY ERROR] Failed to set up tray icon.', error);
     }
-    saveConfig(config);
-    applyConfigurationAndStart(config);
-    return true;
+
+    await createHiddenCaptureWindow();
+
+    /**
+     * @param {Electron.IpcMainEvent} event
+     * @param {string} timestamp
+     * @returns {void}
+     */
+    ipcMain.on('start-segment', (event, timestamp) => {
+      activeSegmentTimestamp = Number(timestamp);
+
+      if (audioProcess) {
+        audioProcess.stdin.write('q\n');
+        audioProcess = null;
+      }
+
+      if (!currentConfig) return;
+
+      /** @type {string} */
+      let sysDevice = currentConfig.sysInput;
+
+      // PulseAudio logic: 'default' points to the mic. We need the monitor for desktop audio.
+      if (sysDevice === 'default') {
+        sysDevice = 'default.monitor';
+      }
+
+      /** @type {string[]} */
+      const audioArgs = ['-y', '-f', 'pulse', '-i', sysDevice];
+
+      if (currentConfig.micInput !== 'none') {
+        /** @type {string} */
+        let micDevice = currentConfig.micInput;
+
+        audioArgs.push('-f', 'pulse', '-i', micDevice);
+        audioArgs.push('-map', '0:a', path.join(TEMP_DIR, `sys_${timestamp}.wav`));
+        audioArgs.push('-map', '1:a', path.join(TEMP_DIR, `mic_${timestamp}.wav`));
+      } else {
+        audioArgs.push('-map', '0:a', path.join(TEMP_DIR, `sys_${timestamp}.wav`));
+      }
+
+      console.log(`[SYSTEM] ffmpeg`, audioArgs.join(' '));
+      audioProcess = spawn('ffmpeg', audioArgs, { env: process.env });
+    });
+
+    ipcMain.on('video-chunk', (event, payload) => {
+      /** @type {ArrayBuffer} */
+      const buffer = payload.buffer;
+      /** @type {number} */
+      const timestamp = payload.timestamp;
+
+      /** @type {string} */
+      const fileName = `video_${timestamp}.webm`;
+      /** @type {string} */
+      const filePath = path.join(TEMP_DIR, fileName);
+
+      try {
+        fs.appendFileSync(filePath, Buffer.from(buffer));
+      } catch (e) {
+        console.error(`[FS ERROR] Failed to write chunk to ${fileName}`, e);
+      }
+    });
+
+    applyConfigurationAndStart(loadConfig());
+
+    ipcMain.handle('is-wayland', () => {
+      /** @type {boolean} */
+      const isWayland = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+      return isWayland;
+    });
+
+    ipcMain.handle('select-folder', async () => {
+      console.log('[IPC] Folder selection dialog requested.');
+      /** @type {Electron.OpenDialogReturnValue} */
+      const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+      if (result.canceled) {
+        console.log('[IPC] Folder selection canceled by user.');
+        return null;
+      }
+      console.log(`[IPC] Folder selected: ${result.filePaths[0]}`);
+      return result.filePaths[0];
+    });
+
+    ipcMain.handle('get-config', () => loadConfig());
+    ipcMain.handle('get-hardware', () => getHardwareInfo());
+
+    ipcMain.handle('save-config', (event, config) => {
+      if (!isDirectoryValid(config.savePath)) {
+        console.error(
+          `[IPC] Validation failed: Attempted to save invalid directory: ${config.savePath}`,
+        );
+        return false;
+      }
+      saveConfig(config);
+
+      console.log('[SYSTEM] Relaunching application to apply new configuration...');
+      app.relaunch();
+      app.quit();
+
+      return true;
+    });
   });
-});
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-  console.log('[SYSTEM] Application is quitting.');
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+    console.log('[SYSTEM] Application is quitting.');
 
-  if (audioProcess) {
-    console.log('[SYSTEM] Killing audio process...');
-    audioProcess.kill('SIGKILL');
-  }
+    if (audioProcess) {
+      console.log('[SYSTEM] Killing audio process...');
+      audioProcess.kill('SIGKILL');
+    }
 
-  if (concatProcess) {
-    console.log('[SYSTEM] Killing concat process...');
-    concatProcess.kill('SIGKILL');
-  }
+    if (concatProcess) {
+      console.log('[SYSTEM] Killing concat process...');
+      concatProcess.kill('SIGKILL');
+    }
 
-  if (cleanupInterval) clearInterval(cleanupInterval);
-});
+    if (cleanupInterval) clearInterval(cleanupInterval);
+  });
+}
