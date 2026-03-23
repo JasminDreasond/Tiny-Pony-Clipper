@@ -30,6 +30,9 @@ app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal,WebRTCPip
 app.setAppUserModelId('TinyPonyClipper');
 
 /** @type {boolean} */
+const isWaylandEnv = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+
+/** @type {boolean} */
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -38,6 +41,7 @@ if (!gotTheLock) {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     if (configWindow) {
       if (configWindow.isMinimized()) configWindow.restore();
+      if (!configWindow.isVisible()) configWindow.show();
       configWindow.focus();
     } else {
       createConfigWindow();
@@ -563,10 +567,15 @@ const applyConfigurationAndStart = (config) => {
 
   startRecording(config);
 
+  /** @type {string} */
+  const readyMessage = isWaylandEnv
+    ? 'Engine is active! Ready to save clips.'
+    : `Engine is active! Press ${config.shortcut} to save a clip.`;
+
   sendNotification({
     title: 'Tiny Pony Clipper',
     urgency: 'normal',
-    body: `Engine is active! Press ${config.shortcut} to save a clip.`,
+    body: readyMessage,
   });
 };
 
@@ -619,6 +628,22 @@ const createConfigWindow = () => {
   });
 };
 
+/**
+ * @returns {void}
+ */
+const toggleConfigWindow = () => {
+  if (configWindow) {
+    if (configWindow.isVisible()) {
+      configWindow.hide();
+    } else {
+      configWindow.show();
+      configWindow.focus();
+    }
+  } else {
+    createConfigWindow();
+  }
+};
+
 if (gotTheLock) {
   app.whenReady().then(async () => {
     // --- WAYLAND PORTAL HANDLER ---
@@ -652,7 +677,7 @@ if (gotTheLock) {
           { label: 'Quit', click: () => app.quit() },
         ]),
       );
-      tray.on('click', createConfigWindow);
+      tray.on('click', toggleConfigWindow);
       console.log('[TRAY] Tray setup completed successfully.');
     } catch (error) {
       console.error('[TRAY ERROR] Failed to set up tray icon.', error);
@@ -721,11 +746,7 @@ if (gotTheLock) {
 
     applyConfigurationAndStart(loadConfig());
 
-    ipcMain.handle('is-wayland', () => {
-      /** @type {boolean} */
-      const isWayland = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
-      return isWayland;
-    });
+    ipcMain.handle('is-wayland', () => isWaylandEnv);
 
     ipcMain.handle('select-folder', async () => {
       console.log('[IPC] Folder selection dialog requested.');
