@@ -6,19 +6,56 @@
     "url": "https://github.com/JasminDreasond/Tiny-Pony-Clipper/issues"
   },
   "homepage": "https://github.com/JasminDreasond/Tiny-Pony-Clipper#readme",
-  "description": "",
-  "author": "Yasmin Seidel (JasminDreasond)",
+  "description": "A hardware-accelerated background clipping tool optimized for Wayland and X11.",
+  "author": {
+    "name": "Yasmin Seidel (JasminDreasond)",
+    "email": "tiny@puddy.club",
+    "url": "https://www.npmjs.com/~jasmindreasond"
+  },
   "main": "src/main.js",
   "type": "module",
   "license": "AGPL-3.0-only",
   "keywords": [],
   "scripts": {
     "start": "electron .",
-    "fix:prettier": "prettier --write ./src/*"
+    "fix:prettier": "prettier --write ./src/*",
+    "build:linux": "electron-builder --linux"
   },
   "devDependencies": {
     "electron": "^41.0.3",
     "electron-builder": "^26.8.1",
     "prettier": "^3.8.1"
+  },
+  "build": {
+    "appId": "com.jasmindreasond.tinyponyclipper",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "tar.gz"
+      ],
+      "icon": "assets/icons/tray-icon.png",
+      "category": "Video",
+      "executableName": "tiny-pony-clipper",
+      "synopsis": "Record and save gameplay clips instantly."
+    },
+    "deb": {
+      "depends": [
+        "ffmpeg",
+        "pulseaudio-utils",
+        "libnotify-bin"
+      ]
+    },
+    "appImage": {
+      "license": "LICENSE"
+    }
   }
 }
