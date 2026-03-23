@@ -1,4 +1,6 @@
 <div align="center">
+   <img src="./krita/logo//logo.png" height="300" alt="logo" />
+   <br/>
    <a href="https://discord.gg/sSkysVtj7y"><img src="https://img.shields.io/discord/881322783538298891?color=7289da&logo=discord&logoColor=white" alt="Discord server" /></a>
    <a href="https://www.patreon.com/JasminDreasond"><img src="https://img.shields.io/badge/donate-patreon-F96854.svg?logo=patreon" alt="Patreon" /></a>
    <a href="https://ko-fi.com/jasmindreasond"><img src="https://img.shields.io/badge/donate-ko%20fi-29ABE0.svg?logo=ko-fi" alt="Ko-Fi" /></a>
