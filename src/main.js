@@ -62,15 +62,18 @@ let tray = null;
 /** @type {NodeJS.Timeout | null} */
 let cleanupInterval = null;
 
-/** @type {boolean} */
-let isClipping = false;
-
 // --- HARDWARE DEBOUNCE (Fixes Electron infinite loop bug) ---
 /** @type {boolean} */
 let isHardwareDebouncing = false;
 
 /** @type {number} */
 let activeSegmentTimestamp = 0;
+
+/** @type {number} */
+let clipsProcessingCount = 0;
+
+/** @type {Set<import('child_process').ChildProcessWithoutNullStreams>} */
+const activeConcatProcesses = new Set();
 
 const clipSound = path.join(assetsFolder, './sounds/clip-saved.mp3');
 const saveSound = path.join(assetsFolder, './sounds/saving-clip.mp3');
@@ -89,14 +92,14 @@ let isRateLimited = false;
 /** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
 let audioProcess = null;
 
-/** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
-let concatProcess;
-
 /** @type {AppConfig | null} */
 let currentConfig = null;
 
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
+
+/** @type {string} */
+const JOBS_DIR = path.join(os.tmpdir(), 'pony_clipper_jobs');
 
 /**
  * @param {string} dirPath
@@ -198,7 +201,6 @@ const startGarbageCollector = (maxMinutes) => {
   if (cleanupInterval) clearInterval(cleanupInterval);
 
   cleanupInterval = setInterval(() => {
-    if (isClipping) return;
     if (!fs.existsSync(TEMP_DIR)) return;
 
     /** @type {string[]} */
@@ -222,7 +224,7 @@ const startGarbageCollector = (maxMinutes) => {
       };
     };
 
-    // Regex to find 13-digit timestamps in filenames (e.g., _1700000000000.)
+    // Regex to find timestamps in filenames (e.g., _1700000000000.)
     for (const file of files) {
       const { match, isValid } = isMatch(file);
       if (isValid) timestamps.add(match);
@@ -290,6 +292,16 @@ const startRecording = (config) => {
 
   // Ensure the temporary directory exists before starting operations
   ensureDirExists(TEMP_DIR);
+  ensureDirExists(JOBS_DIR);
+
+  try {
+    const jobDirs = fs.readdirSync(JOBS_DIR);
+    for (const dir of jobDirs) {
+      fs.rmSync(path.join(JOBS_DIR, dir), { recursive: true, force: true });
+    }
+  } catch (e) {
+    console.error('[SYSTEM] Could not clean previous jobs directory:', e);
+  }
 
   // Clean up the temporary directory by removing all previous segments
   /** @type {string[]} */
@@ -314,28 +326,7 @@ const startRecording = (config) => {
  * @returns {void}
  */
 const saveClip = (saveDir) => {
-  if (isClipping) return;
-  console.log(`[CLIP] Shortcut triggered! Engaging FFmpeg hardware transcoding...`);
-  isClipping = true;
-
-  if (tray) {
-    tray.setImage(appIconProcessingPath);
-  }
-
-  sendNotification(
-    {
-      title: 'Tiny Pony Clipper',
-      urgency: 'normal',
-      body: 'Processing your clip... Please wait a moment.',
-    },
-    saveSound,
-  );
-
-  if (!currentConfig) {
-    isClipping = false;
-    if (tray) tray.setImage(appIconPath);
-    return;
-  }
+  if (!currentConfig) return;
 
   /** @type {string[]} */
   const videoFiles = fs
@@ -352,10 +343,30 @@ const saveClip = (saveDir) => {
       },
       failSound,
     );
-    isClipping = false;
-    if (tray) tray.setImage(appIconPath);
     return;
   }
+
+  clipsProcessingCount++;
+  if (tray) tray.setImage(appIconProcessingPath);
+
+  sendNotification(
+    {
+      title: 'Tiny Pony Clipper',
+      urgency: 'normal',
+      body: `Processing your clip... (${clipsProcessingCount} in queue)`,
+      icon: appIconProcessingPath,
+    },
+    saveSound,
+  );
+
+  /** @type {string} */
+  const jobId = `job_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  console.log(`[CLIP] Shortcut triggered! Engaging FFmpeg hardware transcoding for ${jobId}...`);
+
+  /** @type {string} */
+  const jobDir = path.join(JOBS_DIR, jobId);
+
+  ensureDirExists(jobDir);
 
   /** @type {Object[]} */
   const segments = videoFiles
@@ -374,19 +385,63 @@ const saveClip = (saveDir) => {
   const listMic = [];
 
   for (const seg of segments) {
-    listVideo.push(`file '${path.join(TEMP_DIR, `video_${seg.timestamp}.webm`)}'`);
-    listSys.push(`file '${path.join(TEMP_DIR, `sys_${seg.timestamp}.wav`)}'`);
-    if (currentConfig.micInput !== 'none') {
-      listMic.push(`file '${path.join(TEMP_DIR, `mic_${seg.timestamp}.wav`)}'`);
+    /** @type {string} */
+    const vFile = `video_${seg.timestamp}.webm`;
+    /** @type {string} */
+    const sFile = `sys_${seg.timestamp}.wav`;
+    /** @type {string} */
+    const mFile = `mic_${seg.timestamp}.wav`;
+
+    try {
+      if (fs.existsSync(path.join(TEMP_DIR, vFile))) {
+        fs.copyFileSync(path.join(TEMP_DIR, vFile), path.join(jobDir, vFile));
+        listVideo.push(`file '${path.join(jobDir, vFile)}'`);
+      }
+
+      if (fs.existsSync(path.join(TEMP_DIR, sFile))) {
+        fs.copyFileSync(path.join(TEMP_DIR, sFile), path.join(jobDir, sFile));
+        listSys.push(`file '${path.join(jobDir, sFile)}'`);
+      }
+
+      if (currentConfig.micInput !== 'none') {
+        if (fs.existsSync(path.join(TEMP_DIR, mFile))) {
+          fs.copyFileSync(path.join(TEMP_DIR, mFile), path.join(jobDir, mFile));
+          listMic.push(`file '${path.join(jobDir, mFile)}'`);
+        }
+      }
+    } catch (e) {
+      console.error(`[FS ERROR] Could not copy segment ${seg.timestamp} to job directory:`, e);
+    }
+  }
+
+  console.log(`[CLIP] Resetting segment buffer in TEMP_DIR to prevent overlap for next clip...`);
+  for (const seg of segments) {
+    if (seg.time === activeSegmentTimestamp) {
+      continue;
+    }
+
+    /** @type {string} */
+    const vPath = path.join(TEMP_DIR, `video_${seg.timestamp}.webm`);
+    /** @type {string} */
+    const sPath = path.join(TEMP_DIR, `sys_${seg.timestamp}.wav`);
+    /** @type {string} */
+    const mPath = path.join(TEMP_DIR, `mic_${seg.timestamp}.wav`);
+
+    try {
+      if (fs.existsSync(vPath)) fs.unlinkSync(vPath);
+      if (fs.existsSync(sPath)) fs.unlinkSync(sPath);
+      if (fs.existsSync(mPath)) fs.unlinkSync(mPath);
+    } catch (e) {
+      console.error(`[FS ERROR] Could not delete segment ${seg.timestamp} from TEMP_DIR:`, e);
     }
   }
 
   /** @type {string} */
-  const listVideoPath = path.join(TEMP_DIR, 'concat_video.txt');
+  const listVideoPath = path.join(jobDir, 'concat_video.txt');
   /** @type {string} */
-  const listSysPath = path.join(TEMP_DIR, 'concat_sys.txt');
+  const listSysPath = path.join(jobDir, 'concat_sys.txt');
   /** @type {string} */
-  const listMicPath = path.join(TEMP_DIR, 'concat_mic.txt');
+  const listMicPath = path.join(jobDir, 'concat_mic.txt');
 
   fs.writeFileSync(listVideoPath, listVideo.join('\n'));
   fs.writeFileSync(listSysPath, listSys.join('\n'));
@@ -430,15 +485,15 @@ const saveClip = (saveDir) => {
     ffmpegArgs.push('-f', 'concat', '-safe', '0', '-i', listMicPath);
 
     if (currentConfig.separateAudio) {
-      console.log('[FFMPEG] Separate audio tracks enabled.');
+      console.log(`[FFMPEG - ${jobId}] Separate audio tracks enabled.`);
       ffmpegArgs.push('-map', '0:v', '-map', '1:a', '-map', '2:a');
     } else {
-      console.log('[FFMPEG] Merged audio track enabled (amix filter).');
+      console.log(`[FFMPEG - ${jobId}] Merged audio track enabled (amix filter).`);
       ffmpegArgs.push('-filter_complex', '[1:a][2:a]amix=inputs=2:duration=longest[aout]');
       ffmpegArgs.push('-map', '0:v', '-map', '[aout]');
     }
   } else {
-    console.log('[FFMPEG] Single system audio track enabled.');
+    console.log(`[FFMPEG - ${jobId}] Single system audio track enabled.`);
     ffmpegArgs.push('-map', '0:v', '-map', '1:a');
   }
 
@@ -457,21 +512,35 @@ const saveClip = (saveDir) => {
   );
 
   /** @type {import('child_process').ChildProcessWithoutNullStreams} */
-  concatProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
+  const concatProcess = spawn('ffmpeg', ffmpegArgs, { env: process.env });
+  activeConcatProcesses.add(concatProcess);
 
   concatProcess.stderr.on('data', (data) => {
     /** @type {string} */
     const msg = data.toString().trim();
     if (msg.toLowerCase().includes('error')) {
-      console.error(`[CLIP FFmpeg] ${msg}`);
+      console.error(`[CLIP FFmpeg - ${jobId}] ${msg}`);
     }
   });
 
   concatProcess.on('close', (code) => {
-    isClipping = false;
-    concatProcess.stdin.write('q\n');
-    concatProcess = null;
-    if (tray) tray.setImage(appIconPath);
+    activeConcatProcesses.delete(concatProcess);
+
+    clipsProcessingCount--;
+    if (clipsProcessingCount <= 0) {
+      clipsProcessingCount = 0;
+      if (tray) tray.setImage(appIconPath);
+    }
+
+    try {
+      fs.rmSync(jobDir, { recursive: true, force: true });
+    } catch (e) {
+      console.error(`[SYSTEM] Failed to clean up job directory ${jobId}:`, e);
+    }
+
+    /** @type {string} */
+    const queueStatus =
+      clipsProcessingCount > 0 ? `(${clipsProcessingCount} remaining in queue)` : '';
 
     if (code === 0) {
       console.log(`[CLIP SUCCESS] MP4 Assembly complete: ${outputPath}`);
@@ -479,51 +548,20 @@ const saveClip = (saveDir) => {
         {
           title: 'Clip Saved!',
           urgency: 'critical',
-          body: `Successfully saved: ${path.basename(outputPath)}\nClick here to view.`,
+          body: `Successfully saved: ${path.basename(outputPath)}\nClick here to view. ${queueStatus}`.trim(),
         },
         clipSound,
         () => {
           shell.showItemInFolder(outputPath);
         },
       );
-
-      console.log('[CLIP] Resetting segment buffer to prevent overlap...');
-      for (const seg of segments) {
-        if (seg.time === activeSegmentTimestamp) {
-          console.log(`[CLIP] Keeping active segment protected: ${seg.timestamp}`);
-          continue;
-        }
-
-        /** @type {string} */
-        const vPath = path.join(TEMP_DIR, `video_${seg.timestamp}.webm`);
-        /** @type {string} */
-        const sPath = path.join(TEMP_DIR, `sys_${seg.timestamp}.wav`);
-        /** @type {string} */
-        const mPath = path.join(TEMP_DIR, `mic_${seg.timestamp}.wav`);
-
-        try {
-          if (fs.existsSync(vPath)) fs.unlinkSync(vPath);
-          if (fs.existsSync(sPath)) fs.unlinkSync(sPath);
-          if (fs.existsSync(mPath)) fs.unlinkSync(mPath);
-        } catch (e) {
-          console.error(`[FS ERROR] Could not delete segment ${seg.timestamp}:`, e);
-        }
-      }
-
-      try {
-        if (fs.existsSync(listVideoPath)) fs.unlinkSync(listVideoPath);
-        if (fs.existsSync(listSysPath)) fs.unlinkSync(listSysPath);
-        if (fs.existsSync(listMicPath)) fs.unlinkSync(listMicPath);
-      } catch (e) {
-        console.error(e);
-      }
     } else {
       console.error(`[CLIP ERROR] Assembly failed with code: ${code}`);
       sendNotification(
         {
           title: 'Clipping Error',
           urgency: 'critical',
-          body: `Failed to save clip. FFmpeg exited with code ${code}.`,
+          body: `Failed to save clip. FFmpeg exited with code ${code}. ${queueStatus}`.trim(),
         },
         failSound,
       );
@@ -531,16 +569,26 @@ const saveClip = (saveDir) => {
   });
 
   concatProcess.on('error', (err) => {
-    isClipping = false;
-    concatProcess.stdin.write('q\n');
-    concatProcess = null;
-    if (tray) tray.setImage(appIconPath);
+    activeConcatProcesses.delete(concatProcess);
+
+    clipsProcessingCount--;
+    if (clipsProcessingCount <= 0) {
+      clipsProcessingCount = 0;
+      if (tray) tray.setImage(appIconPath);
+    }
+
+    try {
+      fs.rmSync(jobDir, { recursive: true, force: true });
+    } catch (e) {
+      console.error(e);
+    }
+
     console.error(`[CLIP ERROR] Failed to spawn FFmpeg process:`, err);
     sendNotification(
       {
         title: 'System Error',
         urgency: 'critical',
-        body: 'Could not start the video processing engine.',
+        body: `Could not start the video processing engine.`,
       },
       failSound,
     );
@@ -839,9 +887,9 @@ if (gotTheLock) {
       audioProcess.kill('SIGKILL');
     }
 
-    if (concatProcess) {
-      console.log('[SYSTEM] Killing concat process...');
-      concatProcess.kill('SIGKILL');
+    for (const p of activeConcatProcesses) {
+      console.log('[SYSTEM] Killing active concat process...');
+      p.kill('SIGKILL');
     }
 
     if (cleanupInterval) clearInterval(cleanupInterval);
