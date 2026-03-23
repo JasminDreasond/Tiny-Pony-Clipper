@@ -41,15 +41,16 @@
     "directories": {
       "output": "dist"
     },
-    "publish": [
-      {
+    "publish": {
         "provider": "github",
         "host": "github.com",
         "owner": "JasminDreasond",
         "repo": "Tiny-Pony-Clipper",
-        "releaseType": "release"
-      }
-    ],
+        "releaseType": "draft"
+    },
+    "releaseInfo": {
+        "releaseNotesFile": "release-notes.md"
+    },
     "files": [
       "src/**/*",
       "assets/**/*",
