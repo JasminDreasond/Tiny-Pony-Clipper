@@ -29,7 +29,7 @@
   "scripts": {
     "start": "electron .",
     "fix:prettier": "prettier --write ./src/*",
-    "build:linux": "electron-builder --linux"
+    "build:linux": "electron-builder --linux -p never"
   },
   "devDependencies": {
     "electron": "^41.0.3",
