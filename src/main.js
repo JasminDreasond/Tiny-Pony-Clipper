@@ -25,6 +25,7 @@ import {
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
+ipcMain.on('open-external', (event, url) => shell.openExternal(url));
 
 app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal,WebRTCPipeWireCapturer');
 app.setAppUserModelId('TinyPonyClipper');
@@ -182,37 +183,67 @@ const startGarbageCollector = (maxMinutes) => {
     if (!fs.existsSync(TEMP_DIR)) return;
 
     /** @type {string[]} */
-    const files = fs
-      .readdirSync(TEMP_DIR)
-      .filter((f) => f.startsWith('video_') && f.endsWith('.webm'));
-    if (files.length <= maxMinutes) return;
+    const files = fs.readdirSync(TEMP_DIR);
+    /** @type {Set<number>} */
+    const timestamps = new Set();
 
-    /** @type {Object[]} */
-    const segments = files
-      .map((f) => {
-        /** @type {string} */
-        const ts = f.replace('video_', '').replace('.webm', '');
-        return { timestamp: ts, time: parseInt(ts, 10) };
-      })
-      .sort((a, b) => a.time - b.time);
+    /**
+     * @param {string} file
+     * @returns {{ match: number; isValid: boolean }}
+     */
+    const isMatch = (file) => {
+      const match = parseInt(path.parse(file).name.split('_')[1]);
+      return {
+        match,
+        isValid:
+          typeof match === 'number' &&
+          Number.isInteger(match) &&
+          !Number.isNaN(match) &&
+          Number.isFinite(match),
+      };
+    };
 
-    /** @type {number} */
-    const filesToDelete = segments.length - maxMinutes;
-    for (let i = 0; i < filesToDelete; i++) {
-      if (segments[i].time === activeSegmentTimestamp) continue;
+    // Regex to find 13-digit timestamps in filenames (e.g., _1700000000000.)
+    for (const file of files) {
+      const { match, isValid } = isMatch(file);
+      if (isValid) timestamps.add(match);
+    }
 
-      /** @type {string} */
-      const ts = segments[i].timestamp;
-      try {
-        if (fs.existsSync(path.join(TEMP_DIR, `video_${ts}.webm`)))
-          fs.unlinkSync(path.join(TEMP_DIR, `video_${ts}.webm`));
-        if (fs.existsSync(path.join(TEMP_DIR, `sys_${ts}.wav`)))
-          fs.unlinkSync(path.join(TEMP_DIR, `sys_${ts}.wav`));
-        if (fs.existsSync(path.join(TEMP_DIR, `mic_${ts}.wav`)))
-          fs.unlinkSync(path.join(TEMP_DIR, `mic_${ts}.wav`));
-        console.log(`[CLEANUP] Deleted old segment blocks for: ${ts}`);
-      } catch (e) {
-        console.error(`[CLEANUP ERROR] Could not delete cache for ${ts}`);
+    /** @type {number[]} */
+    const sortedTimestamps = Array.from(timestamps).sort((a, b) => a - b);
+    /** @type {Set<number>} */
+    const timestampsToKeep = new Set();
+
+    // Always protect the segment that is currently being recorded
+    timestampsToKeep.add(activeSegmentTimestamp);
+
+    // Keep the most recent timestamps up to the configured buffer limit
+    /** @type {number[]} */
+    const recent = sortedTimestamps.slice(-maxMinutes);
+    for (const ts of recent) timestampsToKeep.add(ts);
+
+    // Destroy any file that is not protected
+    for (const file of files) {
+      // Clean up orphaned ffmpeg text lists if we are not actively clipping
+      if (file.endsWith('.txt')) {
+        try {
+          fs.unlinkSync(path.join(TEMP_DIR, file));
+        } catch (e) {
+          console.error(e);
+        }
+        continue;
+      }
+
+      const { match: fileTs, isValid } = isMatch(file);
+      if (isValid) {
+        if (!timestampsToKeep.has(fileTs)) {
+          try {
+            fs.unlinkSync(path.join(TEMP_DIR, file));
+            console.log(`[CLEANUP] Deleted old cache file: ${file}`);
+          } catch (e) {
+            console.error(`[CLEANUP ERROR] Could not delete ${file}`, e);
+          }
+        }
       }
     }
   }, 15000);

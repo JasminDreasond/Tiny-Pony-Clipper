@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startSegment: (timestamp) => ipcRenderer.send('start-segment', timestamp),
   getHardware: () => ipcRenderer.invoke('get-hardware'),
   isWayland: () => ipcRenderer.invoke('is-wayland'),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
   onCaptureCommand: (callback) =>
     ipcRenderer.on('capture-command', (event, data) => callback(data)),
 });

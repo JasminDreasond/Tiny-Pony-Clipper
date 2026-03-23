@@ -132,4 +132,10 @@ document.getElementById('btnApply').addEventListener('click', async () => {
   }
 });
 
+document.getElementById('btnGithub').addEventListener('click', () => {
+  console.log('[RENDERER] Opening GitHub repository...');
+  // Substitua o link abaixo pelo link real do repositório do Pony Clipper
+  window.electronAPI.openExternal('https://github.com/JasminDreasond/Tiny-Pony-Clipper');
+});
+
 init();
