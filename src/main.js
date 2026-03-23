@@ -5,18 +5,17 @@ import {
   Menu,
   globalShortcut,
   ipcMain,
-  screen,
   dialog,
   session,
   desktopCapturer,
   shell,
 } from 'electron';
-import { spawn, execSync } from 'child_process';
+import { spawn } from 'child_process';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { sendNotification } from './utils/Notification.js';
-import { appIconPath, assetsFolder, srcFolder } from './utils/values.js';
+import { appIconPath, assetsFolder, srcFolder, getHardwareInfo } from './utils/values.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -87,40 +86,6 @@ let currentConfig = null;
 
 /** @type {string} */
 const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
-
-/**
- * @returns {{ monitors: Object[], audioDevices: Object[] }}
- */
-const getHardwareInfo = () => {
-  /** @type {Object[]} */
-  const monitors = screen.getAllDisplays().map((disp, index) => ({
-    id: String(index),
-    name: `Monitor ${index + 1} (${disp.bounds.width}x${disp.bounds.height})`,
-    bounds: disp.bounds,
-  }));
-
-  /** @type {Object[]} */
-  const audioDevices = [];
-  try {
-    /** @type {string} */
-    const output = execSync('pactl list short sources', { encoding: 'utf-8' });
-    /** @type {string[]} */
-    const lines = output.trim().split('\n');
-
-    for (const line of lines) {
-      /** @type {string[]} */
-      const parts = line.split('\t');
-      if (parts.length >= 2) {
-        audioDevices.push({ id: parts[1], name: parts[1] });
-      }
-    }
-  } catch (error) {
-    console.error('[SYSTEM] Failed to fetch PulseAudio devices.', error);
-    audioDevices.push({ id: 'default', name: 'Default Audio System' });
-  }
-
-  return { monitors, audioDevices };
-};
 
 /**
  * @param {string} dirPath

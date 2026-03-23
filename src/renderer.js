@@ -71,8 +71,8 @@ const init = async () => {
 
   isWaylandEnvironment = await window.electronAPI.isWayland();
 
-  populateSelect(sysInputSelect, hardware.audioDevices, config.sysInput);
-  populateSelect(micInputSelect, hardware.audioDevices, config.micInput);
+  populateSelect(sysInputSelect, hardware.audioOutputs, config.sysInput);
+  populateSelect(micInputSelect, hardware.audioInputs, config.micInput);
   document.getElementById('bufferMinutes').value = String(config.minutes);
   document.getElementById('separateAudio').checked = config.separateAudio;
   savePathInput.value = config.savePath;
