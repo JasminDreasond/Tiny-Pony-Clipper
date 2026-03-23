@@ -15,7 +15,13 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { sendNotification } from './utils/Notification.js';
-import { appIconPath, assetsFolder, srcFolder, getHardwareInfo } from './utils/values.js';
+import {
+  appIconPath,
+  assetsFolder,
+  srcFolder,
+  getHardwareInfo,
+  appIconProcessingPath,
+} from './utils/values.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -258,6 +264,10 @@ const saveClip = (saveDir) => {
   console.log(`[CLIP] Shortcut triggered! Engaging FFmpeg hardware transcoding...`);
   isClipping = true;
 
+  if (tray) {
+    tray.setImage(appIconProcessingPath);
+  }
+
   sendNotification(
     {
       title: 'Tiny Pony Clipper',
@@ -269,6 +279,7 @@ const saveClip = (saveDir) => {
 
   if (!currentConfig) {
     isClipping = false;
+    if (tray) tray.setImage(appIconPath);
     return;
   }
 
@@ -288,6 +299,7 @@ const saveClip = (saveDir) => {
       failSound,
     );
     isClipping = false;
+    if (tray) tray.setImage(appIconPath);
     return;
   }
 
@@ -405,6 +417,7 @@ const saveClip = (saveDir) => {
     isClipping = false;
     concatProcess.stdin.write('q\n');
     concatProcess = null;
+    if (tray) tray.setImage(appIconPath);
 
     if (code === 0) {
       console.log(`[CLIP SUCCESS] MP4 Assembly complete: ${outputPath}`);
@@ -467,6 +480,7 @@ const saveClip = (saveDir) => {
     isClipping = false;
     concatProcess.stdin.write('q\n');
     concatProcess = null;
+    if (tray) tray.setImage(appIconPath);
     console.error(`[CLIP ERROR] Failed to spawn FFmpeg process:`, err);
     sendNotification(
       {

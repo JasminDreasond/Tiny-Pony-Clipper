@@ -10,6 +10,8 @@
         --text-color: #333333;
         --input-bg: #f5f5f5;
         --border-color: #cccccc;
+        --scroll-thumb: #cba6f7;
+        --scroll-thumb-hover: #b4befe;
       }
 
       @media (prefers-color-scheme: dark) {
@@ -18,25 +20,57 @@
           --text-color: #e0e0e0;
           --input-bg: #2a2a35;
           --border-color: #444455;
+          --scroll-thumb: #6c539a;
+          --scroll-thumb-hover: #cba6f7;
         }
       }
 
-      input,
-      select,
-      button {
-        background-color: var(--input-bg);
-        color: var(--text-color);
-        border: 1px solid var(--border-color);
+      /* Custom Scrollbar for Webkit (Electron/Chromium) */
+      ::-webkit-scrollbar {
+        width: 10px;
       }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-color);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--scroll-thumb);
+        border-radius: 5px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--scroll-thumb-hover);
+      }
+
       body {
         font-family: sans-serif;
         background-color: var(--bg-color);
         color: var(--text-color);
-        padding: 20px;
         margin: 0;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden; /* Prevents the whole body from scrolling */
       }
-      .container {
-        max-width: 100%;
+
+      .scroll-content, .footer {
+        padding: 20px;
+      }
+
+      /* Scrollable container for the form */
+      .scroll-content {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 15px; /* Adds space so the scrollbar doesn't overlap text */
+        padding-bottom: 0px;
+      }
+
+      /* Fixed footer for the apply button */
+      .footer {
+        flex-shrink: 0;
+      }
+
+      h2 {
+        margin-top: 0;
       }
       .form-group {
         margin-bottom: 20px;
@@ -53,6 +87,9 @@
         padding: 10px;
         box-sizing: border-box;
         border-radius: 6px;
+        background-color: var(--input-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
       }
       input:focus,
       select:focus {
@@ -95,8 +132,8 @@
     </style>
   </head>
   <body>
-    <div class="container">
-      <h2 style="margin-top: 0px !important">Hardware & Recording Settings</h2>
+    <div class="scroll-content">
+      <h2>Hardware & Recording Settings</h2>
 
       <div class="form-group">
         <label for="sysInput">System Audio Output (Desktop Sound)</label>
@@ -139,7 +176,9 @@
           <button id="btnBrowse">Browse Folder</button>
         </div>
       </div>
+    </div>
 
+    <div class="footer">
       <button id="btnApply">Save Configuration & Restart Recording</button>
     </div>
 
