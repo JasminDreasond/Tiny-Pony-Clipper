@@ -887,11 +887,14 @@ if (gotTheLock) {
       audioProcess.kill('SIGKILL');
     }
 
+    let i = 0;
     for (const p of activeConcatProcesses) {
-      console.log('[SYSTEM] Killing active concat process...');
+      i++;
+      console.log(`[SYSTEM] [${i}] Killing active concat process...`);
       p.kill('SIGKILL');
     }
 
     if (cleanupInterval) clearInterval(cleanupInterval);
+    console.log('[SYSTEM] Tiny Jasmini: Tiny bye :3');
   });
 }
