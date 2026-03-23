@@ -14,3 +14,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onCaptureCommand: (callback) =>
     ipcRenderer.on('capture-command', (event, data) => callback(data)),
 });
+
+/**
+ * @param {string} audioPath
+ * @returns {void}
+ */
+const playAndDestroy = (audioPath) => {
+  let audio = new Audio(audioPath);
+
+  // Event listener to clean up memory after playback
+  audio.addEventListener(
+    'ended',
+    () => {
+      audio.pause();
+      audio.src = ''; // Clear the source to help garbage collection
+      audio.load();
+      audio = null; // Remove the reference
+    },
+    { once: true },
+  ); // 'once' ensures the listener is removed after firing
+
+  audio.play().catch((error) => {
+    ipcRenderer.send('console.log', `[Audio] [${audioPath}] Playback failed:`, error.message);
+    audio = null;
+  });
+};
+
+ipcRenderer.on('play-sound', (event, filePath) => playAndDestroy(filePath));

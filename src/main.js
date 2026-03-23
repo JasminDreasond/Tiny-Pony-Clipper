@@ -20,6 +20,7 @@ import {
   srcFolder,
   getHardwareInfo,
   appIconProcessingPath,
+  windowsCache,
 } from './utils/values.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
@@ -39,21 +40,15 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
-    if (configWindow) {
-      if (configWindow.isMinimized()) configWindow.restore();
-      if (!configWindow.isVisible()) configWindow.show();
-      configWindow.focus();
+    if (windowsCache.configWindow) {
+      if (windowsCache.configWindow.isMinimized()) windowsCache.configWindow.restore();
+      if (!windowsCache.configWindow.isVisible()) windowsCache.configWindow.show();
+      windowsCache.configWindow.focus();
     } else {
       createConfigWindow();
     }
   });
 }
-
-/** @type {BrowserWindow | null} */
-let configWindow = null;
-
-/** @type {BrowserWindow | null} */
-let captureWindow = null;
 
 /** @type {Tray | null} */
 let tray = null;
@@ -278,8 +273,8 @@ const startRecording = (config) => {
   console.log('[SYSTEM] Waking up capture engine...');
 
   // Notify the capture window to stop any current stream capture
-  if (captureWindow) {
-    captureWindow.webContents.send('capture-command', { action: 'stop' });
+  if (windowsCache.captureWindow) {
+    windowsCache.captureWindow.webContents.send('capture-command', { action: 'stop' });
   }
 
   if (audioProcess) {
@@ -316,7 +311,7 @@ const startRecording = (config) => {
   }
 
   // Instruct the renderer process to start sending the video stream
-  captureWindow.webContents.send('capture-command', { action: 'start' });
+  windowsCache.captureWindow.webContents.send('capture-command', { action: 'start' });
   startGarbageCollector(config.minutes);
 };
 
@@ -605,7 +600,8 @@ const applyConfigurationAndStart = (config) => {
       clearInterval(cleanupInterval);
       cleanupInterval = null;
     }
-    if (captureWindow) captureWindow.webContents.send('capture-command', { action: 'stop' });
+    if (windowsCache.captureWindow)
+      windowsCache.captureWindow.webContents.send('capture-command', { action: 'stop' });
 
     globalShortcut.unregisterAll();
     createConfigWindow();
@@ -680,7 +676,7 @@ const applyConfigurationAndStart = (config) => {
  * @returns {Promise<void>}
  */
 const createHiddenCaptureWindow = async () => {
-  captureWindow = new BrowserWindow({
+  windowsCache.captureWindow = new BrowserWindow({
     show: false,
     icon: appIconPath,
     webPreferences: {
@@ -689,7 +685,7 @@ const createHiddenCaptureWindow = async () => {
       nodeIntegration: false,
     },
   });
-  await captureWindow.loadFile(path.join(srcFolder, 'capture.html'));
+  await windowsCache.captureWindow.loadFile(path.join(srcFolder, 'capture.html'));
 };
 
 /**
@@ -697,12 +693,12 @@ const createHiddenCaptureWindow = async () => {
  */
 const createConfigWindow = () => {
   console.log('[UI] Requesting configuration window...');
-  if (configWindow) {
+  if (windowsCache.configWindow) {
     console.log('[UI] Window already exists, focusing it.');
-    configWindow.focus();
+    windowsCache.configWindow.focus();
     return;
   }
-  configWindow = new BrowserWindow({
+  windowsCache.configWindow = new BrowserWindow({
     width: 650,
     height: 750,
     show: false,
@@ -714,14 +710,14 @@ const createConfigWindow = () => {
       nodeIntegration: false,
     },
   });
-  configWindow.loadFile(path.join(srcFolder, 'index.html'));
-  configWindow.once('ready-to-show', () => {
+  windowsCache.configWindow.loadFile(path.join(srcFolder, 'index.html'));
+  windowsCache.configWindow.once('ready-to-show', () => {
     console.log('[UI] Window ready to show.');
-    configWindow.show();
+    windowsCache.configWindow.show();
   });
-  configWindow.on('closed', () => {
+  windowsCache.configWindow.on('closed', () => {
     console.log('[UI] Window closed.');
-    configWindow = null;
+    windowsCache.configWindow = null;
   });
 };
 
@@ -729,12 +725,12 @@ const createConfigWindow = () => {
  * @returns {void}
  */
 const toggleConfigWindow = () => {
-  if (configWindow) {
-    if (configWindow.isVisible()) {
-      configWindow.hide();
+  if (windowsCache.configWindow) {
+    if (windowsCache.configWindow.isVisible()) {
+      windowsCache.configWindow.hide();
     } else {
-      configWindow.show();
-      configWindow.focus();
+      windowsCache.configWindow.show();
+      windowsCache.configWindow.focus();
     }
   } else {
     createConfigWindow();

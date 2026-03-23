@@ -8,6 +8,13 @@ const __filename = fileURLToPath(import.meta.url);
 /** @type {string} */
 const __dirname = path.dirname(__filename);
 
+export const windowsCache = {
+  /** @type {Electron.CrossProcessExports.BrowserWindow | null} */
+  configWindow: null,
+  /** @type {Electron.CrossProcessExports.BrowserWindow | null} */
+  captureWindow: null,
+};
+
 export const rootFolder = path.join(__dirname, '../../');
 
 export const srcFolder = path.join(rootFolder, './src');
