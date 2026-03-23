@@ -123,6 +123,11 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {boolean} separateAudio
  * @property {string} shortcut
  * @property {string} savePath
+ * @property {string} videoCodec
+ * @property {string} videoPreset
+ * @property {string} videoQualityCmd
+ * @property {string} videoQualityValue
+ * @property {string} audioCodec
  */
 
 /**
@@ -135,18 +140,32 @@ const getDefaultConfig = () => ({
   separateAudio: false,
   shortcut: 'F10',
   savePath: path.join(os.homedir(), 'Videos'),
+  videoCodec: 'h264_nvenc',
+  videoPreset: 'p6',
+  videoQualityCmd: '-cq',
+  videoQualityValue: '19',
+  audioCodec: 'aac',
 });
 
 /**
  * @returns {AppConfig}
  */
 const loadConfig = () => {
+  const defaultCfg = getDefaultConfig();
+
   /** @type {string} */
   const configPath = getConfigPath();
   if (fs.existsSync(configPath)) {
-    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    let userCfg;
+    try {
+      userCfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    } catch (e) {
+      console.error(e);
+      userCfg = {};
+    }
+    return { ...defaultCfg, ...userCfg };
   }
-  return getDefaultConfig();
+  return defaultCfg;
 };
 
 /**
@@ -425,13 +444,13 @@ const saveClip = (saveDir) => {
 
   ffmpegArgs.push(
     '-c:v',
-    'h264_nvenc',
+    currentConfig.videoCodec,
     '-preset',
-    'p6',
-    '-cq',
-    '19',
+    currentConfig.videoPreset,
+    currentConfig.videoQualityCmd,
+    String(currentConfig.videoQualityValue),
     '-c:a',
-    'aac',
+    currentConfig.audioCodec,
     '-avoid_negative_ts',
     'make_zero',
     outputPath,

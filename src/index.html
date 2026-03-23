@@ -12,6 +12,7 @@
         --border-color: #cccccc;
         --scroll-thumb: #cba6f7;
         --scroll-thumb-hover: #b4befe;
+        --advanced-bg: #f0f0f5;
       }
 
       @media (prefers-color-scheme: dark) {
@@ -22,10 +23,10 @@
           --border-color: #444455;
           --scroll-thumb: #6c539a;
           --scroll-thumb-hover: #cba6f7;
+          --advanced-bg: #181825;
         }
       }
 
-      /* Custom Scrollbar for Webkit (Electron/Chromium) */
       ::-webkit-scrollbar {
         width: 10px;
       }
@@ -45,42 +46,53 @@
         background-color: var(--bg-color);
         color: var(--text-color);
         margin: 0;
+        padding: 20px;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         height: 100vh;
-        overflow: hidden; /* Prevents the whole body from scrolling */
+        overflow: hidden;
       }
 
-      .scroll-content,
-      .footer {
-        padding: 20px;
-      }
-
-      /* Scrollable container for the form */
       .scroll-content {
         flex: 1;
         overflow-y: auto;
-        padding-right: 15px; /* Adds space so the scrollbar doesn't overlap text */
-        padding-bottom: 0px;
+        padding-right: 15px;
+        margin-bottom: 20px;
       }
 
-      /* Fixed footer for the apply button */
       .footer {
         flex-shrink: 0;
       }
 
-      h2 {
+      h2,
+      h3 {
         margin-top: 0;
       }
+
+      .advanced-section {
+        margin-top: 20px;
+      }
+
       .form-group {
         margin-bottom: 20px;
       }
+
+      .form-group-sm {
+        margin-bottom: 12px;
+      }
+
       label {
         display: block;
         margin-bottom: 8px;
         font-weight: bold;
       }
+
+      .label-sm {
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+
       input[type='text'],
       input[type='number'],
       select {
@@ -130,7 +142,6 @@
         font-weight: normal;
         cursor: pointer;
       }
-
       .github-btn {
         background: #313244;
         color: #cdd6f4;
@@ -184,6 +195,39 @@
         <div class="row">
           <input type="text" id="savePath" readonly />
           <button id="btnBrowse">Browse Folder</button>
+        </div>
+      </div>
+
+      <div class="advanced-section">
+        <h3>Advanced FFmpeg Parameters</h3>
+        <p style="font-size: 13px; margin-top: 0; color: #888">
+          Only modify these if you know what you are doing. Default is optimized for NVIDIA GPUs.
+        </p>
+
+        <div class="row">
+          <div class="form-group-sm" style="flex: 1">
+            <label class="label-sm" for="videoCodec">Video Codec</label>
+            <input type="text" id="videoCodec" placeholder="h264_nvenc, libx264, etc." />
+          </div>
+          <div class="form-group-sm" style="flex: 1">
+            <label class="label-sm" for="audioCodec">Audio Codec</label>
+            <input type="text" id="audioCodec" placeholder="aac, libopus, etc." />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="form-group-sm" style="flex: 1">
+            <label class="label-sm" for="videoPreset">Video Preset</label>
+            <input type="text" id="videoPreset" placeholder="p6, fast, slow, etc." />
+          </div>
+          <div class="form-group-sm" style="flex: 1">
+            <label class="label-sm" for="videoQualityCmd">Quality Command</label>
+            <input type="text" id="videoQualityCmd" placeholder="-cq, -crf, etc." />
+          </div>
+          <div class="form-group-sm" style="flex: 1">
+            <label class="label-sm" for="videoQualityValue">Quality Value</label>
+            <input type="text" id="videoQualityValue" placeholder="19, 23, etc." />
+          </div>
         </div>
       </div>
 

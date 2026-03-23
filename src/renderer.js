@@ -13,6 +13,21 @@ const savePathInput = document.getElementById('savePath');
 /** @type {HTMLInputElement} */
 const shortcutInput = document.getElementById('shortcutKey');
 
+/** @type {HTMLInputElement} */
+const videoCodecInput = document.getElementById('videoCodec');
+
+/** @type {HTMLInputElement} */
+const audioCodecInput = document.getElementById('audioCodec');
+
+/** @type {HTMLInputElement} */
+const videoPresetInput = document.getElementById('videoPreset');
+
+/** @type {HTMLInputElement} */
+const videoQualityCmdInput = document.getElementById('videoQualityCmd');
+
+/** @type {HTMLInputElement} */
+const videoQualityValueInput = document.getElementById('videoQualityValue');
+
 /** @type {boolean} */
 let isWaylandEnvironment = false;
 
@@ -77,6 +92,12 @@ const init = async () => {
   document.getElementById('separateAudio').checked = config.separateAudio;
   savePathInput.value = config.savePath;
 
+  videoCodecInput.value = config.videoCodec ?? 'h264_nvenc';
+  audioCodecInput.value = config.audioCodec ?? 'aac';
+  videoPresetInput.value = config.videoPreset ?? 'p6';
+  videoQualityCmdInput.value = config.videoQualityCmd ?? '-cq';
+  videoQualityValueInput.value = config.videoQualityValue ?? '19';
+
   if (isWaylandEnvironment) {
     console.log('[RENDERER] Wayland detected. Forcing F10 shortcut and hiding input.');
     shortcutInput.value = 'F10';
@@ -111,11 +132,16 @@ document.getElementById('btnApply').addEventListener('click', async () => {
   /** @type {Object} */
   const config = {
     minutes: Number(document.getElementById('bufferMinutes').value),
-    sysInput: sysInputSelect.value,
-    micInput: micInputSelect.value,
-    separateAudio: document.getElementById('separateAudio').checked,
-    shortcut: finalShortcut,
+    sysInput: sysInputSelect.value ?? 'default',
+    micInput: micInputSelect.value ?? 'none',
+    separateAudio: document.getElementById('separateAudio').checked ?? false,
+    shortcut: finalShortcut ?? 'F10',
     savePath: savePathInput.value,
+    videoCodec: videoCodecInput.value || 'h264_nvenc',
+    audioCodec: audioCodecInput.value || 'aac',
+    videoPreset: videoPresetInput.value || 'p6',
+    videoQualityCmd: videoQualityCmdInput.value || '-cq',
+    videoQualityValue: videoQualityValueInput.value || '19',
   };
 
   console.log('[RENDERER] Configuration gathered:', config);
@@ -134,7 +160,6 @@ document.getElementById('btnApply').addEventListener('click', async () => {
 
 document.getElementById('btnGithub').addEventListener('click', () => {
   console.log('[RENDERER] Opening GitHub repository...');
-  // Substitua o link abaixo pelo link real do repositório do Pony Clipper
   window.electronAPI.openExternal('https://github.com/JasminDreasond/Tiny-Pony-Clipper');
 });
 
