@@ -17,7 +17,6 @@ import fs from 'fs';
 import { sendNotification } from './utils/Notification.js';
 import {
   appIconPath,
-  assetsFolder,
   srcFolder,
   getHardwareInfo,
   appIconProcessingPath,
@@ -75,9 +74,9 @@ let clipsProcessingCount = 0;
 /** @type {Set<import('child_process').ChildProcessWithoutNullStreams>} */
 const activeConcatProcesses = new Set();
 
-const clipSound = path.join(assetsFolder, './sounds/clip-saved.mp3');
-const saveSound = path.join(assetsFolder, './sounds/saving-clip.mp3');
-const failSound = path.join(assetsFolder, './sounds/clip-fail.mp3');
+const clipSound = path.join(srcFolder, './sounds/clip-saved.mp3');
+const saveSound = path.join(srcFolder, './sounds/saving-clip.mp3');
+const failSound = path.join(srcFolder, './sounds/clip-fail.mp3');
 
 // --- RATE LIMIT VARIABLES ---
 /** @type {number} */

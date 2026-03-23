@@ -54,7 +54,6 @@
     },
     "files": [
       "src/**/*",
-      "assets/**/*",
       "package.json"
     ],
     "linux": {
@@ -63,7 +62,7 @@
         "deb",
         "tar.gz"
       ],
-      "icon": "assets/icons/tray-icon.png",
+      "icon": "src/icons/tray-icon.png",
       "category": "Video",
       "executableName": "tiny-pony-clipper",
       "synopsis": "Record and save gameplay clips instantly."

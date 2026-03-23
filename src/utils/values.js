@@ -12,13 +12,11 @@ export const rootFolder = path.join(__dirname, '../../');
 
 export const srcFolder = path.join(rootFolder, './src');
 
-export const assetsFolder = path.join(rootFolder, './assets');
+/** @type {string} */
+export const appIconPath = path.join(srcFolder, './icons/tray-icon.png');
 
 /** @type {string} */
-export const appIconPath = path.join(assetsFolder, './icons/tray-icon.png');
-
-/** @type {string} */
-export const appIconProcessingPath = path.join(assetsFolder, './icons/tray-icon-processing.png');
+export const appIconProcessingPath = path.join(srcFolder, './icons/tray-icon-processing.png');
 
 /**
  * @returns {{ monitors: Object[], audioOutputs: Object[], audioInputs: Object[] }}
