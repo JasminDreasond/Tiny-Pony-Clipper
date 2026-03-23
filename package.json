@@ -29,7 +29,8 @@
   "scripts": {
     "start": "electron .",
     "fix:prettier": "prettier --write ./src/*",
-    "build:linux": "electron-builder --linux -p never"
+    "build:linux": "electron-builder --linux -p never",
+    "build:release": "electron-builder --linux -p always"
   },
   "devDependencies": {
     "electron": "^41.0.3",
@@ -46,7 +47,7 @@
         "host": "github.com",
         "owner": "JasminDreasond",
         "repo": "Tiny-Pony-Clipper",
-        "releaseType": "draft"
+        "releaseType": "release"
     },
     "releaseInfo": {
         "releaseNotesFile": "release-notes.md"
