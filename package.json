@@ -15,7 +15,17 @@
   "main": "src/main.js",
   "type": "module",
   "license": "AGPL-3.0-only",
-  "keywords": [],
+  "keywords": [
+    "electron",
+    "wayland",
+    "ffmpeg",
+    "screen-recorder",
+    "clipping-tool",
+    "linux",
+    "pulseaudio",
+    "pipewire",
+    "nvenc"
+  ],
   "scripts": {
     "start": "electron .",
     "fix:prettier": "prettier --write ./src/*",
