@@ -6,7 +6,7 @@
     "url": "https://github.com/JasminDreasond/Tiny-Pony-Clipper/issues"
   },
   "homepage": "https://github.com/JasminDreasond/Tiny-Pony-Clipper#readme",
-  "description": "A hardware-accelerated background clipping tool optimized for Wayland and X11.",
+  "description": "A background clipping tool optimized for Wayland and X11.",
   "author": {
     "name": "Yasmin Seidel (JasminDreasond)",
     "email": "tiny@puddy.club",
