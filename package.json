@@ -39,6 +39,7 @@
   },
   "build": {
     "appId": "com.jasmindreasond.tinyponyclipper",
+    "productName": "Tiny Pony Clipper",
     "directories": {
       "output": "dist"
     },
