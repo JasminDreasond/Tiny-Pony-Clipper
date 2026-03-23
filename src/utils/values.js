@@ -17,6 +17,9 @@ export const assetsFolder = path.join(rootFolder, './assets');
 /** @type {string} */
 export const appIconPath = path.join(assetsFolder, './icons/tray-icon.png');
 
+/** @type {string} */
+export const appIconProcessingPath = path.join(assetsFolder, './icons/tray-icon-processing.png');
+
 /**
  * @returns {{ monitors: Object[], audioOutputs: Object[], audioInputs: Object[] }}
  */

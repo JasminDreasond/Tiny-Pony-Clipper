@@ -5,10 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pony Clipper Settings</title>
     <style>
+      :root {
+        --bg-color: #ffffff;
+        --text-color: #333333;
+        --input-bg: #f5f5f5;
+        --border-color: #cccccc;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-color: #1e1e2e;
+          --text-color: #e0e0e0;
+          --input-bg: #2a2a35;
+          --border-color: #444455;
+        }
+      }
+
+      input,
+      select,
+      button {
+        background-color: var(--input-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+      }
       body {
         font-family: sans-serif;
-        background: #1e1e2e;
-        color: #cdd6f4;
+        background-color: var(--bg-color);
+        color: var(--text-color);
         padding: 20px;
         margin: 0;
       }
@@ -29,9 +52,6 @@
         width: 100%;
         padding: 10px;
         box-sizing: border-box;
-        background: #313244;
-        color: #cdd6f4;
-        border: 1px solid #45475a;
         border-radius: 6px;
       }
       input:focus,
@@ -76,7 +96,7 @@
   </head>
   <body>
     <div class="container">
-      <h2>Hardware & Recording Settings</h2>
+      <h2 style="margin-top: 0px !important">Hardware & Recording Settings</h2>
 
       <div class="form-group">
         <label for="sysInput">System Audio Output (Desktop Sound)</label>
