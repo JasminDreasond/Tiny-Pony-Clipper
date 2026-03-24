@@ -21,20 +21,23 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
     /** @type {int} */
     int type = info[0].As<Napi::Number>().Int32Value(); // 0 = Xbox, 1 = DS4
 
+    // REQUIRED: O_RDWR to read force feedback events from the OS
     /** @type {int} */
-    int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+    int fd = open("/dev/uinput", O_RDWR | O_NONBLOCK);
     if (fd < 0) return Napi::Number::New(env, -1);
 
     // Enable key, absolute axis and synchronization events
     ioctl(fd, UI_SET_EVBIT, EV_KEY);
     ioctl(fd, UI_SET_EVBIT, EV_ABS);
     ioctl(fd, UI_SET_EVBIT, EV_SYN);
+    
+    // REQUIRED: Tell the kernel this device supports Force Feedback
+    ioctl(fd, UI_SET_EVBIT, EV_FF); 
 
     ioctl(fd, UI_SET_FFBIT, FF_RUMBLE);
     ioctl(fd, UI_SET_FFBIT, FF_PERIODIC);
     ioctl(fd, UI_SET_FFBIT, FF_SQUARE);
     ioctl(fd, UI_SET_FFBIT, FF_TRIANGLE);
-
 
     /** @type {std::vector<int>} */
     std::vector<int> buttons = { 
@@ -60,6 +63,9 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
     struct uinput_user_dev uidev;
     memset(&uidev, 0, sizeof(uidev));
     
+    // REQUIRED: Set the maximum simultaneous force feedback effects
+    uidev.ff_effects_max = 16; 
+
     uidev.id.bustype = BUS_USB;
     uidev.id.version = 0x0111;
 
