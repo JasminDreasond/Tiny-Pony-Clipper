@@ -326,7 +326,10 @@ const startRecording = (config) => {
   }
 
   // Instruct the renderer process to start sending the video stream
-  windowsCache.captureWindow.webContents.send('capture-command', { action: 'start' });
+  windowsCache.captureWindow.webContents.send('capture-command', {
+    action: 'start',
+    streamEnabled: config.streamEnabled,
+  });
   startGarbageCollector(config.minutes);
 };
 
