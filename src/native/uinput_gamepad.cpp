@@ -4,36 +4,54 @@
 #include <unistd.h>
 #include <cstring>
 #include <map>
+#include <vector>
 
+/** @type {std::map<int, int>} */
 std::map<int, int> active_pads;
+/** @type {int} */
 int next_pad_id = 1;
 
+/**
+ * @param {const Napi::CallbackInfo&} info
+ * @returns {Napi::Value}
+ */
 Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
+    /** @type {Napi::Env} */
     Napi::Env env = info.Env();
     
-    int type = info[0].As<Napi::Number>().Int32Value(); // 0 = Xbox, 1 = DualShock 4
+    /** @type {int} */
+    int type = info[0].As<Napi::Number>().Int32Value(); // 0 = Xbox, 1 = DS4
 
+    /** @type {int} */
     int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (fd < 0) return Napi::Number::New(env, -1);
 
+    // Enable key, absolute axis and synchronization events
     ioctl(fd, UI_SET_EVBIT, EV_KEY);
     ioctl(fd, UI_SET_EVBIT, EV_ABS);
     ioctl(fd, UI_SET_EVBIT, EV_SYN);
 
-    // Setup standard Gamepad Buttons
-    int buttons[] = { 
-        BTN_A, BTN_B, BTN_X, BTN_Y, 
-        BTN_TL, BTN_TR, BTN_TL2, BTN_TR2, 
-        BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR, 
-        BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT, BTN_MODE 
+    /** @type {std::vector<int>} */
+    std::vector<int> buttons = { 
+        BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST, // A, B, Y, X (or Cross, Circle, Triangle, Square)
+        BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,         // Bumpers and Triggers (as buttons)
+        BTN_SELECT, BTN_START, BTN_MODE,          // Select, Start, Home/Guide
+        BTN_THUMBL, BTN_THUMBR                    // Stick clicks
     };
     
     for (int btn : buttons) ioctl(fd, UI_SET_KEYBIT, btn);
 
-    // Setup Analog Axes
-    int axes[] = { ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_Z, ABS_RZ, ABS_HAT0X, ABS_HAT0Y };
+    /** @type {std::vector<int>} */
+    std::vector<int> axes = { 
+        ABS_X, ABS_Y,     // Left Stick
+        ABS_RX, ABS_RY,   // Right Stick
+        ABS_Z, ABS_RZ,     // Triggers (Analog)
+        ABS_HAT0X, ABS_HAT0Y // D-Pad
+    };
+
     for (int axis : axes) ioctl(fd, UI_SET_ABSBIT, axis);
 
+    /** @type {struct uinput_user_dev} */
     struct uinput_user_dev uidev;
     memset(&uidev, 0, sizeof(uidev));
     
@@ -50,47 +68,64 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
         uidev.id.product = 0x028E; // Xbox 360 Controller
     }
 
-    uidev.absmin[ABS_X] = -32768; uidev.absmax[ABS_X] = 32767;
-    uidev.absmin[ABS_Y] = -32768; uidev.absmax[ABS_Y] = 32767;
-    uidev.absmin[ABS_RX] = -32768; uidev.absmax[ABS_RX] = 32767;
-    uidev.absmin[ABS_RY] = -32768; uidev.absmax[ABS_RY] = 32767;
+    // Stick limits
+    for (int axis : {ABS_X, ABS_Y, ABS_RX, ABS_RY}) {
+        uidev.absmin[axis] = -32768;
+        uidev.absmax[axis] = 32767;
+        uidev.absflat[axis] = 128;
+    }
     
-    // Define triggers range (0 to 255)
+    // Triggers (0-255)
     uidev.absmin[ABS_Z] = 0; uidev.absmax[ABS_Z] = 255;
     uidev.absmin[ABS_RZ] = 0; uidev.absmax[ABS_RZ] = 255;
+
+    // D-Pad (-1, 0, 1)
+    uidev.absmin[ABS_HAT0X] = -1; uidev.absmax[ABS_HAT0X] = 1;
+    uidev.absmin[ABS_HAT0Y] = -1; uidev.absmax[ABS_HAT0Y] = 1;
 
     write(fd, &uidev, sizeof(uidev));
     ioctl(fd, UI_DEV_CREATE);
 
+    /** @type {int} */
     int current_id = next_pad_id++;
     active_pads[current_id] = fd;
 
     return Napi::Number::New(env, current_id);
 }
 
+/**
+ * @param {const Napi::CallbackInfo&} info
+ * @returns {Napi::Value}
+ */
 Napi::Value EmitEvent(const Napi::CallbackInfo& info) {
+    /** @type {Napi::Env} */
     Napi::Env env = info.Env();
+    /** @type {int} */
     int id = info[0].As<Napi::Number>().Int32Value();
     
     if (active_pads.find(id) == active_pads.end()) return Napi::Boolean::New(env, false);
+    /** @type {int} */
     int fd = active_pads[id];
 
-    int type = info[1].As<Napi::Number>().Int32Value();
-    int code = info[2].As<Napi::Number>().Int32Value();
-    int val = info[3].As<Napi::Number>().Int32Value();
-
+    /** @type {struct input_event} */
     struct input_event ev;
     memset(&ev, 0, sizeof(ev));
-    ev.type = type;
-    ev.code = code;
-    ev.value = val;
+    ev.type = info[1].As<Napi::Number>().Int32Value();
+    ev.code = info[2].As<Napi::Number>().Int32Value();
+    ev.value = info[3].As<Napi::Number>().Int32Value();
 
     write(fd, &ev, sizeof(ev));
     return Napi::Boolean::New(env, true);
 }
 
+/**
+ * @param {const Napi::CallbackInfo&} info
+ * @returns {Napi::Value}
+ */
 Napi::Value DestroyVirtualGamepad(const Napi::CallbackInfo& info) {
+    /** @type {Napi::Env} */
     Napi::Env env = info.Env();
+    /** @type {int} */
     int id = info[0].As<Napi::Number>().Int32Value();
 
     if (active_pads.find(id) != active_pads.end()) {
@@ -101,6 +136,11 @@ Napi::Value DestroyVirtualGamepad(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
+/**
+ * @param {Napi::Env} env
+ * @param {Napi::Object} exports
+ * @returns {Napi::Object}
+ */
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set(Napi::String::New(env, "setup"), Napi::Function::New(env, SetupVirtualGamepad));
     exports.Set(Napi::String::New(env, "emit"), Napi::Function::New(env, EmitEvent));

@@ -17,36 +17,43 @@ const SYN_REPORT = 0x00;
 /** @type {number} */
 const MAX_GAMEPADS = 4;
 
-// -1 means it is an analog trigger and should be handled as an axis, not a key.
-/** @type {number[]} */
+/**
+ * Maps standard Gamepad API button indices to Linux uinput BTN_ constants.
+ * Note: D-Pad (12-15) is handled separately as Hat Axes.
+ * @type {number[]}
+ */
 const BUTTON_MAP = [
-  0x130, // 0: A / Cross
-  0x131, // 1: B / Circle
-  0x133, // 2: X / Square
-  0x134, // 3: Y / Triangle
-  0x136, // 4: LB / L1
-  0x137, // 5: RB / R1
-  -1, // 6: LT / L2 (Analog Axis)
-  -1, // 7: RT / R2 (Analog Axis)
-  0x13a, // 8: Select / Share
-  0x13b, // 9: Start / Options
-  0x13d, // 10: L3 (Left Stick Click)
-  0x13e, // 11: R3 (Right Stick Click)
-  0x220, // 12: D-Pad Up
-  0x221, // 13: D-Pad Down
-  0x222, // 14: D-Pad Left
-  0x223, // 15: D-Pad Right
-  0x13c, // 16: Home / Guide
+  0x130, // 0: A / Cross (BTN_SOUTH)
+  0x131, // 1: B / Circle (BTN_EAST)
+  0x133, // 2: X / Square (BTN_WEST)
+  0x134, // 3: Y / Triangle (BTN_NORTH)
+  0x136, // 4: LB / L1 (BTN_TL)
+  0x137, // 5: RB / R1 (BTN_TR)
+  -1, // 6: LT / L2 (Handled as Axis)
+  -1, // 7: RT / R2 (Handled as Axis)
+  0x13a, // 8: Select / Share (BTN_SELECT)
+  0x13b, // 9: Start / Options (BTN_START)
+  0x13d, // 10: L3 (BTN_THUMBL)
+  0x13e, // 11: R3 (BTN_THUMBR)
+  -2, // 12: D-Pad Up (Handled as Axis)
+  -2, // 13: D-Pad Down (Handled as Axis)
+  -2, // 14: D-Pad Left (Handled as Axis)
+  -2, // 15: D-Pad Right (Handled as Axis)
+  0x13c, // 16: Guide / PS Home (BTN_MODE)
 ];
 
-/** @type {number[]} */
-const AXIS_MAP = [0x00, 0x01, 0x03, 0x04]; // Left X, Left Y, Right X, Right Y
+/** * Standard axes: Left X, Left Y, Right X, Right Y
+ * @type {number[]}
+ */
+const AXIS_MAP = [0x00, 0x01, 0x03, 0x04];
 
 /**
  * @typedef {Object} GamepadSession
  * @property {number} id
  * @property {boolean[]} previousButtons
  * @property {number[]} previousAxes
+ * @property {number} prevHatX
+ * @property {number} prevHatY
  */
 
 /** @type {Map<number, GamepadSession>} */
@@ -70,7 +77,9 @@ export const getOrInitGamepad = (padIndex, padType) => {
     persistentGamepads.set(padIndex, {
       id: id,
       previousButtons: new Array(17).fill(false),
-      previousAxes: new Array(6).fill(0), // 0-3 for sticks, 4-5 for L2/R2 triggers
+      previousAxes: new Array(6).fill(0),
+      prevHatX: 0,
+      prevHatY: 0,
     });
     console.log(
       `[GAMEPAD] Created persistent virtual ${padType.toUpperCase()} for index ${padIndex}`,
@@ -107,19 +116,17 @@ export const updateGamepadState = (padIndex, state, padType) => {
   /** @type {boolean} */
   let needsSync = false;
 
+  // Handle Buttons and Triggers
   for (let i = 0; i < BUTTON_MAP.length; i++) {
     /** @type {Object} */
     const btn = state.buttons[i];
     if (!btn) continue;
 
     if (i === 6 || i === 7) {
-      // Handle L2 and R2 as Analog Axes (ABS_Z and ABS_RZ)
       /** @type {number} */
-      const axisCode = i === 6 ? 0x02 : 0x05; // 0x02 = ABS_Z, 0x05 = ABS_RZ
+      const axisCode = i === 6 ? 0x02 : 0x05; // ABS_Z (LT) or ABS_RZ (RT)
       /** @type {number} */
-      const scaledValue = Math.floor(btn.value * 255); // 0 to 255 for triggers
-
-      // We use index 4 and 5 in our previousAxes array to store trigger states
+      const scaledValue = Math.floor(btn.value * 255);
       /** @type {number} */
       const cacheIndex = i === 6 ? 4 : 5;
 
@@ -128,14 +135,37 @@ export const updateGamepadState = (padIndex, state, padType) => {
         uinput.emit(id, EV_ABS, axisCode, scaledValue);
         needsSync = true;
       }
-    } else if (BUTTON_MAP[i] !== -1) {
-      // Normal digital buttons
+    } else if (BUTTON_MAP[i] >= 0) {
       if (btn.pressed !== session.previousButtons[i]) {
         session.previousButtons[i] = btn.pressed;
         uinput.emit(id, EV_KEY, BUTTON_MAP[i], btn.pressed ? 1 : 0);
         needsSync = true;
       }
     }
+  }
+
+  // Handle D-Pad as Hat Axes
+  /** @type {number} */
+  let hatX = 0;
+  if (state.buttons[14]?.pressed)
+    hatX = -1; // Left
+  else if (state.buttons[15]?.pressed) hatX = 1; // Right
+
+  /** @type {number} */
+  let hatY = 0;
+  if (state.buttons[12]?.pressed)
+    hatY = -1; // Up
+  else if (state.buttons[13]?.pressed) hatY = 1; // Down
+
+  if (hatX !== session.prevHatX) {
+    session.prevHatX = hatX;
+    uinput.emit(id, EV_ABS, 0x10, hatX); // ABS_HAT0X
+    needsSync = true;
+  }
+  if (hatY !== session.prevHatY) {
+    session.prevHatY = hatY;
+    uinput.emit(id, EV_ABS, 0x11, hatY); // ABS_HAT0Y
+    needsSync = true;
   }
 
   // Handle Analog Sticks
