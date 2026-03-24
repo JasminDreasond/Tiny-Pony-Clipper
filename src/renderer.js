@@ -52,6 +52,9 @@ const maxGamepadsInput = document.getElementById('maxGamepads');
 /** @type {HTMLInputElement} */
 const iceServersInput = document.getElementById('iceServers');
 
+/** @type {HTMLInputElement} */
+const frameRateInput = document.getElementById('frameRate');
+
 /** @type {boolean} */
 let isWaylandEnvironment = false;
 
@@ -124,6 +127,7 @@ const init = async () => {
   enableClippingInput.checked = config.enableClipping ?? true;
   maxGamepadsInput.value = config.maxGamepads ?? 12;
   iceServersInput.value = config.iceServers ?? 'stun:stun.l.google.com:19302';
+  frameRateInput.value = String(config.frameRate ?? 60);
 
   if (isWaylandEnvironment) {
     console.log('[RENDERER] Wayland detected. Forcing F10 shortcut and hiding input.');
@@ -186,6 +190,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     videoPreset: videoPresetInput.value || 'p6',
     videoQualityCmd: videoQualityCmdInput.value || '-cq',
     videoQualityValue: videoQualityValueInput.value || '19',
+    frameRate: Number(frameRateInput.value) > 0 ? Number(frameRateInput.value) : 60,
     // Stream values
     streamEnabled: streamEnabledInput.checked,
     streamPort: Number(streamPortInput.value) || 8080,

@@ -138,6 +138,7 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {string} gamepadType
  * @property {number} maxGamepads
  * @property {string} iceServers
+ * @property {number} frameRate
  */
 
 // Update your default config function
@@ -157,6 +158,7 @@ const getDefaultConfig = () => ({
   videoQualityCmd: '-cq',
   videoQualityValue: '19',
   audioCodec: 'aac',
+  frameRate: 60,
   // Stream Settings
   streamEnabled: false,
   streamPort: 8080,
@@ -336,6 +338,7 @@ const startRecording = (config) => {
   windowsCache.captureWindow.webContents.send('capture-command', {
     action: 'start',
     streamEnabled: config.streamEnabled,
+    frameRate: config.frameRate,
   });
   startGarbageCollector(config.minutes);
 };

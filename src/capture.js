@@ -56,15 +56,17 @@ const recordSegment = (stream) => {
 window.electronAPI.onCaptureCommand(async (data) => {
   if (data.action === 'start') {
     try {
+      const targetFps = data.frameRate ?? 60;
+
       /** @type {MediaStream} */
       const rawStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always', frameRate: { ideal: 60, max: 60 } },
+        video: { cursor: 'always', frameRate: { ideal: targetFps, max: targetFps } },
         audio: data.streamEnabled ? { suppressLocalAudioPlayback: false } : false,
       });
 
       activeStream = rawStream;
 
-      electronAPI.log(`[CAPTURE] Video engine started: @ 60fps`);
+      electronAPI.log(`[CAPTURE] Video engine started: @ ${targetFps}fps`);
       recordSegment(activeStream);
 
       rawStream.getVideoTracks()[0].onended = () => {
