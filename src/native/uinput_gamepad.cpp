@@ -18,7 +18,6 @@ int next_pad_id = 1;
 Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
     /** @type {Napi::Env} */
     Napi::Env env = info.Env();
-    
     /** @type {int} */
     int type = info[0].As<Napi::Number>().Int32Value(); // 0 = Xbox, 1 = DS4
 
@@ -33,20 +32,20 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
 
     /** @type {std::vector<int>} */
     std::vector<int> buttons = { 
-        BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST, // A, B, Y, X (or Cross, Circle, Triangle, Square)
-        BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,         // Bumpers and Triggers (as buttons)
-        BTN_SELECT, BTN_START, BTN_MODE,          // Select, Start, Home/Guide
-        BTN_THUMBL, BTN_THUMBR                    // Stick clicks
+        BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST,
+        BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,         
+        BTN_SELECT, BTN_START, BTN_MODE,          
+        BTN_THUMBL, BTN_THUMBR,
+        BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT
     };
     
     for (int btn : buttons) ioctl(fd, UI_SET_KEYBIT, btn);
 
     /** @type {std::vector<int>} */
     std::vector<int> axes = { 
-        ABS_X, ABS_Y,     // Left Stick
-        ABS_RX, ABS_RY,   // Right Stick
-        ABS_Z, ABS_RZ,     // Triggers (Analog)
-        ABS_HAT0X, ABS_HAT0Y // D-Pad
+        ABS_X, ABS_Y, ABS_RX, ABS_RY,   
+        ABS_Z, ABS_RZ,     
+        ABS_HAT0X, ABS_HAT0Y 
     };
 
     for (int axis : axes) ioctl(fd, UI_SET_ABSBIT, axis);
@@ -74,8 +73,8 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
         uidev.absmax[axis] = 32767;
         uidev.absflat[axis] = 128;
     }
-    
-    // Triggers (0-255)
+
+    // Triggers (0-255) 
     uidev.absmin[ABS_Z] = 0; uidev.absmax[ABS_Z] = 255;
     uidev.absmin[ABS_RZ] = 0; uidev.absmax[ABS_RZ] = 255;
 
@@ -94,6 +93,7 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
 }
 
 /**
+ * Emits an input event.
  * @param {const Napi::CallbackInfo&} info
  * @returns {Napi::Value}
  */
@@ -119,6 +119,7 @@ Napi::Value EmitEvent(const Napi::CallbackInfo& info) {
 }
 
 /**
+ * Destroys the virtual device.
  * @param {const Napi::CallbackInfo&} info
  * @returns {Napi::Value}
  */
