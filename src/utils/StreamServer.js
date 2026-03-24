@@ -14,12 +14,11 @@ let currentWss = null;
 let activeClientWs = null;
 
 /**
- * @param {string} password
- * @param {number} port
+ * @param {Object} config
  * @param {Electron.WebContents} captureWebContents
  * @returns {void}
  */
-export const startStreamServer = (password, port, captureWebContents) => {
+export const startStreamServer = (config, captureWebContents) => {
   if (currentServer) {
     currentServer.close();
     if (currentWss) currentWss.close();
@@ -57,10 +56,16 @@ export const startStreamServer = (password, port, captureWebContents) => {
       const data = JSON.parse(message.toString());
 
       if (data.type === 'auth') {
-        if (data.password === password) {
+        if (data.password === config.streamPassword) {
           isAuthenticated = true;
           activeClientWs = ws; // Save the active connection here
-          ws.send(JSON.stringify({ type: 'auth_success' }));
+          ws.send(
+            JSON.stringify({
+              type: 'auth_success',
+              enableVideo: config.enableClipping,
+              iceServers: config.iceServers,
+            }),
+          );
           console.log('[STREAM] Client authenticated successfully!');
         } else {
           ws.send(JSON.stringify({ type: 'auth_error' }));
@@ -85,8 +90,8 @@ export const startStreamServer = (password, port, captureWebContents) => {
     });
   });
 
-  currentServer.listen(port, '0.0.0.0', () => {
-    console.log(`[STREAM] Web server running securely on port ${port}`);
+  currentServer.listen(config.streamPort, '0.0.0.0', () => {
+    console.log(`[STREAM] Web server running securely on port ${config.streamPort}`);
   });
 };
 

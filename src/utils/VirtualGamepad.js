@@ -15,7 +15,7 @@ const EV_SYN = 0x00;
 /** @type {number} */
 const SYN_REPORT = 0x00;
 /** @type {number} */
-const MAX_GAMEPADS = 4;
+const MAX_GAMEPADS = 12;
 
 /**
  * Maps standard Gamepad API button indices to uinput codes.

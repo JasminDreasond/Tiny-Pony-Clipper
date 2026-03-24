@@ -123,9 +123,47 @@
         color: #bac2de;
         line-height: 1.4;
       }
+
+      .gamepad-only-msg {
+        display: none;
+        position: absolute;
+        top: 15%;
+        color: #cba6f7;
+        font-size: 26px;
+        font-weight: bold;
+        text-align: center;
+        width: 100%;
+        text-shadow: 0px 4px 10px rgba(0, 0, 0, 0.8);
+      }
+
+      /* Estilização para quando o modo Video é desligado */
+      body.gamepad-only-mode video {
+        display: none !important;
+      }
+
+      body.gamepad-only-mode #debugPanel {
+        position: static;
+        margin: 0 auto;
+        transform: scale(1.3);
+        pointer-events: auto;
+      }
+
+      body.gamepad-only-mode #debugPanel.hidden {
+        opacity: 1; /* Força ele a ficar visível neste modo */
+        transform: scale(1.3);
+      }
+
+      body.gamepad-only-mode .gamepad-only-msg {
+        display: block;
+      }
+
+      body.gamepad-only-mode #btnToggleDebug {
+        display: none;
+      }
     </style>
   </head>
   <body>
+    <div class="gamepad-only-msg">🎮 Remote Gamepad Active - Video Disabled</div>
     <button id="btnToggleDebug">Hide Debug (F2)</button>
 
     <div id="debugPanel">
@@ -201,6 +239,28 @@
       const dbgDc = document.getElementById('dbgDc');
       const dbgPad = document.getElementById('dbgPad');
       const dbgInput = document.getElementById('dbgInput');
+
+      /** @type {string[]} */
+      let iceServerUrls = ['stun:stun.l.google.com:19302'];
+
+      /** @type {boolean} */
+      let expectVideo = true;
+
+      // Recuperar senha do cache
+      window.onload = () => {
+        /** @type {string | null} */
+        const cachedPass = localStorage.getItem('pony_stream_pass');
+        if (cachedPass) {
+          passInput.value = cachedPass;
+        }
+      };
+
+      // Apertar Enter no campo de senha envia o formulário
+      passInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          initConnection();
+        }
+      });
 
       /** @type {WebSocket | null} */
       let ws = null;
@@ -288,8 +348,33 @@
           const data = JSON.parse(event.data);
 
           if (data.type === 'auth_success') {
+            // Salva no cache
+            localStorage.setItem('pony_stream_pass', passInput.value);
+
             updateDebug(dbgWs, 'Connected', 'ok');
             loginDiv.style.display = 'none';
+
+            // Define se vamos ou não tratar video
+            expectVideo = data.enableVideo;
+
+            // Flexibiliza o STUN server enviando pelo config
+            if (data.iceServers) {
+              /** @type {string[]} */
+              const parsedUrls = data.iceServers
+                .split(',')
+                .map((s) => s.trim())
+                .filter((s) => s);
+              if (parsedUrls.length > 0) iceServerUrls = parsedUrls;
+            }
+
+            if (!expectVideo) {
+              document.body.classList.add('gamepad-only-mode');
+              audioRequested = false;
+              // Ajusta o Debug de vídeo já que não usaremos
+              updateDebug(dbgVidTrack, 'Disabled', 'warn');
+              updateDebug(dbgVidPlay, 'Disabled', 'warn');
+            }
+
             setupWebRTC();
           } else if (data.type === 'auth_error') {
             updateDebug(dbgWs, 'Auth Failed', 'error');
@@ -315,7 +400,7 @@
         updateDebug(dbgRtcConn, 'Initializing...', 'warn');
 
         // Configuração padrão usando STUN público do Google
-        pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        pc = new RTCPeerConnection({ iceServers: [{ urls: iceServerUrls }] });
 
         // Configuração do DataChannel para Inputs (Não confiável/Ordenado para latência mínima)
         dataChannel = pc.createDataChannel('gamepad', { ordered: false, maxRetransmits: 0 });
@@ -363,35 +448,37 @@
 
         // --- VIDEO DEBUGGING LOGIC ---
 
-        pc.ontrack = (event) => {
-          console.log('[WEBRTC] Video track received:', event.track);
-          updateDebug(dbgVidTrack, `Recv (${event.track.kind})`, 'ok');
+        if (expectVideo) {
+          pc.ontrack = (event) => {
+            console.log('[WEBRTC] Video track received:', event.track);
+            updateDebug(dbgVidTrack, `Recv (${event.track.kind})`, 'ok');
 
-          if (video.srcObject !== event.streams[0]) {
-            video.srcObject = event.streams[0];
+            if (video.srcObject !== event.streams[0]) {
+              video.srcObject = event.streams[0];
 
-            // Tenta forçar o playback. Navegadores exigem muted para autoplay sem interação.
-            video
-              .play()
-              .then(() => {
-                updateDebug(dbgVidPlay, 'Playing', 'ok');
-              })
-              .catch((error) => {
-                console.error('[VIDEO ERROR] Autoplay blocked:', error);
-                updateDebug(dbgVidPlay, 'Blocked (Click Video)', 'error');
+              // Tenta forçar o playback. Navegadores exigem muted para autoplay sem interação.
+              video
+                .play()
+                .then(() => {
+                  updateDebug(dbgVidPlay, 'Playing', 'ok');
+                })
+                .catch((error) => {
+                  console.error('[VIDEO ERROR] Autoplay blocked:', error);
+                  updateDebug(dbgVidPlay, 'Blocked (Click Video)', 'error');
 
-                // Adiciona um ouvinte único: se o usuário clicar no vídeo, tenta dar play.
-                video.addEventListener(
-                  'click',
-                  () => {
-                    video.play();
-                    video.muted = false; // Tenta desmutar após o clique
-                  },
-                  { once: true },
-                );
-              });
-          }
-        };
+                  // Adiciona um ouvinte único: se o usuário clicar no vídeo, tenta dar play.
+                  video.addEventListener(
+                    'click',
+                    () => {
+                      video.play();
+                      video.muted = false; // Tenta desmutar após o clique
+                    },
+                    { once: true },
+                  );
+                });
+            }
+          };
+        }
 
         // Detecta resolução real quando o vídeo começa a rodar
         video.onloadedmetadata = () => {

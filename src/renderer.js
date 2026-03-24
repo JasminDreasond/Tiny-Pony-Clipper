@@ -43,6 +43,15 @@ const uinputWarning = document.getElementById('uinputWarning');
 /** @type {HTMLSelectElement} */
 const gamepadTypeSelect = document.getElementById('gamepadType');
 
+/** @type {HTMLInputElement} */
+const enableClippingInput = document.getElementById('enableClipping');
+
+/** @type {HTMLInputElement} */
+const maxGamepadsInput = document.getElementById('maxGamepads');
+
+/** @type {HTMLInputElement} */
+const iceServersInput = document.getElementById('iceServers');
+
 /** @type {boolean} */
 let isWaylandEnvironment = false;
 
@@ -112,6 +121,9 @@ const init = async () => {
   videoPresetInput.value = config.videoPreset ?? 'p6';
   videoQualityCmdInput.value = config.videoQualityCmd ?? '-cq';
   videoQualityValueInput.value = config.videoQualityValue ?? '19';
+  enableClippingInput.checked = config.enableClipping ?? true;
+  maxGamepadsInput.value = config.maxGamepads ?? 12;
+  iceServersInput.value = config.iceServers ?? 'stun:stun.l.google.com:19302';
 
   if (isWaylandEnvironment) {
     console.log('[RENDERER] Wayland detected. Forcing F10 shortcut and hiding input.');
@@ -162,6 +174,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
 
   /** @type {Object} */
   const config = {
+    enableClipping: enableClippingInput.checked,
     minutes: Number(document.getElementById('bufferMinutes').value),
     sysInput: sysInputSelect.value ?? 'default',
     micInput: micInputSelect.value ?? 'none',
@@ -178,6 +191,8 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     streamPort: Number(streamPortInput.value) || 8080,
     streamPassword: streamPasswordInput.value || 'pony',
     gamepadType: gamepadTypeSelect.value || 'xbox',
+    maxGamepads: Number(maxGamepadsInput.value) >= 0 ? Number(maxGamepadsInput.value) : 12,
+    iceServers: iceServersInput.value.trim() || 'stun:stun.l.google.com:19302',
   };
 
   console.log('[RENDERER] Configuration gathered:', config);

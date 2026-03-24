@@ -179,6 +179,13 @@
       <h2>Hardware & Recording Settings</h2>
 
       <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="enableClipping" checked /> Enable Audio/Video Recording &
+          Clipping
+        </label>
+      </div>
+
+      <div class="form-group">
         <label for="sysInput">System Audio Output (Desktop Sound)</label>
         <select id="sysInput"></select>
       </div>
@@ -281,6 +288,19 @@
                 <option value="xbox">Xbox 360</option>
                 <option value="ds4">DualShock 4</option>
               </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 10px">
+            <div class="form-group-sm" style="flex: 1">
+              <label class="label-sm" for="maxGamepads">Max Gamepads Limit</label>
+              <input type="number" id="maxGamepads" min="0" max="12" placeholder="12" />
+            </div>
+            <div class="form-group-sm" style="flex: 2">
+              <label class="label-sm" for="iceServers"
+                >Custom ICE Servers URLs (Comma separated)</label
+              >
+              <input type="text" id="iceServers" placeholder="stun:stun.l.google.com:19302" />
             </div>
           </div>
         </div>

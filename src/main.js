@@ -120,6 +120,7 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
 
 /**
  * @typedef {Object} AppConfig
+ * @property {boolean} enableClipping
  * @property {number} minutes
  * @property {string} sysInput
  * @property {string} micInput
@@ -134,6 +135,9 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {boolean} streamEnabled
  * @property {number} streamPort
  * @property {string} streamPassword
+ * @property {string} gamepadType
+ * @property {number} maxGamepads
+ * @property {string} iceServers
  */
 
 // Update your default config function
@@ -141,6 +145,7 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @returns {AppConfig}
  */
 const getDefaultConfig = () => ({
+  enableClipping: true,
   minutes: 5,
   sysInput: 'default',
   micInput: 'none',
@@ -157,6 +162,8 @@ const getDefaultConfig = () => ({
   streamPort: 8080,
   streamPassword: 'pony',
   gamepadType: 'xbox',
+  maxGamepads: 12,
+  iceServers: 'stun:stun.l.google.com:19302',
 });
 
 /**
@@ -631,72 +638,81 @@ const applyConfigurationAndStart = (config) => {
   }
 
   globalShortcut.unregisterAll();
-  console.log(`[SHORTCUT] Registering new global shortcut: ${config.shortcut}`);
+  if (config.enableClipping) {
+    console.log(`[SHORTCUT] Registering new global shortcut: ${config.shortcut}`);
+    /** @type {boolean} */
+    const isRegistered = globalShortcut.register(config.shortcut, () => {
+      // --- HARDWARE DEBOUNCE SHIELD ---
+      // If Electron triggers a ghost event storm, this drops them immediately.
+      if (isHardwareDebouncing) return;
+      isHardwareDebouncing = true;
+      setTimeout(() => {
+        isHardwareDebouncing = false;
+      }, 500);
 
-  /** @type {boolean} */
-  const isRegistered = globalShortcut.register(config.shortcut, () => {
-    // --- HARDWARE DEBOUNCE SHIELD ---
-    // If Electron triggers a ghost event storm, this drops them immediately.
-    if (isHardwareDebouncing) return;
-    isHardwareDebouncing = true;
-    setTimeout(() => {
-      isHardwareDebouncing = false;
-    }, 500);
+      /** @type {number} */
+      const now = Date.now();
+      /** @type {number} */
+      const timeDiff = now - lastShortcutTime;
+      lastShortcutTime = now;
 
-    /** @type {number} */
-    const now = Date.now();
-    /** @type {number} */
-    const timeDiff = now - lastShortcutTime;
-    lastShortcutTime = now;
+      if (isRateLimited) {
+        if (timeDiff < RATE_LIMIT_COOLDOWN_MS) return;
+        isRateLimited = false;
+      }
 
-    if (isRateLimited) {
-      if (timeDiff < RATE_LIMIT_COOLDOWN_MS) return;
-      isRateLimited = false;
+      if (timeDiff < RATE_LIMIT_TRIGGER_MS) {
+        isRateLimited = true;
+        sendNotification(
+          {
+            title: 'Rate Limit',
+            body: 'Please wait 10 seconds.',
+            urgency: 'critical',
+          },
+          failSound,
+        );
+        return;
+      }
+
+      saveClip(config.savePath);
+    });
+
+    if (!isRegistered) {
+      console.error(`[SHORTCUT ERROR] Failed to register shortcut: ${config.shortcut}`);
+    } else {
+      console.log(`[SHORTCUT SUCCESS] Shortcut ${config.shortcut} registered globally.`);
     }
-
-    if (timeDiff < RATE_LIMIT_TRIGGER_MS) {
-      isRateLimited = true;
-      sendNotification(
-        {
-          title: 'Rate Limit',
-          body: 'Please wait 10 seconds.',
-          urgency: 'critical',
-        },
-        failSound,
-      );
-      return;
-    }
-
-    saveClip(config.savePath);
-  });
-
-  if (!isRegistered) {
-    console.error(`[SHORTCUT ERROR] Failed to register shortcut: ${config.shortcut}`);
-  } else {
-    console.log(`[SHORTCUT SUCCESS] Shortcut ${config.shortcut} registered globally.`);
   }
 
   // Only start the server if enabled in config
   if (config && config.streamEnabled) {
-    startStreamServer(
-      config.streamPassword,
-      config.streamPort,
-      windowsCache.captureWindow.webContents,
-    );
+    startStreamServer(config, windowsCache.captureWindow.webContents);
   }
 
-  startRecording(config);
+  if (config.enableClipping) {
+    startRecording(config);
+    /** @type {string} */
+    const readyMessage = isWaylandEnv
+      ? 'Engine is active! Ready to save clips.'
+      : `Engine is active! Press ${config.shortcut} to save a clip.`;
 
-  /** @type {string} */
-  const readyMessage = isWaylandEnv
-    ? 'Engine is active! Ready to save clips.'
-    : `Engine is active! Press ${config.shortcut} to save a clip.`;
-
-  sendNotification({
-    title: 'Tiny Pony Clipper',
-    urgency: 'normal',
-    body: readyMessage,
-  });
+    sendNotification({
+      title: 'Tiny Pony Clipper',
+      urgency: 'normal',
+      body: readyMessage,
+    });
+  } else {
+    // Stop the engine completely if disabled
+    if (windowsCache.captureWindow) {
+      windowsCache.captureWindow.webContents.send('capture-command', { action: 'stop' });
+    }
+    currentConfig = config;
+    sendNotification({
+      title: 'Tiny Pony Clipper',
+      urgency: 'normal',
+      body: 'Gamepad Server is active! (Audio/Video Engine is Disabled)',
+    });
+  }
 };
 
 /**
@@ -773,15 +789,31 @@ if (gotTheLock) {
     ipcMain.on('gamepad-input', (event, data) => {
       if (data.type === 'multi_input') {
         for (const pad of data.pads) {
+          if (pad.index >= currentConfig.maxGamepads) {
+            if (!warnedPads.has(pad.index)) {
+              warnedPads.add(pad.index);
+              console.warn(
+                `[STREAM WARN] Rejected gamepad ${pad.index} - Max limit of ${currentConfig.maxGamepads} reached.`,
+              );
+              sendSignalToClient({
+                type: 'server_warning',
+                message: `Gamepad [${pad.index}] blocked: Server max limit of ${currentConfig.maxGamepads} reached.`,
+              });
+            }
+            continue;
+          }
+
           /** @type {string} */
           const status = updateGamepadState(pad.index, pad, currentConfig.gamepadType);
 
           if (status === 'LIMIT_REACHED' && !warnedPads.has(pad.index)) {
             warnedPads.add(pad.index);
-            console.warn(`[STREAM WARN] Rejected gamepad ${pad.index} - Max limit of 4 reached.`);
+            console.warn(
+              `[STREAM WARN] Rejected gamepad ${pad.index} - Max limit of ${currentConfig.maxGamepads} reached.`,
+            );
             sendSignalToClient({
               type: 'server_warning',
-              message: `Gamepad [${pad.index}] blocked: Server max limit of 4 reached.`,
+              message: `Gamepad [${pad.index}] blocked: Server max limit of 12 reached.`,
             });
           }
         }
