@@ -30,13 +30,19 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
     ioctl(fd, UI_SET_EVBIT, EV_ABS);
     ioctl(fd, UI_SET_EVBIT, EV_SYN);
 
+    ioctl(fd, UI_SET_FFBIT, FF_RUMBLE);
+    ioctl(fd, UI_SET_FFBIT, FF_PERIODIC);
+    ioctl(fd, UI_SET_FFBIT, FF_SQUARE);
+    ioctl(fd, UI_SET_FFBIT, FF_TRIANGLE);
+
+
     /** @type {std::vector<int>} */
     std::vector<int> buttons = { 
         BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST,
         BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,         
         BTN_SELECT, BTN_START, BTN_MODE,          
         BTN_THUMBL, BTN_THUMBR,
-        BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT
+        BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT,
     };
     
     for (int btn : buttons) ioctl(fd, UI_SET_KEYBIT, btn);
@@ -55,14 +61,14 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
     memset(&uidev, 0, sizeof(uidev));
     
     uidev.id.bustype = BUS_USB;
-    uidev.id.version = 1;
+    uidev.id.version = 0x0111;
 
     if (type == 1) {
         snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Tiny Pony DualShock 4");
         uidev.id.vendor  = 0x054C; // Sony
         uidev.id.product = 0x05C4; // DualShock 4
     } else {
-        snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Tiny Pony Xbox Pad");
+        snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Tiny Pony Xbox 360");
         uidev.id.vendor  = 0x045E; // Microsoft
         uidev.id.product = 0x028E; // Xbox 360 Controller
     }
@@ -72,6 +78,7 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
         uidev.absmin[axis] = -32768;
         uidev.absmax[axis] = 32767;
         uidev.absflat[axis] = 128;
+        uidev.absfuzz[axis] = 16;
     }
 
     // Triggers (0-255) 

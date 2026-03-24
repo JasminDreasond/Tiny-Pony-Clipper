@@ -277,21 +277,21 @@ export const keyCodes = {
   BTN_BASE6: 0x12b,
   BTN_DEAD: 0x12f,
   BTN_GAMEPAD: 0x130,
-  BTN_SOUTH: 0x130,
-  BTN_EAST: 0x131,
+  BTN_SOUTH: 0x130, // A / X
+  BTN_EAST: 0x131, // X / Square
   BTN_C: 0x132,
-  BTN_NORTH: 0x133,
-  BTN_WEST: 0x134,
+  BTN_NORTH: 0x133, // Y / Triangle
+  BTN_WEST: 0x134, // B / Circle
   BTN_Z: 0x135,
-  BTN_TL: 0x136,
-  BTN_TR: 0x137,
-  BTN_TL2: 0x138,
-  BTN_TR2: 0x139,
+  BTN_TL: 0x136, // L1
+  BTN_TR: 0x137, // R1
+  BTN_TL2: 0x138, // L2
+  BTN_TR2: 0x139, // R2
   BTN_SELECT: 0x13a,
   BTN_START: 0x13b,
-  BTN_MODE: 0x13c,
-  BTN_THUMBL: 0x13d,
-  BTN_THUMBR: 0x13e,
+  BTN_MODE: 0x13c, // This is the special button that usually bears the Xbox or Playstation logo
+  BTN_THUMBL: 0x13d, // L3
+  BTN_THUMBR: 0x13e, // R3
   BTN_DIGI: 0x140,
   BTN_TOOL_PEN: 0x140,
   BTN_TOOL_RUBBER: 0x141,

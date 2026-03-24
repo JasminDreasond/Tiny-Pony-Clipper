@@ -1,5 +1,5 @@
 import { createRequire } from 'module';
-import { keyCodes } from './keyCodes.js'; // Assuming it's in the same or accessible folder
+import { keyCodes } from './keyCodes.js';
 
 /** @type {NodeJS.Require} */
 const require = createRequire(import.meta.url);
@@ -34,14 +34,15 @@ const BUTTON_MAP = [
   keyCodes.BTN_START, // 9: Start
   keyCodes.BTN_THUMBL, // 10: L3
   keyCodes.BTN_THUMBR, // 11: R3
-  null, // 12: D-Pad Up (Handled via Axis)
-  null, // 13: D-Pad Down (Handled via Axis)
-  null, // 14: D-Pad Left (Handled via Axis)
-  null, // 15: D-Pad Right (Handled via Axis)
-  keyCodes.BTN_MODE, // 16: Guide/Home
+  keyCodes.BTN_DPAD_UP, // 12: D-Pad Up (Handled via Axis)
+  keyCodes.BTN_DPAD_DOWN, // 13: D-Pad Down (Handled via Axis)
+  keyCodes.BTN_DPAD_LEFT, // 14: D-Pad Left (Handled via Axis)
+  keyCodes.BTN_DPAD_RIGHT, // 15: D-Pad Right (Handled via Axis)
+  keyCodes.BTN_MODE, // 16: Logo PS / Logo Xbox
 ];
 
-/** * Standard axes: Left X, Left Y, Right X, Right Y
+/**
+ * Standard axes: Left X, Left Y, Right X, Right Y
  * @type {number[]}
  */
 const AXIS_MAP = [keyCodes.ABS_X, keyCodes.ABS_Y, keyCodes.ABS_RX, keyCodes.ABS_RY];
@@ -66,7 +67,7 @@ export const getOrInitGamepad = (padIndex, padType) => {
   if (id !== -1) {
     persistentGamepads.set(padIndex, {
       id: id,
-      previousButtons: new Array(17).fill(false),
+      previousButtons: new Array(BUTTON_MAP.length).fill(false),
       previousAxes: new Array(6).fill(0),
       prevHatX: 0,
       prevHatY: 0,
@@ -106,9 +107,11 @@ export const updateGamepadState = (padIndex, state, padType) => {
 
   // Buttons and Digital Triggers
   state.buttons.forEach((btn, i) => {
-    /** @type {number|null} */
+    /** @type {number|null|undefined} */
     const code = BUTTON_MAP[i];
-    if (code !== null && btn.pressed !== session.previousButtons[i]) {
+
+    // Safety check to prevent undefined exceptions crashing the loop
+    if (code !== undefined && code !== null && btn.pressed !== session.previousButtons[i]) {
       session.previousButtons[i] = btn.pressed;
       uinput.emit(id, EV_KEY, code, btn.pressed ? 1 : 0);
       needsSync = true;
@@ -159,6 +162,6 @@ export const updateGamepadState = (padIndex, state, padType) => {
     }
   });
 
-  if (needsSync) uinput.emit(id, EV_SYN, keyCodes.SYN_REPORT || 0, 0);
+  if (needsSync) uinput.emit(id, EV_SYN, SYN_REPORT, 0);
   return 'OK';
 };
