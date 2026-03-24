@@ -300,7 +300,9 @@
           } else if (data.type === 'answer') {
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
           } else if (data.type === 'ice_candidate') {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            if (data.candidate && data.candidate.candidate) {
+              await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
           } else if (data.type === 'server_warning') {
             updateDebug(dbgPad, 'Limit Reached!', 'error');
             dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${data.message}</span>`;
@@ -320,6 +322,25 @@
 
         dataChannel.onopen = () => updateDebug(dbgDc, 'Open', 'ok');
         dataChannel.onclose = () => updateDebug(dbgDc, 'Closed', 'error');
+        dataChannel.onmessage = (event) => {
+          /** @type {Object} */
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'vibration') {
+            /** @type {Gamepad[]} */
+            const gamepads = navigator.getGamepads();
+            /** @type {Gamepad | null} */
+            const gp = gamepads[msg.index];
+
+            if (gp && gp.vibrationActuator) {
+              gp.vibrationActuator.playEffect('dual-rumble', {
+                startDelay: 0,
+                duration: msg.duration || 200,
+                weakMagnitude: msg.weak || 0.5,
+                strongMagnitude: msg.strong || 0.5,
+              });
+            }
+          }
+        };
 
         // Monitoramento de Estados da Conexão
         pc.onconnectionstatechange = () => {
@@ -417,20 +438,26 @@
 
           // STRICT CHECK: Ensure the gamepad is actually connected to avoid ghosts
           if (gp && gp.connected) {
-            /** @type {boolean[]} */
-            const buttonsPressed = gp.buttons.map((b) => b.pressed);
+            /** @type {Object[]} */
+            const buttonsData = gp.buttons.map((b) => ({
+              pressed: b.pressed,
+              value: b.value,
+            }));
+
             /** @type {number[]} */
             const axesVals = gp.axes;
 
             padData.push({
               index: gp.index,
-              buttons: buttonsPressed,
+              buttons: buttonsData,
               axes: axesVals,
             });
 
-            // Rebuilding the detailed debug view for each connected pad
             /** @type {number} */
-            const activeBtnsCount = buttonsPressed.reduce((acc, val) => acc + (val ? 1 : 0), 0);
+            const activeBtnsCount = buttonsData.reduce(
+              (acc, val) => acc + (val.pressed ? 1 : 0),
+              0,
+            );
             /** @type {string} */
             const lx = axesVals[0]?.toFixed(2) || '0.00';
             /** @type {string} */

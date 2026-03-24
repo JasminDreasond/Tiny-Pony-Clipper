@@ -40,6 +40,9 @@ const streamPasswordInput = document.getElementById('streamPassword');
 /** @type {HTMLDivElement} */
 const uinputWarning = document.getElementById('uinputWarning');
 
+/** @type {HTMLSelectElement} */
+const gamepadTypeSelect = document.getElementById('gamepadType');
+
 /** @type {boolean} */
 let isWaylandEnvironment = false;
 
@@ -128,6 +131,7 @@ const init = async () => {
   streamEnabledInput.checked = config.streamEnabled ?? false;
   streamPortInput.value = config.streamPort ?? 8080;
   streamPasswordInput.value = config.streamPassword ?? 'pony';
+  gamepadTypeSelect.value = config.gamepadType ?? 'xbox';
 
   // Check gamepad permissions
   /** @type {boolean} */
@@ -173,6 +177,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     streamEnabled: streamEnabledInput.checked,
     streamPort: Number(streamPortInput.value) || 8080,
     streamPassword: streamPasswordInput.value || 'pony',
+    gamepadType: gamepadTypeSelect.value || 'xbox',
   };
 
   console.log('[RENDERER] Configuration gathered:', config);

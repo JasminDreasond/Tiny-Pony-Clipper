@@ -27,7 +27,7 @@
     "nvenc"
   ],
   "scripts": {
-    "start": "electron .",
+    "start": "yarn build:npx && electron .",
     "fix:prettier": "prettier --write ./src/*",
     "build:npx": "npx node-gyp configure build",
     "build:linux": "yarn build:npx && electron-builder --linux -p never",

@@ -17,34 +17,30 @@ const SYN_REPORT = 0x00;
 /** @type {number} */
 const MAX_GAMEPADS = 4;
 
+// -1 means it is an analog trigger and should be handled as an axis, not a key.
 /** @type {number[]} */
 const BUTTON_MAP = [
-  0x130, // 0: A
-  0x131, // 1: B
-  0x133, // 2: X
-  0x134, // 3: Y
-  0x136, // 4: LB
-  0x137, // 5: RB
-  0x138, // 6: LT (Also triggers axis)
-  0x139, // 7: RT (Also triggers axis)
-  0x13a, // 8: Select
-  0x13b, // 9: Start
-  0x13d, // 10: L3
-  0x13e, // 11: R3
+  0x130, // 0: A / Cross
+  0x131, // 1: B / Circle
+  0x133, // 2: X / Square
+  0x134, // 3: Y / Triangle
+  0x136, // 4: LB / L1
+  0x137, // 5: RB / R1
+  -1, // 6: LT / L2 (Analog Axis)
+  -1, // 7: RT / R2 (Analog Axis)
+  0x13a, // 8: Select / Share
+  0x13b, // 9: Start / Options
+  0x13d, // 10: L3 (Left Stick Click)
+  0x13e, // 11: R3 (Right Stick Click)
   0x220, // 12: D-Pad Up
   0x221, // 13: D-Pad Down
   0x222, // 14: D-Pad Left
   0x223, // 15: D-Pad Right
-  0x13c, // 16: Home
+  0x13c, // 16: Home / Guide
 ];
 
 /** @type {number[]} */
-const AXIS_MAP = [
-  0x00, // 0: Left Stick X
-  0x01, // 1: Left Stick Y
-  0x03, // 2: Right Stick X
-  0x04, // 3: Right Stick Y
-];
+const AXIS_MAP = [0x00, 0x01, 0x03, 0x04]; // Left X, Left Y, Right X, Right Y
 
 /**
  * @typedef {Object} GamepadSession
@@ -63,10 +59,7 @@ const persistentGamepads = new Map();
  */
 export const getOrInitGamepad = (padIndex, padType) => {
   if (persistentGamepads.has(padIndex)) return persistentGamepads.get(padIndex).id;
-
-  if (persistentGamepads.size >= MAX_GAMEPADS) {
-    return -2;
-  }
+  if (persistentGamepads.size >= MAX_GAMEPADS) return -2;
 
   /** @type {number} */
   const typeCode = padType === 'ds4' ? 1 : 0;
@@ -77,7 +70,7 @@ export const getOrInitGamepad = (padIndex, padType) => {
     persistentGamepads.set(padIndex, {
       id: id,
       previousButtons: new Array(17).fill(false),
-      previousAxes: new Array(4).fill(0),
+      previousAxes: new Array(6).fill(0), // 0-3 for sticks, 4-5 for L2/R2 triggers
     });
     console.log(
       `[GAMEPAD] Created persistent virtual ${padType.toUpperCase()} for index ${padIndex}`,
@@ -115,13 +108,37 @@ export const updateGamepadState = (padIndex, state, padType) => {
   let needsSync = false;
 
   for (let i = 0; i < BUTTON_MAP.length; i++) {
-    if (state.buttons[i] !== undefined && state.buttons[i] !== session.previousButtons[i]) {
-      session.previousButtons[i] = state.buttons[i];
-      uinput.emit(id, EV_KEY, BUTTON_MAP[i], state.buttons[i] ? 1 : 0);
-      needsSync = true;
+    /** @type {Object} */
+    const btn = state.buttons[i];
+    if (!btn) continue;
+
+    if (i === 6 || i === 7) {
+      // Handle L2 and R2 as Analog Axes (ABS_Z and ABS_RZ)
+      /** @type {number} */
+      const axisCode = i === 6 ? 0x02 : 0x05; // 0x02 = ABS_Z, 0x05 = ABS_RZ
+      /** @type {number} */
+      const scaledValue = Math.floor(btn.value * 255); // 0 to 255 for triggers
+
+      // We use index 4 and 5 in our previousAxes array to store trigger states
+      /** @type {number} */
+      const cacheIndex = i === 6 ? 4 : 5;
+
+      if (scaledValue !== session.previousAxes[cacheIndex]) {
+        session.previousAxes[cacheIndex] = scaledValue;
+        uinput.emit(id, EV_ABS, axisCode, scaledValue);
+        needsSync = true;
+      }
+    } else if (BUTTON_MAP[i] !== -1) {
+      // Normal digital buttons
+      if (btn.pressed !== session.previousButtons[i]) {
+        session.previousButtons[i] = btn.pressed;
+        uinput.emit(id, EV_KEY, BUTTON_MAP[i], btn.pressed ? 1 : 0);
+        needsSync = true;
+      }
     }
   }
 
+  // Handle Analog Sticks
   for (let i = 0; i < AXIS_MAP.length; i++) {
     if (state.axes[i] !== undefined) {
       /** @type {number} */
