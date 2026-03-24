@@ -23,7 +23,7 @@ import {
   windowsCache,
 } from './utils/values.js';
 
-import { destroyAllGamepads, updateGamepadState } from './utils/VirtualGamepad.js';
+import { canAccessUinput, destroyAllGamepads, updateGamepadState } from './utils/VirtualGamepad.js';
 import { startStreamServer, sendSignalToClient } from './utils/StreamServer.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
@@ -135,10 +135,6 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {number} streamPort
  * @property {string} streamPassword
  */
-
-// Add this near your other global variables at the top
-/** @type {boolean} */
-let isGamepadReady = false;
 
 // Update your default config function
 /**
@@ -768,13 +764,12 @@ const toggleConfigWindow = () => {
 if (gotTheLock) {
   app.whenReady().then(async () => {
     // Expose gamepad status to the UI
-    ipcMain.handle('get-gamepad-status', () => isGamepadReady);
+    ipcMain.handle('get-gamepad-status', () => canAccessUinput());
 
     // Handle Gamepad Inputs from WebRTC DataChannel
     ipcMain.on('gamepad-input', (event, data) => {
       if (data.type === 'multi_input') {
         for (const pad of data.pads) {
-          isGamepadReady = true;
           /** @type {string} */
           const status = updateGamepadState(pad.index, pad, currentConfig.gamepadType);
 

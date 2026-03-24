@@ -151,6 +151,23 @@ Napi::Value DestroyVirtualGamepad(const Napi::CallbackInfo& info) {
 }
 
 /**
+ * Checks if the process has read/write permissions for /dev/uinput.
+ * @param {const Napi::CallbackInfo&} info
+ * @returns {Napi::Value}
+ */
+Napi::Value CheckPermissions(const Napi::CallbackInfo& info) {
+    /** @type {Napi::Env} */
+    Napi::Env env = info.Env();
+    
+    // R_OK | W_OK checks for both read and write permissions
+    // access returns 0 if the permissions are granted
+    /** @type {bool} */
+    bool has_access = (access("/dev/uinput", R_OK | W_OK) == 0);
+    
+    return Napi::Boolean::New(env, has_access);
+}
+
+/**
  * @param {Napi::Env} env
  * @param {Napi::Object} exports
  * @returns {Napi::Object}
@@ -159,6 +176,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set(Napi::String::New(env, "setup"), Napi::Function::New(env, SetupVirtualGamepad));
     exports.Set(Napi::String::New(env, "emit"), Napi::Function::New(env, EmitEvent));
     exports.Set(Napi::String::New(env, "destroy"), Napi::Function::New(env, DestroyVirtualGamepad));
+    exports.Set(Napi::String::New(env, "checkPermissions"), Napi::Function::New(env, CheckPermissions));
     return exports;
 }
 

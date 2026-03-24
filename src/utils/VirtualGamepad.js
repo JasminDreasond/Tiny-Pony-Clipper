@@ -165,3 +165,20 @@ export const updateGamepadState = (padIndex, state, padType) => {
   if (needsSync) uinput.emit(id, EV_SYN, SYN_REPORT, 0);
   return 'OK';
 };
+
+/**
+ * Verifies if the system allows creating virtual devices.
+ * @returns {boolean}
+ */
+export const canAccessUinput = () => {
+  return uinput.checkPermissions();
+};
+
+// Exemplo de uso na inicialização:
+if (!canAccessUinput()) {
+  console.error(
+    '[GAMEPAD] Error: No RW permissions for /dev/uinput. Try running with sudo or check udev rules.',
+  );
+} else {
+  console.log('[GAMEPAD] Permissions OK! Ready to create virtual controllers.');
+}
