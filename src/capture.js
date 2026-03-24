@@ -58,11 +58,8 @@ window.electronAPI.onCaptureCommand(async (data) => {
     try {
       /** @type {MediaStream} */
       const rawStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always',
-          frameRate: { ideal: 60, max: 60 },
-        },
-        audio: false,
+        video: { cursor: 'always', frameRate: { ideal: 60, max: 60 } },
+        audio: { suppressLocalAudioPlayback: false }, // No Wayland + PipeWire isso ativa o áudio do sistema
       });
 
       activeStream = rawStream;

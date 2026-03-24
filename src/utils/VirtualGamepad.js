@@ -1,6 +1,6 @@
 import { createRequire } from 'module';
 
-/** @type {NodeJS.Require} */
+/** @type {NodeRequire} */
 const require = createRequire(import.meta.url);
 
 /** @type {Object} */
@@ -14,6 +14,8 @@ const EV_ABS = 0x03;
 const EV_SYN = 0x00;
 /** @type {number} */
 const SYN_REPORT = 0x00;
+/** @type {number} */
+const MAX_GAMEPADS = 4;
 
 /** @type {number[]} */
 const BUTTON_MAP = [
@@ -44,57 +46,78 @@ const AXIS_MAP = [
   0x04, // 3: Right Stick Y
 ];
 
-/** @type {boolean[]} */
-const previousButtons = new Array(17).fill(false);
+/**
+ * @typedef {Object} GamepadSession
+ * @property {number} id
+ * @property {boolean[]} previousButtons
+ * @property {number[]} previousAxes
+ */
 
-/** @type {number[]} */
-const previousAxes = new Array(4).fill(0);
+/** @type {Map<number, GamepadSession>} */
+const persistentGamepads = new Map();
 
 /**
- * @returns {boolean}
+ * @param {number} padIndex
+ * @param {string} padType
+ * @returns {number}
  */
-export const initVirtualGamepad = () => {
-  return uinput.setup();
+export const getOrInitGamepad = (padIndex, padType) => {
+  if (persistentGamepads.has(padIndex)) return persistentGamepads.get(padIndex).id;
+
+  if (persistentGamepads.size >= MAX_GAMEPADS) {
+    return -2;
+  }
+
+  /** @type {number} */
+  const typeCode = padType === 'ds4' ? 1 : 0;
+  /** @type {number} */
+  const id = uinput.setup(typeCode);
+
+  if (id !== -1) {
+    persistentGamepads.set(padIndex, {
+      id: id,
+      previousButtons: new Array(17).fill(false),
+      previousAxes: new Array(4).fill(0),
+    });
+    console.log(
+      `[GAMEPAD] Created persistent virtual ${padType.toUpperCase()} for index ${padIndex}`,
+    );
+  }
+  return id;
 };
 
 /**
  * @returns {void}
  */
-export const destroyVirtualGamepad = () => {
-  uinput.destroy();
+export const destroyAllGamepads = () => {
+  for (const session of persistentGamepads.values()) {
+    uinput.destroy(session.id);
+  }
+  persistentGamepads.clear();
 };
 
 /**
- * @param {number} type
- * @param {number} code
- * @param {number} value
- * @returns {void}
- */
-const sendEvent = (type, code, value) => {
-  uinput.emit(type, code, value);
-};
-
-/**
- * @returns {void}
- */
-const syncEvents = () => {
-  uinput.emit(EV_SYN, SYN_REPORT, 0);
-};
-
-/**
+ * @param {number} padIndex
  * @param {Object} state
- * @param {boolean[]} state.buttons
- * @param {number[]} state.axes
- * @returns {void}
+ * @param {string} padType
+ * @returns {string}
  */
-export const updateGamepadState = (state) => {
+export const updateGamepadState = (padIndex, state, padType) => {
+  /** @type {number} */
+  const id = getOrInitGamepad(padIndex, padType);
+
+  if (id === -2) return 'LIMIT_REACHED';
+  if (id === -1) return 'ERROR';
+
+  /** @type {GamepadSession} */
+  const session = persistentGamepads.get(padIndex);
   /** @type {boolean} */
   let needsSync = false;
 
   for (let i = 0; i < BUTTON_MAP.length; i++) {
-    if (state.buttons[i] !== undefined && state.buttons[i] !== previousButtons[i]) {
-      previousButtons[i] = state.buttons[i];
-      sendEvent(EV_KEY, BUTTON_MAP[i], state.buttons[i] ? 1 : 0);
+    if (state.buttons[i] !== undefined && state.buttons[i] !== session.previousButtons[i]) {
+      session.previousButtons[i] = state.buttons[i];
+      uinput.emit(id, EV_KEY, BUTTON_MAP[i], state.buttons[i] ? 1 : 0);
       needsSync = true;
     }
   }
@@ -103,16 +126,14 @@ export const updateGamepadState = (state) => {
     if (state.axes[i] !== undefined) {
       /** @type {number} */
       const scaledValue = Math.floor(state.axes[i] * 32767);
-
-      if (scaledValue !== previousAxes[i]) {
-        previousAxes[i] = scaledValue;
-        sendEvent(EV_ABS, AXIS_MAP[i], scaledValue);
+      if (scaledValue !== session.previousAxes[i]) {
+        session.previousAxes[i] = scaledValue;
+        uinput.emit(id, EV_ABS, AXIS_MAP[i], scaledValue);
         needsSync = true;
       }
     }
   }
 
-  if (needsSync) {
-    syncEvents();
-  }
+  if (needsSync) uinput.emit(id, EV_SYN, SYN_REPORT, 0);
+  return 'OK';
 };

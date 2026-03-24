@@ -23,11 +23,7 @@ import {
   windowsCache,
 } from './utils/values.js';
 
-import {
-  initVirtualGamepad,
-  destroyVirtualGamepad,
-  updateGamepadState,
-} from './utils/VirtualGamepad.js';
+import { destroyAllGamepads, updateGamepadState } from './utils/VirtualGamepad.js';
 import { startStreamServer, sendSignalToClient } from './utils/StreamServer.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
@@ -75,6 +71,9 @@ let clipsProcessingCount = 0;
 
 /** @type {Set<import('child_process').ChildProcessWithoutNullStreams>} */
 const activeConcatProcesses = new Set();
+
+/** @type {Set<number>} */
+const warnedPads = new Set();
 
 const clipSound = path.join(srcFolder, './sounds/clip-saved.mp3');
 const saveSound = path.join(srcFolder, './sounds/saving-clip.mp3');
@@ -161,6 +160,7 @@ const getDefaultConfig = () => ({
   streamEnabled: false,
   streamPort: 8080,
   streamPassword: 'pony',
+  gamepadType: 'xbox',
 });
 
 /**
@@ -767,25 +767,26 @@ const toggleConfigWindow = () => {
 
 if (gotTheLock) {
   app.whenReady().then(async () => {
-    // Start Virtual Gamepad
-    /** @type {boolean} */
-    isGamepadReady = initVirtualGamepad();
-
-    if (!isGamepadReady) {
-      console.error(
-        '[SYSTEM ERROR] Failed to initialize virtual gamepad. Check uinput permissions.',
-      );
-    } else {
-      console.log('[SYSTEM] Virtual gamepad loaded successfully.');
-    }
-
     // Expose gamepad status to the UI
     ipcMain.handle('get-gamepad-status', () => isGamepadReady);
 
     // Handle Gamepad Inputs from WebRTC DataChannel
-    ipcMain.on('gamepad-input', (event, state) => {
-      if (isGamepadReady) {
-        updateGamepadState(state);
+    ipcMain.on('gamepad-input', (event, data) => {
+      if (data.type === 'multi_input') {
+        for (const pad of data.pads) {
+          isGamepadReady = true;
+          /** @type {string} */
+          const status = updateGamepadState(pad.index, pad, currentConfig.gamepadType);
+
+          if (status === 'LIMIT_REACHED' && !warnedPads.has(pad.index)) {
+            warnedPads.add(pad.index);
+            console.warn(`[STREAM WARN] Rejected gamepad ${pad.index} - Max limit of 4 reached.`);
+            sendSignalToClient({
+              type: 'server_warning',
+              message: `Gamepad [${pad.index}] blocked: Server max limit of 4 reached.`,
+            });
+          }
+        }
       }
     });
 
@@ -929,7 +930,7 @@ if (gotTheLock) {
   });
 
   app.on('will-quit', () => {
-    destroyVirtualGamepad();
+    destroyAllGamepads();
     globalShortcut.unregisterAll();
     console.log('[SYSTEM] Application is quitting.');
 

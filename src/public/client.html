@@ -167,6 +167,9 @@
     <div id="login">
       <h2 style="text-align: center; color: #cba6f7; margin-top: 0">Pony Stream</h2>
       <input type="password" id="pass" placeholder="Password" />
+      <label style="color: #cdd6f4; font-size: 14px; display: flex; gap: 8px">
+        <input type="checkbox" id="wantsAudio" checked /> Enable Audio Stream
+      </label>
       <button id="btnConnect">Connect & Play</button>
     </div>
 
@@ -185,6 +188,8 @@
       const btnToggleDebug = document.getElementById('btnToggleDebug');
       /** @type {HTMLElement} */
       const debugPanel = document.getElementById('debugPanel');
+      /** @type {HTMLInputElement} */
+      const wantsAudioInput = document.getElementById('wantsAudio');
 
       // Debug Elements
       const dbgWs = document.getElementById('dbgWs');
@@ -203,8 +208,12 @@
       let pc = null;
       /** @type {RTCDataChannel | null} */
       let dataChannel = null;
-      /** @type {number | null} */
-      let activeGamepadIndex = null;
+      /** @type {boolean} */
+      let audioRequested = true;
+
+      // The Gamepad Cache Map
+      /** @type {Map<number, boolean>} */
+      const activeGamepadsCache = new Map();
 
       // --- UI & DEBUG LOGIC ---
 
@@ -236,25 +245,19 @@
         }
       });
 
-      // --- GAMEPAD DETECTION LOGIC ---
+      // --- GAMEPAD DETECTION (CACHE SYSTEM) ---
 
       window.addEventListener('gamepadconnected', (event) => {
-        if (activeGamepadIndex === null) {
-          activeGamepadIndex = event.gamepad.index;
-          updateDebug(dbgPad, `OK: [${event.gamepad.index}]`, 'ok');
-          console.log('[INPUT] Gamepad active:', event.gamepad.id);
-        }
+        activeGamepadsCache.set(event.gamepad.index, true);
+        console.log('[INPUT] Gamepad connected:', event.gamepad.id);
       });
 
       window.addEventListener('gamepaddisconnected', (event) => {
-        if (activeGamepadIndex === event.gamepad.index) {
-          activeGamepadIndex = null;
-          updateDebug(dbgPad, 'Awaiting Input...', 'warn');
-          dbgInput.textContent = 'Controller disconnected.';
-        }
+        activeGamepadsCache.delete(event.gamepad.index);
+        console.log('[INPUT] Gamepad disconnected:', event.gamepad.index);
       });
 
-      // --- NETWORKING & WebRTC LOGIC ---
+      // --- NETWORKING ---
 
       const initConnection = () => {
         updateDebug(dbgWs, 'Connecting...', 'warn');
@@ -266,7 +269,10 @@
 
         ws.onopen = () => {
           updateDebug(dbgWs, 'Auth...', 'warn');
-          ws.send(JSON.stringify({ type: 'auth', password: passInput.value }));
+          audioRequested = wantsAudioInput.checked;
+          ws.send(
+            JSON.stringify({ type: 'auth', password: passInput.value, audio: audioRequested }),
+          );
         };
 
         ws.onclose = () => {
@@ -295,6 +301,10 @@
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
           } else if (data.type === 'ice_candidate') {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } else if (data.type === 'server_warning') {
+            updateDebug(dbgPad, 'Limit Reached!', 'error');
+            dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${data.message}</span>`;
+            console.warn('[SERVER WARNING]', data.message);
           }
         };
       };
@@ -380,66 +390,77 @@
 
         // Criação da Oferta (Nós somos o cliente, iniciamos a conexão)
         /** @type {RTCSessionDescriptionInit} */
-        const offer = await pc.createOffer({ offerToReceiveVideo: true });
+        const offer = await pc.createOffer({
+          offerToReceiveVideo: true,
+          offerToReceiveAudio: audioRequested,
+        });
         await pc.setLocalDescription(offer);
         ws.send(JSON.stringify({ type: 'offer', offer: offer }));
 
         requestAnimationFrame(pollGamepad);
       };
 
-      // --- INPUT POLLING LOOP ---
+      // --- EFFICIENT POLLING WITH CACHE ---
 
       const pollGamepad = () => {
-        // Se já detectamos um índice mas o navegador diz que null, tenta re-detectar (necessário no Chrome às vezes)
+        /** @type {Gamepad[]} */
         const gamepads = navigator.getGamepads();
+        /** @type {Object[]} */
+        const padData = [];
+        /** @type {string} */
+        let debugText = '';
 
-        if (activeGamepadIndex !== null) {
-          /** @type {Gamepad} */
-          const gp = gamepads[activeGamepadIndex];
+        // Iterate ONLY over pads we verified through events
+        for (const [index, isValid] of activeGamepadsCache.entries()) {
+          /** @type {Gamepad | null} */
+          const gp = gamepads[index];
 
-          if (gp) {
+          // STRICT CHECK: Ensure the gamepad is actually connected to avoid ghosts
+          if (gp && gp.connected) {
             /** @type {boolean[]} */
             const buttonsPressed = gp.buttons.map((b) => b.pressed);
             /** @type {number[]} */
             const axesVals = gp.axes;
 
-            // --- DEBUG INPUT UPDATES ---
+            padData.push({
+              index: gp.index,
+              buttons: buttonsPressed,
+              axes: axesVals,
+            });
 
-            // Conta botões pressionados
+            // Rebuilding the detailed debug view for each connected pad
+            /** @type {number} */
             const activeBtnsCount = buttonsPressed.reduce((acc, val) => acc + (val ? 1 : 0), 0);
-
-            // Formatação otimizada para os 4 eixos (padrão Xbox/PS)
-            // Axes: 0=LX, 1=LY, 2=RX, 3=RY
+            /** @type {string} */
             const lx = axesVals[0]?.toFixed(2) || '0.00';
+            /** @type {string} */
             const ly = axesVals[1]?.toFixed(2) || '0.00';
+            /** @type {string} */
             const rx = axesVals[2]?.toFixed(2) || '0.00';
+            /** @type {string} */
             const ry = axesVals[3]?.toFixed(2) || '0.00';
 
-            dbgInput.innerHTML =
-              `Buttons Active: ${activeBtnsCount}<br>` +
-              `L Stick: ${lx}, ${ly}<br>` +
-              `R Stick: ${rx}, ${ry}`;
-
-            // --- SEND DATA ---
-
-            if (dataChannel && dataChannel.readyState === 'open') {
-              /** @type {Object} */
-              const state = {
-                buttons: buttonsPressed,
-                axes: axesVals,
-              };
-              dataChannel.send(JSON.stringify(state));
-            }
+            debugText +=
+              `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>` +
+              `L: ${lx}, ${ly} | R: ${rx}, ${ry}<br><br>`;
           } else {
-            // O índice existe mas o objeto gp não (controle dormiu)
-            if (dbgPad.textContent !== 'Sleeping?') {
-              updateDebug(dbgPad, 'Sleeping?', 'warn');
-            }
+            // Cleanup ghost disconnections
+            activeGamepadsCache.delete(index);
+          }
+        }
+
+        if (padData.length > 0) {
+          updateDebug(dbgPad, `Active Pads: ${padData.length}`, 'ok');
+          if (dbgInput && !dbgInput.innerHTML.includes('blocked: Server max limit')) {
+            dbgInput.innerHTML = debugText;
+          }
+          if (dataChannel && dataChannel.readyState === 'open') {
+            dataChannel.send(JSON.stringify({ type: 'multi_input', pads: padData }));
           }
         } else {
-          // Nenhum controle detectado ainda. Mostra instrução no debug.
-          if (gamepads.length > 0 && gamepads[0] !== null) {
-            dbgInput.textContent = 'Controller found. Press any button to activate.';
+          updateDebug(dbgPad, 'Awaiting Input...', 'warn');
+          if (dbgInput && !dbgInput.innerHTML.includes('blocked: Server max limit')) {
+            dbgInput.textContent = 'Move sticks or press buttons.';
           }
         }
 
