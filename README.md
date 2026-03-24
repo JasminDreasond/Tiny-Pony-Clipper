@@ -27,7 +27,7 @@ A lightweight, background clipping tool built with Electron and FFmpeg. Specific
 Tiny Pony Clipper relies on robust native Linux tools to handle audio and video processing. Ensure your system has the following packages installed:
 
 * `ffmpeg` (for video encoding and assembly)
-* `pulseaudio-utils` (provides `pactl` and `paplay` for audio device routing and notifications)
+* `pulseaudio-utils` (provides `pactl` for audio device routing)
 * `libnotify-bin` (for native system notifications)
 
 On Ubuntu/Kubuntu/Debian systems, you can install them via:
