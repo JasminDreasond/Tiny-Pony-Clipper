@@ -150,6 +150,28 @@
       .github-btn:hover {
         background: #45475a;
       }
+      .stream-section {
+        margin-top: 30px;
+        padding: 15px;
+        border: 2px solid #cba6f7;
+        border-radius: 8px;
+        background-color: rgba(203, 166, 247, 0.05);
+      }
+      .stream-title {
+        color: #cba6f7;
+        margin-top: 0;
+        margin-bottom: 15px;
+      }
+      .warning-box {
+        display: none;
+        background-color: #f38ba8;
+        color: #11111b;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-weight: bold;
+        font-size: 14px;
+      }
     </style>
   </head>
   <body>
@@ -227,6 +249,32 @@
           <div class="form-group-sm" style="flex: 1">
             <label class="label-sm" for="videoQualityValue">Quality Value</label>
             <input type="text" id="videoQualityValue" placeholder="19, 23, etc." />
+          </div>
+        </div>
+
+        <div class="stream-section">
+          <h3 class="stream-title">🌐 Remote Multiplayer Streaming (Experimental)</h3>
+
+          <div id="uinputWarning" class="warning-box">
+            ⚠️ Missing permissions for Virtual Gamepad! The app cannot inject controller inputs.
+            Please configure uinput permissions on your Linux system.
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="streamEnabled" /> Enable Remote Play Server
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="form-group-sm" style="flex: 1">
+              <label class="label-sm" for="streamPort">Server Port</label>
+              <input type="number" id="streamPort" placeholder="8080" />
+            </div>
+            <div class="form-group-sm" style="flex: 2">
+              <label class="label-sm" for="streamPassword">Access Password</label>
+              <input type="text" id="streamPassword" placeholder="Enter a secure password" />
+            </div>
           </div>
         </div>
       </div>

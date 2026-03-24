@@ -23,6 +23,13 @@ import {
   windowsCache,
 } from './utils/values.js';
 
+import {
+  initVirtualGamepad,
+  destroyVirtualGamepad,
+  updateGamepadState,
+} from './utils/VirtualGamepad.js';
+import { startStreamServer, sendSignalToClient } from './utils/StreamServer.js';
+
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
 ipcMain.on('open-external', (event, url) => shell.openExternal(url));
@@ -125,8 +132,16 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {string} videoQualityCmd
  * @property {string} videoQualityValue
  * @property {string} audioCodec
+ * @property {boolean} streamEnabled
+ * @property {number} streamPort
+ * @property {string} streamPassword
  */
 
+// Add this near your other global variables at the top
+/** @type {boolean} */
+let isGamepadReady = false;
+
+// Update your default config function
 /**
  * @returns {AppConfig}
  */
@@ -142,6 +157,10 @@ const getDefaultConfig = () => ({
   videoQualityCmd: '-cq',
   videoQualityValue: '19',
   audioCodec: 'aac',
+  // Stream Settings
+  streamEnabled: false,
+  streamPort: 8080,
+  streamPassword: 'pony',
 });
 
 /**
@@ -658,6 +677,15 @@ const applyConfigurationAndStart = (config) => {
     console.log(`[SHORTCUT SUCCESS] Shortcut ${config.shortcut} registered globally.`);
   }
 
+  // Only start the server if enabled in config
+  if (config && config.streamEnabled) {
+    startStreamServer(
+      config.streamPassword,
+      config.streamPort,
+      windowsCache.captureWindow.webContents,
+    );
+  }
+
   startRecording(config);
 
   /** @type {string} */
@@ -739,6 +767,33 @@ const toggleConfigWindow = () => {
 
 if (gotTheLock) {
   app.whenReady().then(async () => {
+    // Start Virtual Gamepad
+    /** @type {boolean} */
+    isGamepadReady = initVirtualGamepad();
+
+    if (!isGamepadReady) {
+      console.error(
+        '[SYSTEM ERROR] Failed to initialize virtual gamepad. Check uinput permissions.',
+      );
+    } else {
+      console.log('[SYSTEM] Virtual gamepad loaded successfully.');
+    }
+
+    // Expose gamepad status to the UI
+    ipcMain.handle('get-gamepad-status', () => isGamepadReady);
+
+    // Handle Gamepad Inputs from WebRTC DataChannel
+    ipcMain.on('gamepad-input', (event, state) => {
+      if (isGamepadReady) {
+        updateGamepadState(state);
+      }
+    });
+
+    // Route WebRTC signals back to the StreamServer
+    ipcMain.on('webrtc-signal-back', (event, data) => {
+      sendSignalToClient(data);
+    });
+
     // --- WAYLAND PORTAL HANDLER ---
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
@@ -874,6 +929,7 @@ if (gotTheLock) {
   });
 
   app.on('will-quit', () => {
+    destroyVirtualGamepad();
     globalShortcut.unregisterAll();
     console.log('[SYSTEM] Application is quitting.');
 

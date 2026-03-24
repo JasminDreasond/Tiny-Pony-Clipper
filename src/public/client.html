@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pony Stream Client</title>
+    <style>
+      body {
+        margin: 0;
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: white;
+        font-family: sans-serif;
+        overflow: hidden;
+      }
+      video {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        background: #111;
+      }
+      #login {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10;
+        position: absolute;
+      }
+      input,
+      button {
+        padding: 12px;
+        font-size: 16px;
+        border-radius: 6px;
+        border: none;
+      }
+      button {
+        background-color: #cba6f7;
+        color: #11111b;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background-color: #b4befe;
+      }
+
+      /* HUD Debug Panel */
+      #debugPanel {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(24, 24, 37, 0.9);
+        border: 1px solid #cba6f7;
+        padding: 15px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 13px;
+        color: #cdd6f4;
+        pointer-events: none;
+        min-width: 280px;
+        z-index: 100;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+      }
+      #debugPanel.hidden {
+        opacity: 0;
+        transform: translateY(-20px);
+        pointer-events: none;
+      }
+
+      /* Toggle Button */
+      #btnToggleDebug {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 101;
+        padding: 8px 12px;
+        font-size: 12px;
+        background: rgba(49, 50, 68, 0.7);
+        color: #cdd6f4;
+        border: 1px solid #45475a;
+        opacity: 0.6;
+      }
+      #btnToggleDebug:hover {
+        opacity: 1;
+        background: rgba(49, 50, 68, 1);
+      }
+
+      .debug-section {
+        margin-bottom: 10px;
+        border-bottom: 1px solid #45475a;
+        padding-bottom: 5px;
+      }
+      .debug-header {
+        color: #cba6f7;
+        font-weight: bold;
+        margin-bottom: 4px;
+        display: block;
+      }
+      .debug-row {
+        margin-bottom: 3px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .debug-val {
+        font-weight: bold;
+        color: #a6e3a1;
+        text-align: right;
+      }
+      .debug-err {
+        color: #f38ba8;
+      }
+      .debug-warn {
+        color: #fab387;
+      }
+
+      #dbgInput {
+        margin-top: 5px;
+        font-size: 11px;
+        color: #bac2de;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="btnToggleDebug">Hide Debug (F2)</button>
+
+    <div id="debugPanel">
+      <div class="debug-section">
+        <span class="debug-header">Network & Signaling</span>
+        <div class="debug-row">
+          Signaling (WS): <span id="dbgWs" class="debug-val debug-err">Disconnected</span>
+        </div>
+        <div class="debug-row">
+          RTC Conn State: <span id="dbgRtcConn" class="debug-val debug-err">New</span>
+        </div>
+        <div class="debug-row">
+          ICE Conn State: <span id="dbgRtcIce" class="debug-val debug-err">New</span>
+        </div>
+      </div>
+
+      <div class="debug-section">
+        <span class="debug-header">Video Stream</span>
+        <div class="debug-row">
+          Track Status: <span id="dbgVidTrack" class="debug-val debug-err">Waiting...</span>
+        </div>
+        <div class="debug-row">
+          Playback: <span id="dbgVidPlay" class="debug-val debug-err">Stopped</span>
+        </div>
+        <div class="debug-row">Resolution: <span id="dbgVidRes" class="debug-val">0x0</span></div>
+      </div>
+
+      <div class="debug-section" style="border: none; margin: 0; padding: 0">
+        <span class="debug-header"
+          >Input (DataChannel: <span id="dbgDc" class="debug-err">Closed</span>)</span
+        >
+        <div class="debug-row">
+          Gamepad: <span id="dbgPad" class="debug-val debug-warn">Awaiting Input...</span>
+        </div>
+        <div id="dbgInput">Move sticks or press buttons.</div>
+      </div>
+    </div>
+
+    <div id="login">
+      <h2 style="text-align: center; color: #cba6f7; margin-top: 0">Pony Stream</h2>
+      <input type="password" id="pass" placeholder="Password" />
+      <button id="btnConnect">Connect & Play</button>
+    </div>
+
+    <video id="streamView" autoplay playsinline muted></video>
+
+    <script type="module">
+      /** @type {HTMLVideoElement} */
+      const video = document.getElementById('streamView');
+      /** @type {HTMLInputElement} */
+      const passInput = document.getElementById('pass');
+      /** @type {HTMLButtonElement} */
+      const btnConnect = document.getElementById('btnConnect');
+      /** @type {HTMLElement} */
+      const loginDiv = document.getElementById('login');
+      /** @type {HTMLButtonElement} */
+      const btnToggleDebug = document.getElementById('btnToggleDebug');
+      /** @type {HTMLElement} */
+      const debugPanel = document.getElementById('debugPanel');
+
+      // Debug Elements
+      const dbgWs = document.getElementById('dbgWs');
+      const dbgRtcConn = document.getElementById('dbgRtcConn');
+      const dbgRtcIce = document.getElementById('dbgRtcIce');
+      const dbgVidTrack = document.getElementById('dbgVidTrack');
+      const dbgVidPlay = document.getElementById('dbgVidPlay');
+      const dbgVidRes = document.getElementById('dbgVidRes');
+      const dbgDc = document.getElementById('dbgDc');
+      const dbgPad = document.getElementById('dbgPad');
+      const dbgInput = document.getElementById('dbgInput');
+
+      /** @type {WebSocket | null} */
+      let ws = null;
+      /** @type {RTCPeerConnection | null} */
+      let pc = null;
+      /** @type {RTCDataChannel | null} */
+      let dataChannel = null;
+      /** @type {number | null} */
+      let activeGamepadIndex = null;
+
+      // --- UI & DEBUG LOGIC ---
+
+      /**
+       * @param {HTMLElement} el
+       * @param {string} text
+       * @param {'error' | 'warn' | 'ok'} [state]
+       */
+      const updateDebug = (el, text, state) => {
+        el.textContent = text;
+        el.classList.remove('debug-err', 'debug-warn');
+        if (state === 'error') el.classList.add('debug-err');
+        else if (state === 'warn') el.classList.add('debug-warn');
+      };
+
+      const toggleDebug = () => {
+        const isHidden = debugPanel.classList.toggle('hidden');
+        btnToggleDebug.textContent = isHidden ? 'Show Debug (F2)' : 'Hide Debug (F2)';
+        btnToggleDebug.blur(); // Remove foco do botão
+      };
+
+      btnToggleDebug.addEventListener('click', toggleDebug);
+
+      // Atalho de teclado F2 para toggle
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'F2') {
+          e.preventDefault();
+          toggleDebug();
+        }
+      });
+
+      // --- GAMEPAD DETECTION LOGIC ---
+
+      window.addEventListener('gamepadconnected', (event) => {
+        if (activeGamepadIndex === null) {
+          activeGamepadIndex = event.gamepad.index;
+          updateDebug(dbgPad, `OK: [${event.gamepad.index}]`, 'ok');
+          console.log('[INPUT] Gamepad active:', event.gamepad.id);
+        }
+      });
+
+      window.addEventListener('gamepaddisconnected', (event) => {
+        if (activeGamepadIndex === event.gamepad.index) {
+          activeGamepadIndex = null;
+          updateDebug(dbgPad, 'Awaiting Input...', 'warn');
+          dbgInput.textContent = 'Controller disconnected.';
+        }
+      });
+
+      // --- NETWORKING & WebRTC LOGIC ---
+
+      const initConnection = () => {
+        updateDebug(dbgWs, 'Connecting...', 'warn');
+        btnConnect.disabled = true;
+        btnConnect.textContent = 'Connecting...';
+
+        // Usa a porta atual do navegador para o WebSocket
+        ws = new WebSocket(`ws://${window.location.host}`);
+
+        ws.onopen = () => {
+          updateDebug(dbgWs, 'Auth...', 'warn');
+          ws.send(JSON.stringify({ type: 'auth', password: passInput.value }));
+        };
+
+        ws.onclose = () => {
+          updateDebug(dbgWs, 'Disconnected', 'error');
+          btnConnect.disabled = false;
+          btnConnect.textContent = 'Connect & Play';
+        };
+
+        ws.onerror = () => updateDebug(dbgWs, 'Error', 'error');
+
+        ws.onmessage = async (event) => {
+          /** @type {Object} */
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'auth_success') {
+            updateDebug(dbgWs, 'Connected', 'ok');
+            loginDiv.style.display = 'none';
+            setupWebRTC();
+          } else if (data.type === 'auth_error') {
+            updateDebug(dbgWs, 'Auth Failed', 'error');
+            alert('Wrong password!');
+            btnConnect.disabled = false;
+            btnConnect.textContent = 'Connect & Play';
+            ws.close();
+          } else if (data.type === 'answer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          } else if (data.type === 'ice_candidate') {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          }
+        };
+      };
+
+      const setupWebRTC = async () => {
+        updateDebug(dbgRtcConn, 'Initializing...', 'warn');
+
+        // Configuração padrão usando STUN público do Google
+        pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+
+        // Configuração do DataChannel para Inputs (Não confiável/Ordenado para latência mínima)
+        dataChannel = pc.createDataChannel('gamepad', { ordered: false, maxRetransmits: 0 });
+
+        dataChannel.onopen = () => updateDebug(dbgDc, 'Open', 'ok');
+        dataChannel.onclose = () => updateDebug(dbgDc, 'Closed', 'error');
+
+        // Monitoramento de Estados da Conexão
+        pc.onconnectionstatechange = () => {
+          const s = pc.connectionstate;
+          updateDebug(
+            dbgRtcConn,
+            s,
+            s === 'disconnected' || s === 'failed' ? 'error' : s === 'connected' ? 'ok' : 'warn',
+          );
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          const s = pc.iceConnectionState;
+          updateDebug(
+            dbgRtcIce,
+            s,
+            s === 'disconnected' || s === 'failed' ? 'error' : s === 'connected' ? 'ok' : 'warn',
+          );
+        };
+
+        // --- VIDEO DEBUGGING LOGIC ---
+
+        pc.ontrack = (event) => {
+          console.log('[WEBRTC] Video track received:', event.track);
+          updateDebug(dbgVidTrack, `Recv (${event.track.kind})`, 'ok');
+
+          if (video.srcObject !== event.streams[0]) {
+            video.srcObject = event.streams[0];
+
+            // Tenta forçar o playback. Navegadores exigem muted para autoplay sem interação.
+            video
+              .play()
+              .then(() => {
+                updateDebug(dbgVidPlay, 'Playing', 'ok');
+              })
+              .catch((error) => {
+                console.error('[VIDEO ERROR] Autoplay blocked:', error);
+                updateDebug(dbgVidPlay, 'Blocked (Click Video)', 'error');
+
+                // Adiciona um ouvinte único: se o usuário clicar no vídeo, tenta dar play.
+                video.addEventListener(
+                  'click',
+                  () => {
+                    video.play();
+                    video.muted = false; // Tenta desmutar após o clique
+                  },
+                  { once: true },
+                );
+              });
+          }
+        };
+
+        // Detecta resolução real quando o vídeo começa a rodar
+        video.onloadedmetadata = () => {
+          updateDebug(dbgVidRes, `${video.videoWidth}x${video.videoHeight}`, 'ok');
+        };
+
+        video.onerror = (e) => {
+          updateDebug(dbgVidPlay, `Error: ${video.error.code}`, 'error');
+          console.error('[VIDEO ELEMENT ERROR]', video.error);
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ice_candidate', candidate: event.candidate }));
+          }
+        };
+
+        // Criação da Oferta (Nós somos o cliente, iniciamos a conexão)
+        /** @type {RTCSessionDescriptionInit} */
+        const offer = await pc.createOffer({ offerToReceiveVideo: true });
+        await pc.setLocalDescription(offer);
+        ws.send(JSON.stringify({ type: 'offer', offer: offer }));
+
+        requestAnimationFrame(pollGamepad);
+      };
+
+      // --- INPUT POLLING LOOP ---
+
+      const pollGamepad = () => {
+        // Se já detectamos um índice mas o navegador diz que null, tenta re-detectar (necessário no Chrome às vezes)
+        const gamepads = navigator.getGamepads();
+
+        if (activeGamepadIndex !== null) {
+          /** @type {Gamepad} */
+          const gp = gamepads[activeGamepadIndex];
+
+          if (gp) {
+            /** @type {boolean[]} */
+            const buttonsPressed = gp.buttons.map((b) => b.pressed);
+            /** @type {number[]} */
+            const axesVals = gp.axes;
+
+            // --- DEBUG INPUT UPDATES ---
+
+            // Conta botões pressionados
+            const activeBtnsCount = buttonsPressed.reduce((acc, val) => acc + (val ? 1 : 0), 0);
+
+            // Formatação otimizada para os 4 eixos (padrão Xbox/PS)
+            // Axes: 0=LX, 1=LY, 2=RX, 3=RY
+            const lx = axesVals[0]?.toFixed(2) || '0.00';
+            const ly = axesVals[1]?.toFixed(2) || '0.00';
+            const rx = axesVals[2]?.toFixed(2) || '0.00';
+            const ry = axesVals[3]?.toFixed(2) || '0.00';
+
+            dbgInput.innerHTML =
+              `Buttons Active: ${activeBtnsCount}<br>` +
+              `L Stick: ${lx}, ${ly}<br>` +
+              `R Stick: ${rx}, ${ry}`;
+
+            // --- SEND DATA ---
+
+            if (dataChannel && dataChannel.readyState === 'open') {
+              /** @type {Object} */
+              const state = {
+                buttons: buttonsPressed,
+                axes: axesVals,
+              };
+              dataChannel.send(JSON.stringify(state));
+            }
+          } else {
+            // O índice existe mas o objeto gp não (controle dormiu)
+            if (dbgPad.textContent !== 'Sleeping?') {
+              updateDebug(dbgPad, 'Sleeping?', 'warn');
+            }
+          }
+        } else {
+          // Nenhum controle detectado ainda. Mostra instrução no debug.
+          if (gamepads.length > 0 && gamepads[0] !== null) {
+            dbgInput.textContent = 'Controller found. Press any button to activate.';
+          }
+        }
+
+        requestAnimationFrame(pollGamepad);
+      };
+
+      btnConnect.addEventListener('click', initConnection);
+    </script>
+  </body>
+</html>

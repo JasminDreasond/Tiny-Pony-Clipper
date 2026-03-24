@@ -28,6 +28,18 @@ const videoQualityCmdInput = document.getElementById('videoQualityCmd');
 /** @type {HTMLInputElement} */
 const videoQualityValueInput = document.getElementById('videoQualityValue');
 
+/** @type {HTMLInputElement} */
+const streamEnabledInput = document.getElementById('streamEnabled');
+
+/** @type {HTMLInputElement} */
+const streamPortInput = document.getElementById('streamPort');
+
+/** @type {HTMLInputElement} */
+const streamPasswordInput = document.getElementById('streamPassword');
+
+/** @type {HTMLDivElement} */
+const uinputWarning = document.getElementById('uinputWarning');
+
 /** @type {boolean} */
 let isWaylandEnvironment = false;
 
@@ -111,6 +123,21 @@ const init = async () => {
     shortcutInput.value = config.shortcut;
     shortcutInput.addEventListener('keydown', handleShortcutCapture);
   }
+
+  // Load stream config
+  streamEnabledInput.checked = config.streamEnabled ?? false;
+  streamPortInput.value = config.streamPort ?? 8080;
+  streamPasswordInput.value = config.streamPassword ?? 'pony';
+
+  // Check gamepad permissions
+  /** @type {boolean} */
+  const isGamepadReady = await window.electronAPI.getGamepadStatus();
+  if (!isGamepadReady) {
+    uinputWarning.style.display = 'block';
+    // Optionally uncheck and disable if you don't want them streaming without gamepad
+    // streamEnabledInput.checked = false;
+    streamEnabledInput.disabled = true;
+  }
 };
 
 document.getElementById('btnBrowse').addEventListener('click', async () => {
@@ -142,6 +169,10 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     videoPreset: videoPresetInput.value || 'p6',
     videoQualityCmd: videoQualityCmdInput.value || '-cq',
     videoQualityValue: videoQualityValueInput.value || '19',
+    // Stream values
+    streamEnabled: streamEnabledInput.checked,
+    streamPort: Number(streamPortInput.value) || 8080,
+    streamPassword: streamPasswordInput.value || 'pony',
   };
 
   console.log('[RENDERER] Configuration gathered:', config);

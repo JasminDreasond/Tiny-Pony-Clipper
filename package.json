@@ -29,8 +29,9 @@
   "scripts": {
     "start": "electron .",
     "fix:prettier": "prettier --write ./src/*",
-    "build:linux": "electron-builder --linux -p never",
-    "build:release": "electron-builder --linux -p always"
+    "build:npx": "npx node-gyp configure build",
+    "build:linux": "yarn build:npx && electron-builder --linux -p never",
+    "build:release": "yarn build:npx && electron-builder --linux -p always"
   },
   "devDependencies": {
     "electron": "^41.0.3",
@@ -44,18 +45,24 @@
       "output": "dist"
     },
     "publish": {
-        "provider": "github",
-        "host": "github.com",
-        "owner": "JasminDreasond",
-        "repo": "Tiny-Pony-Clipper",
-        "releaseType": "release"
+      "provider": "github",
+      "host": "github.com",
+      "owner": "JasminDreasond",
+      "repo": "Tiny-Pony-Clipper",
+      "releaseType": "release"
     },
     "releaseInfo": {
-        "releaseNotesFile": "release-notes.md"
+      "releaseNotesFile": "release-notes.md"
     },
     "files": [
+      "node_modules/node-addon-api/**/*",
+      "node_modules/ws/**/*",
+      "node_modules/.yarn-integrity",
+      "node_modules/.package-lock.json",
+      "build/**/*",
       "src/**/*",
-      "package.json"
+      "package.json",
+      "package-lock.json"
     ],
     "linux": {
       "target": [
@@ -78,5 +85,9 @@
     "appImage": {
       "license": "LICENSE"
     }
+  },
+  "dependencies": {
+    "node-addon-api": "^8.6.0",
+    "ws": "^8.20.0"
   }
 }
