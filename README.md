@@ -36,27 +36,6 @@ sudo apt update
 sudo apt install ffmpeg pulseaudio-utils libnotify-bin
 ```
 
-## 🛠 Building from Source
-
-To successfully compile the native addons in this project, you need to ensure your environment has the necessary build tools and global packages installed.
-
-### System Prerequisites
-Since `node-gyp` compiles C++ code, your system must have a C++ compiler and Python installed.
-
-### Global Node.js Dependencies
-You will need `node-gyp` to handle the native build configurations and `yarn` for package management:
-
-```bash
-npm install -g node-gyp yarn
-```
-
-### Running the Build
-Once the dependencies are met, you can trigger the configuration and compilation process:
-
-```bash
-npx node-gyp configure build
-```
-
 ## 🚀 How to Use
 
 1.  **Launch the App:** Open Tiny Pony Clipper. It will quietly reside in your system tray.
@@ -72,34 +51,53 @@ Check the Releases page to download the latest files.
 
 ## 💻 How to Build from Source
 
+To successfully compile the native addons in this project, you need to ensure your environment has the necessary build tools and global packages installed.
+
 If you want to contribute, modify the code, or compile it yourself, follow these steps:
 
-1.  **Clone the repository:**
+### 1- Clone the repository
 
-    ```bash
-    git clone [https://github.com/JasminDreasond/Tiny-Pony-Clipper.git](https://github.com/JasminDreasond/Tiny-Pony-Clipper.git)
-    cd Tiny-Pony-Clipper
-    ```
+```bash
+git clone [https://github.com/JasminDreasond/Tiny-Pony-Clipper.git](https://github.com/JasminDreasond/Tiny-Pony-Clipper.git)
+cd Tiny-Pony-Clipper
+```
 
-2.  **Install Node.js dependencies:**
+#### 1.1- System Prerequisites
+Since `node-gyp` compiles C++ code, your system must have a C++ compiler and Python installed.
 
-    ```bash
-    yarn
-    ```
+#### 1.2- Global Node.js Dependencies
+You will need `node-gyp` to handle the native build configurations and `yarn` for package management:
 
-3.  **Run in development mode:**
+```bash
+npm install -g node-gyp yarn
+```
 
-    ```bash
-    yarn start
-    ```
+#### 1.3- Running the Build
+Once the dependencies are met, you can trigger the configuration and compilation process:
 
-4.  **Build the Linux installers (.deb, .AppImage, .tar.gz):**
+```bash
+npx node-gyp configure build
+```
 
-    ```bash
-    yarn build:linux
-    ```
+#### 2- Install Node.js dependencies
 
-    *The compiled binaries will be available in the `dist/` folder.*
+```bash
+yarn
+```
+
+### 3- Run in development mode
+
+```bash
+yarn start
+```
+
+### 4- Build the Linux installers (.deb, .AppImage, .tar.gz)
+
+```bash
+yarn build:linux
+```
+
+*The compiled binaries will be available in the `dist/` folder.*
 
 ## 💖 Contributing
 
