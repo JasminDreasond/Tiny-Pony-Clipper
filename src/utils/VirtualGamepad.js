@@ -1,6 +1,6 @@
 import { createRequire } from 'module';
 
-/** @type {NodeRequire} */
+/** @type {NodeJS.Require} */
 const require = createRequire(import.meta.url);
 
 /** @type {Object} */

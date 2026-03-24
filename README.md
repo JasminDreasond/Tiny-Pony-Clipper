@@ -36,6 +36,27 @@ sudo apt update
 sudo apt install ffmpeg pulseaudio-utils libnotify-bin
 ```
 
+## 🛠 Building from Source
+
+To successfully compile the native addons in this project, you need to ensure your environment has the necessary build tools and global packages installed.
+
+### System Prerequisites
+Since `node-gyp` compiles C++ code, your system must have a C++ compiler and Python installed.
+
+### Global Node.js Dependencies
+You will need `node-gyp` to handle the native build configurations and `yarn` for package management:
+
+```bash
+npm install -g node-gyp yarn
+```
+
+### Running the Build
+Once the dependencies are met, you can trigger the configuration and compilation process:
+
+```bash
+npx node-gyp configure build
+```
+
 ## 🚀 How to Use
 
 1.  **Launch the App:** Open Tiny Pony Clipper. It will quietly reside in your system tray.
