@@ -272,6 +272,26 @@
     </style>
   </head>
   <body>
+    <div
+      id="clientIdHud"
+      style="
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(30, 30, 46, 0.8);
+        color: #cba6f7;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        border: 1px solid #cba6f7;
+        z-index: 50;
+        display: none;
+      "
+    >
+      My ID: <span id="myClientId">Connecting...</span>
+    </div>
+
     <div class="gamepad-only-msg">🎮 Remote Gamepad Active - Video Disabled</div>
     <button id="btnToggleDebug">Hide Debug (F2)</button>
 
@@ -703,6 +723,11 @@
           const data = JSON.parse(event.data);
 
           if (data.type === 'auth_success') {
+            if (data.clientId) {
+              document.getElementById('clientIdHud').style.display = 'block';
+              document.getElementById('myClientId').textContent = data.clientId;
+            }
+
             // Salva no cache
             localStorage.setItem('pony_stream_pass', passInput.value);
 
@@ -752,7 +777,10 @@
         dataChannel.onmessage = (event) => {
           /** @type {Object} */
           const msg = JSON.parse(event.data);
-          if (msg.type === 'vibration') {
+          if (msg.type === 'server_hello') {
+            document.getElementById('clientIdHud').style.display = 'block';
+            document.getElementById('myClientId').textContent = msg.clientId;
+          } else if (msg.type === 'vibration') {
             /** @type {Gamepad[]} */
             const gamepads = navigator.getGamepads();
             /** @type {Gamepad | null} */

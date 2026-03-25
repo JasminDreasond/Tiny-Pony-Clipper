@@ -70,6 +70,56 @@ const processOfferBtn = document.getElementById('processOfferBtn');
 /** @type {HTMLDivElement} */
 const manualSdpContainer = document.getElementById('manualSdpContainer');
 
+/** @type {HTMLDivElement} */
+const clientListContainer = document.getElementById('clientList');
+/** @type {HTMLDivElement} */
+const gamepadSlotsInfo = document.getElementById('gamepadSlotsInfo');
+
+electronAPI.onClientListUpdate((event, data) => {
+  /** @type {number} */
+  const slotsLeft = data.maxGamepads - data.totalGamepads;
+  gamepadSlotsInfo.textContent = `Available Gamepad Slots: ${slotsLeft} / ${data.maxGamepads}`;
+
+  if (data.clients.length === 0) {
+    clientListContainer.innerHTML =
+      '<div style="color: #a6adc8; font-style: italic;">No players connected yet.</div>';
+    return;
+  }
+
+  clientListContainer.innerHTML = '';
+  data.clients.forEach((client, index) => {
+    /** @type {HTMLDivElement} */
+    const card = document.createElement('div');
+    card.style.cssText =
+      'background: rgba(30,30,46,0.5); border: 1px solid #45475a; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;';
+
+    /** @type {string} */
+    const dateStr = new Date(client.time).toLocaleTimeString();
+
+    card.innerHTML = `
+      <div>
+        <div style="color: #cba6f7; font-weight: bold; margin-bottom: 4px;">Player ${index + 1} (${client.type})</div>
+        <div style="font-size: 12px; color: #bac2de;">ID: ${client.id}</div>
+        <div style="font-size: 12px; color: #a6e3a1; margin-top: 4px;">🎮 Gamepads Active: ${client.gamepads}</div>
+        <div style="font-size: 11px; color: #6c7086; margin-top: 2px;">Joined at: ${dateStr}</div>
+      </div>
+      <button class="kick-btn" data-id="${client.id}" style="width: auto; background: #f38ba8; color: #11111b; padding: 8px 16px;">Kick</button>
+    `;
+
+    clientListContainer.appendChild(card);
+  });
+
+  document.querySelectorAll('.kick-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      /** @type {string | null} */
+      const idToKick = e.target.getAttribute('data-id');
+      if (idToKick && confirm(`Are you sure you want to kick ${idToKick}?`)) {
+        electronAPI.kickClient(idToKick);
+      }
+    });
+  });
+});
+
 /** @type {NodeListOf<HTMLButtonElement>} */
 const tabBtns = document.querySelectorAll('.tab-btn');
 /** @type {NodeListOf<HTMLDivElement>} */

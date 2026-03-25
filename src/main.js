@@ -28,8 +28,10 @@ import {
   destroyAllGamepads,
   destroyGamepadsForClient,
   updateGamepadState,
+  getGamepadCountForClient,
+  getTotalGamepads,
 } from './utils/VirtualGamepad.js';
-import { startStreamServer, sendSignalToClient } from './utils/StreamServer.js';
+import { startStreamServer, sendSignalToClient, kickWsClient } from './utils/StreamServer.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -798,6 +800,62 @@ if (gotTheLock) {
     // Expose gamepad status to the UI
     ipcMain.handle('get-gamepad-status', () => canAccessUinput());
 
+    /** @type {Map<string, Object>} */
+    const activeClientsMap = new Map();
+    /** @type {number} */
+    let lastKnownGamepadCount = 0;
+
+    /**
+     * @returns {void}
+     */
+    const broadcastClientList = () => {
+      if (!windowsCache.configWindow) return;
+
+      /** @type {Object[]} */
+      const list = Array.from(activeClientsMap.values()).map((c) => ({
+        id: c.id,
+        type: c.id.startsWith('ip') ? 'IP Address' : 'Manual SDP',
+        time: c.connectedAt,
+        gamepads: getGamepadCountForClient(c.id),
+      }));
+
+      windowsCache.configWindow.webContents.send('update-client-list', {
+        clients: list,
+        totalGamepads: getTotalGamepads(),
+        maxGamepads: currentConfig ? currentConfig.maxGamepads : 12,
+      });
+    };
+
+    ipcMain.on('webrtc-client-connected', (event, clientId) => {
+      if (!activeClientsMap.has(clientId)) {
+        activeClientsMap.set(clientId, { id: clientId, connectedAt: Date.now() });
+        sendNotification({ title: 'New Player Connected!', body: `ID: ${clientId}` });
+      }
+      broadcastClientList();
+    });
+
+    ipcMain.on('webrtc-client-disconnected', (event, clientId) => {
+      if (activeClientsMap.has(clientId)) {
+        activeClientsMap.delete(clientId);
+        destroyGamepadsForClient(clientId);
+        sendNotification({
+          title: 'Player Disconnected',
+          body: `ID: ${clientId} left the server.`,
+        });
+        broadcastClientList();
+      }
+    });
+
+    ipcMain.on('kick-client-request', (event, clientId) => {
+      console.log(`[SYSTEM] Manual kick requested for: ${clientId}`);
+      sendNotification({ title: 'Player Kicked', body: `You removed: ${clientId}` });
+
+      kickWsClient(clientId);
+      if (windowsCache.captureWindow) {
+        windowsCache.captureWindow.webContents.send('force-close-webrtc', clientId);
+      }
+    });
+
     // Handle Gamepad Inputs from WebRTC DataChannel
     ipcMain.on('gamepad-input', (event, data) => {
       if (data.type === 'multi_input') {
@@ -835,6 +893,13 @@ if (gotTheLock) {
             });
           }
         }
+      }
+
+      /** @type {number} */
+      const currentCount = getTotalGamepads();
+      if (currentCount !== lastKnownGamepadCount) {
+        lastKnownGamepadCount = currentCount;
+        broadcastClientList();
       }
     });
 

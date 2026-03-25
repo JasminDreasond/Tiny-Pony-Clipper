@@ -24,6 +24,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isWayland: () => ipcRenderer.invoke('is-wayland'),
   openExternal: (url) => ipcRenderer.send('open-external', url),
   sendGamepadCleanup: (clientId) => ipcRenderer.send('gamepad-cleanup', clientId),
+  notifyClientConnected: (clientId) => ipcRenderer.send('webrtc-client-connected', clientId),
+  notifyClientDisconnected: (clientId) => ipcRenderer.send('webrtc-client-disconnected', clientId),
+  kickClient: (clientId) => ipcRenderer.send('kick-client-request', clientId),
+  onClientListUpdate: (callback) => ipcRenderer.on('update-client-list', callback),
+  onForceCloseWebrtc: (callback) => ipcRenderer.on('force-close-webrtc', callback),
   onCaptureCommand: (callback) =>
     ipcRenderer.on('capture-command', (event, data) => callback(data)),
 });

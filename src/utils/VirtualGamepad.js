@@ -52,6 +52,26 @@ const persistentGamepads = new Map();
 
 /**
  * @param {string} clientId
+ * @returns {number}
+ */
+export const getGamepadCountForClient = (clientId) => {
+  /** @type {number} */
+  let count = 0;
+  for (const key of persistentGamepads.keys()) {
+    if (key.startsWith(`${clientId}_`)) count++;
+  }
+  return count;
+};
+
+/**
+ * @returns {number}
+ */
+export const getTotalGamepads = () => {
+  return persistentGamepads.size;
+};
+
+/**
+ * @param {string} clientId
  * @param {number} padIndex
  * @param {string} padType
  * @returns {number}

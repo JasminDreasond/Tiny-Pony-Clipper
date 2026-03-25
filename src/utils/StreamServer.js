@@ -10,8 +10,9 @@ let currentServer = null;
 /** @type {WebSocketServer | null} */
 let currentWss = null;
 
-/** @type {import('ws').WebSocket | null} */
-let activeClientWs = null;
+// Mapa para rastrear os websockets e podermos kickar
+/** @type {Map<string, import('ws').WebSocket>} */
+const activeWsClients = new Map();
 
 /**
  * @param {Object} config
@@ -57,6 +58,8 @@ export const startStreamServer = (config, captureWebContents) => {
   currentWss.on('connection', (ws) => {
     /** @type {boolean} */
     let isAuthenticated = false;
+    /** @type {string | null} */
+    let clientId = null;
 
     ws.on('message', (message) => {
       /** @type {Object} */
@@ -65,15 +68,20 @@ export const startStreamServer = (config, captureWebContents) => {
       if (data.type === 'auth') {
         if (data.password === config.streamPassword) {
           isAuthenticated = true;
-          activeClientWs = ws; // Save the active connection here
+
+          // Geramos o ID aqui e registramos o WebSocket
+          clientId = `ip_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+          activeWsClients.set(clientId, ws);
+
           ws.send(
             JSON.stringify({
               type: 'auth_success',
               enableVideo: config.enableClipping && config.streamVideoEnabled,
               iceServers: config.iceServers,
+              clientId: clientId,
             }),
           );
-          console.log('[STREAM] Client authenticated successfully!');
+          console.log(`[STREAM] Client [${clientId}] authenticated successfully!`);
         } else {
           ws.send(JSON.stringify({ type: 'auth_error' }));
           ws.close();
@@ -82,17 +90,18 @@ export const startStreamServer = (config, captureWebContents) => {
         return;
       }
 
-      if (!isAuthenticated) return;
+      if (!isAuthenticated || !clientId) return;
 
       if (data.type === 'offer' || data.type === 'answer' || data.type === 'ice_candidate') {
+        data.clientId = clientId;
         captureWebContents.send('webrtc-signal', data);
       }
     });
 
     ws.on('close', () => {
-      if (activeClientWs === ws) {
-        activeClientWs = null;
-        console.log('[STREAM] Client disconnected.');
+      if (clientId && activeWsClients.has(clientId)) {
+        activeWsClients.delete(clientId);
+        console.log(`[STREAM] Client [${clientId}] WebSocket disconnected.`);
       }
     });
   });
@@ -105,13 +114,31 @@ export const startStreamServer = (config, captureWebContents) => {
 /**
  * @param {Object} data
  * @param {string} data.type
+ * @param {string} data.clientId
  * @param {RTCSessionDescriptionInit} [data.answer]
  * @param {RTCIceCandidateInit} [data.candidate]
  * @returns {void}
  */
 export const sendSignalToClient = (data) => {
-  if (activeClientWs && activeClientWs.readyState === 1) {
-    // 1 === OPEN
-    activeClientWs.send(JSON.stringify(data));
+  if (data.clientId && activeWsClients.has(data.clientId)) {
+    /** @type {import('ws').WebSocket} */
+    const ws = activeWsClients.get(data.clientId);
+    if (ws.readyState === 1) ws.send(JSON.stringify(data));
+  }
+};
+
+/**
+ * @param {string} clientId
+ * @returns {void}
+ */
+export const kickWsClient = (clientId) => {
+  if (activeWsClients.has(clientId)) {
+    /** @type {import('ws').WebSocket} */
+    const ws = activeWsClients.get(clientId);
+    ws.send(
+      JSON.stringify({ type: 'server_warning', message: 'You have been kicked by the host.' }),
+    );
+    ws.close();
+    activeWsClients.delete(clientId);
   }
 };

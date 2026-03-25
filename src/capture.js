@@ -136,6 +136,9 @@ const createPeerConnection = (clientId) => {
     /** @type {RTCDataChannel} */
     const inputChannel = event.channel;
 
+    // Envia o ClientId também pelo SDP manual usando o canal de dados
+    inputChannel.send(JSON.stringify({ type: 'server_hello', clientId: clientId }));
+
     inputChannel.onmessage = (msg) => {
       /** @type {Object} */
       const gamepadData = JSON.parse(msg.data);
@@ -157,6 +160,10 @@ const createPeerConnection = (clientId) => {
   pc.onconnectionstatechange = () => {
     electronAPI.log(`[WEBRTC HOST] Status [${clientId}]: ${pc.connectionState}`);
 
+    if (pc.connectionState === 'connected') {
+      electronAPI.notifyClientConnected(clientId);
+    }
+
     if (
       pc.connectionState === 'disconnected' ||
       pc.connectionState === 'failed' ||
@@ -164,7 +171,7 @@ const createPeerConnection = (clientId) => {
     ) {
       peers.delete(clientId);
       electronAPI.sendGamepadCleanup(clientId);
-      electronAPI.log(`[WEBRTC HOST] Cleaned up inactive peer connection for [${clientId}].`);
+      electronAPI.notifyClientDisconnected(clientId);
     }
   };
 
@@ -258,5 +265,17 @@ electronAPI.onSignal(async (data) => {
         electronAPI.error(`[WEBRTC HOST ERROR] Failed to add ICE candidate for [${clientId}]`, err);
       }
     }
+  }
+});
+
+electronAPI.onForceCloseWebrtc((event, clientId) => {
+  /** @type {RTCPeerConnection | undefined} */
+  const pc = peers.get(clientId);
+  if (pc) {
+    pc.close();
+    peers.delete(clientId);
+    electronAPI.sendGamepadCleanup(clientId);
+    electronAPI.notifyClientDisconnected(clientId);
+    electronAPI.log(`[WEBRTC] Forcefully closed connection for [${clientId}]`);
   }
 });
