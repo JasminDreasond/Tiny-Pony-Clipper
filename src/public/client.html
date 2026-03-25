@@ -339,6 +339,21 @@
         class="section-hidden"
         style="display: flex; flex-direction: column; gap: 12px"
       >
+        <div
+          style="
+            background-color: #fab387;
+            color: #11111b;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            border-left: 4px solid #f38ba8;
+          "
+        >
+          <strong>⚠️ SECURITY WARNING:</strong><br />
+          Base64 codes expose your routing data. Only share them directly and privately with the
+          host!
+        </div>
+
         <input
           type="text"
           id="stunServer"
@@ -347,12 +362,12 @@
         />
 
         <button id="generateOfferBtn">1. Generate Offer</button>
-        <label for="serverAnswerInput">2. Send this to Server:</label>
+        <label for="myOfferOutput">2. Send this to the Server:</label>
         <textarea
           id="myOfferOutput"
           rows="4"
           readonly
-          placeholder="Your offer will appear here..."
+          placeholder="Your encoded offer will appear here..."
         ></textarea>
 
         <label for="serverAnswerInput">3. Paste Server Answer:</label>
@@ -542,15 +557,31 @@
 
         /** @type {string} */
         const offerString = await generateClientOffer(rtcConfig);
-        myOfferOutput.value = offerString;
+
+        // Codifica a oferta para Base64 antes de exibir na tela
+        myOfferOutput.value = btoa(offerString);
         updateDebug(dbgWs, 'Manual SDP Ready', 'ok');
       });
 
       connectManualBtn.addEventListener('click', async () => {
         /** @type {string} */
-        const answerStr = serverAnswerInput.value.trim();
+        const b64Answer = serverAnswerInput.value.trim();
 
-        if (answerStr) {
+        if (b64Answer) {
+          /** @type {string} */
+          let answerStr = '';
+
+          try {
+            answerStr = atob(b64Answer);
+            // Verifica se decodificou num JSON válido
+            JSON.parse(answerStr);
+          } catch (e) {
+            alert(
+              'Invalid Base64 format! Please ensure you copied the exact code the server gave you.',
+            );
+            return;
+          }
+
           await applyServerAnswer(answerStr);
           console.log('[CLIENT] Connected via manual signaling!');
           loginDiv.style.display = 'none';

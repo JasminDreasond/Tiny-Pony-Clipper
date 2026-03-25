@@ -108,15 +108,27 @@ toggleSdpSection();
 
 processOfferBtn.addEventListener('click', () => {
   /** @type {string} */
-  const offer = clientOfferInput.value.trim();
+  const b64Offer = clientOfferInput.value.trim();
   clientOfferInput.value = '';
 
-  if (offer) {
+  if (b64Offer) {
+    /** @type {string} */
+    let offerString = '';
+
+    try {
+      offerString = atob(b64Offer);
+      // Validação rápida para garantir que o resultado decodificado é um JSON válido
+      JSON.parse(offerString);
+    } catch (e) {
+      alert('Invalid Base64 format! Please ensure you copied the entire code correctly.');
+      return;
+    }
+
     clientOfferInput.disabled = true;
     serverAnswerOutput.disabled = true;
     processOfferBtn.disabled = true;
     serverAnswerOutput.value = 'Processing... Please wait for ICE gathering.';
-    electronAPI.sendManualOffer(offer);
+    electronAPI.sendManualOffer(offerString);
   }
 });
 
@@ -124,8 +136,11 @@ electronAPI.onManualAnswer((event, answerString) => {
   clientOfferInput.disabled = false;
   serverAnswerOutput.disabled = false;
   processOfferBtn.disabled = false;
-  serverAnswerOutput.value = answerString;
-  console.log('[UI] Server answer received and ready to copy.');
+
+  /** @type {string} */
+  const b64Answer = btoa(answerString);
+  serverAnswerOutput.value = b64Answer;
+  console.log('[UI] Server answer encoded to Base64 and ready to copy.');
 });
 
 /**

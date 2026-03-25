@@ -404,13 +404,30 @@
           <div id="manualSdpContainer" class="manual-sdp-container hidden">
             <h3>Manual SDP Signaling</h3>
 
+            <div
+              style="
+                background-color: #fab387;
+                color: #11111b;
+                padding: 10px;
+                border-radius: 6px;
+                font-size: 13px;
+                margin-bottom: 15px;
+                border-left: 4px solid #f38ba8;
+              "
+            >
+              <strong>⚠️ SECURITY WARNING:</strong><br />
+              The Base64 codes generated here contain sensitive network routing data (IP addresses).
+              <strong>Do not post them publicly.</strong> Only share them privately with trusted
+              friends!
+            </div>
+
             <div class="row">
               <div class="form-group-sm col">
                 <label for="clientOfferInput" class="label-sm">Client Offer (Paste here):</label>
                 <textarea
                   id="clientOfferInput"
                   rows="6"
-                  placeholder="Paste the client SDP offer..."
+                  placeholder="Paste the encoded client offer..."
                 ></textarea>
               </div>
               <div class="form-group-sm col">
@@ -419,7 +436,7 @@
                   id="serverAnswerOutput"
                   rows="6"
                   readonly
-                  placeholder="Server answer will appear here..."
+                  placeholder="Server encoded answer will appear here..."
                 ></textarea>
               </div>
             </div>
