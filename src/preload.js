@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notifyClientConnected: (clientId) => ipcRenderer.send('webrtc-client-connected', clientId),
   notifyClientDisconnected: (clientId) => ipcRenderer.send('webrtc-client-disconnected', clientId),
   kickClient: (clientId) => ipcRenderer.send('kick-client-request', clientId),
+  onSendDatachannelMessage: (callback) => ipcRenderer.on('send-datachannel-message', callback),
   onClientListUpdate: (callback) => ipcRenderer.on('update-client-list', callback),
   onForceCloseWebrtc: (callback) => ipcRenderer.on('force-close-webrtc', callback),
   onCaptureCommand: (callback) =>

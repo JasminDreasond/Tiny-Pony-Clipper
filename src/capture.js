@@ -13,6 +13,9 @@ let activeStream = null;
 /** @type {Map<string, RTCPeerConnection>} */
 const peers = new Map();
 
+/** @type {Map<string, RTCDataChannel>} */
+const dataChannels = new Map();
+
 /** @type {string[]} */
 let hostIceServers = ['stun:stun.l.google.com:19302'];
 
@@ -136,22 +139,25 @@ const createPeerConnection = (clientId) => {
     /** @type {RTCDataChannel} */
     const inputChannel = event.channel;
 
+    // Salva o canal de dados para podermos enviar mensagens do main.js
+    dataChannels.set(clientId, inputChannel);
+
     // Envia o ClientId também pelo SDP manual usando o canal de dados
     inputChannel.send(JSON.stringify({ type: 'server_hello', clientId: clientId }));
 
     inputChannel.onmessage = (msg) => {
       /** @type {Object} */
-      const gamepadData = JSON.parse(msg.data);
+      const data = JSON.parse(msg.data);
 
       // Se for Ping, rebate como Pong imediatamente sem passar pelo main.js
-      if (gamepadData.type === 'ping') {
-        inputChannel.send(JSON.stringify({ type: 'pong', time: gamepadData.time }));
+      if (data.type === 'ping') {
+        inputChannel.send(JSON.stringify({ type: 'pong', time: data.time }));
         return;
       }
 
       // Se for inputs ou latência calculada, envia pro main.js
-      gamepadData.clientId = clientId;
-      electronAPI.sendGamepadInput(gamepadData);
+      data.clientId = clientId;
+      electronAPI.sendGamepadInput(data);
     };
   };
 
@@ -178,6 +184,7 @@ const createPeerConnection = (clientId) => {
       pc.connectionState === 'closed'
     ) {
       peers.delete(clientId);
+      dataChannels.delete(clientId);
       electronAPI.sendGamepadCleanup(clientId);
       electronAPI.notifyClientDisconnected(clientId);
     }
@@ -277,13 +284,35 @@ electronAPI.onSignal(async (data) => {
 });
 
 electronAPI.onForceCloseWebrtc((event, clientId) => {
-  /** @type {RTCPeerConnection | undefined} */
-  const pc = peers.get(clientId);
-  if (pc) {
-    pc.close();
-    peers.delete(clientId);
-    electronAPI.sendGamepadCleanup(clientId);
-    electronAPI.notifyClientDisconnected(clientId);
-    electronAPI.log(`[WEBRTC] Forcefully closed connection for [${clientId}]`);
+  /** @type {RTCDataChannel | undefined} */
+  const dc = dataChannels.get(clientId);
+
+  // Envia a mensagem de aviso pelo P2P antes de matar a conexão
+  if (dc && dc.readyState === 'open') {
+    dc.send(
+      JSON.stringify({ type: 'server_warning', message: 'You have been kicked by the host.' }),
+    );
+  }
+
+  // Dá um pequeno atraso de 250ms para garantir que a mensagem viajou pela rede antes de cortar o cabo
+  setTimeout(() => {
+    /** @type {RTCPeerConnection | undefined} */
+    const pc = peers.get(clientId);
+    if (pc) {
+      pc.close();
+      peers.delete(clientId);
+      dataChannels.delete(clientId);
+      electronAPI.sendGamepadCleanup(clientId);
+      electronAPI.notifyClientDisconnected(clientId);
+      electronAPI.log(`[WEBRTC] Forcefully closed connection for [${clientId}]`);
+    }
+  }, 250);
+});
+
+electronAPI.onSendDatachannelMessage((event, data) => {
+  /** @type {RTCDataChannel | undefined} */
+  const dc = dataChannels.get(data.clientId);
+  if (dc && dc.readyState === 'open') {
+    dc.send(JSON.stringify(data.payload));
   }
 });

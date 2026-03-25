@@ -902,6 +902,12 @@
 
             // Envia o resultado pro Host anotar no painel dele
             dataChannel.send(JSON.stringify({ type: 'client_latency', latency: currentLatency }));
+          } else if (msg.type === 'server_warning') {
+            // ---> ISSO AQUI FAZ O CLIENTE P2P LER OS AVISOS DO SERVIDOR <---
+            updateDebug(dbgPad, 'Limit Reached / Kicked!', 'error');
+            dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${msg.message}</span>`;
+            showDisconnectNotification(`Host Message: ${msg.message}`);
+            console.warn('[SERVER WARNING]', msg.message);
           }
         };
 

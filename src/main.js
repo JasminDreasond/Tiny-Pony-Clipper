@@ -914,11 +914,24 @@ if (gotTheLock) {
             console.warn(
               `[STREAM WARN] Rejected gamepad ${pad.index} for ${data.clientId} - Max limit of ${currentConfig.maxGamepads} reached.`,
             );
+
+            // Tenta enviar pelo WebSocket (funciona para clientes IP)
             sendSignalToClient({
               type: 'server_warning',
               message: `Gamepad [${pad.index}] blocked: Server max limit reached.`,
               clientId: data.clientId,
             });
+
+            // Tenta enviar pelo DataChannel do WebRTC (funciona para clientes P2P)
+            if (windowsCache.captureWindow) {
+              windowsCache.captureWindow.webContents.send('send-datachannel-message', {
+                clientId: data.clientId,
+                payload: {
+                  type: 'server_warning',
+                  message: `Gamepad [${pad.index}] blocked: Server max limit reached.`,
+                },
+              });
+            }
           }
         }
 
