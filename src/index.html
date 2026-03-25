@@ -316,6 +316,26 @@
             </div>
           </div>
         </div>
+
+        <div id="manualSignalingContainer">
+          <h3>Manual SDP Signaling</h3>
+
+          <label for="clientOfferInput">Client Offer (Paste here):</label>
+          <textarea
+            id="clientOfferInput"
+            rows="5"
+            placeholder="Paste the client SDP offer..."
+          ></textarea>
+          <button id="processOfferBtn">Generate Server Answer</button>
+
+          <label for="serverAnswerOutput">Server Answer (Copy this):</label>
+          <textarea
+            id="serverAnswerOutput"
+            rows="5"
+            readonly
+            placeholder="Server answer will appear here..."
+          ></textarea>
+        </div>
       </div>
 
       <button id="btnGithub" class="github-btn">💖 Contribute on GitHub (Code & Donations)</button>

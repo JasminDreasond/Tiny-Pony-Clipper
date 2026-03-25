@@ -58,6 +58,30 @@ const frameRateInput = document.getElementById('frameRate');
 /** @type {HTMLInputElement} */
 const streamVideoEnabledInput = document.getElementById('streamVideoEnabled');
 
+/** @type {HTMLTextAreaElement} */
+const clientOfferInput = document.getElementById('clientOfferInput');
+
+/** @type {HTMLTextAreaElement} */
+const serverAnswerOutput = document.getElementById('serverAnswerOutput');
+
+/** @type {HTMLButtonElement} */
+const processOfferBtn = document.getElementById('processOfferBtn');
+
+processOfferBtn.addEventListener('click', () => {
+  /** @type {string} */
+  const offer = clientOfferInput.value.trim();
+
+  if (offer) {
+    serverAnswerOutput.value = 'Processing... Please wait for ICE gathering.';
+    electronAPI.sendManualOffer(offer);
+  }
+});
+
+electronAPI.onManualAnswer((event, answerString) => {
+  serverAnswerOutput.value = answerString;
+  console.log('[UI] Server answer received and ready to copy.');
+});
+
 /**
  * @param {HTMLInputElement} inputElement
  * @returns {void}
@@ -133,11 +157,11 @@ const init = async () => {
   console.log('[RENDERER] Loading saved configuration...');
 
   /** @type {Object} */
-  const config = await window.electronAPI.getConfig();
+  const config = await electronAPI.getConfig();
   /** @type {Object} */
-  const hardware = await window.electronAPI.getHardware();
+  const hardware = await electronAPI.getHardware();
 
-  isWaylandEnvironment = await window.electronAPI.isWayland();
+  isWaylandEnvironment = await electronAPI.isWayland();
 
   populateSelect(sysInputSelect, hardware.audioOutputs, config.sysInput);
   populateSelect(micInputSelect, hardware.audioInputs, config.micInput);
@@ -178,7 +202,7 @@ const init = async () => {
 
   // Check gamepad permissions
   /** @type {boolean} */
-  const isGamepadReady = await window.electronAPI.getGamepadStatus();
+  const isGamepadReady = await electronAPI.getGamepadStatus();
   if (!isGamepadReady) {
     uinputWarning.style.display = 'block';
     // Optionally uncheck and disable if you don't want them streaming without gamepad
@@ -192,7 +216,7 @@ const init = async () => {
 document.getElementById('btnBrowse').addEventListener('click', async () => {
   console.log('[RENDERER] Browse button clicked.');
   /** @type {string | null} */
-  const folder = await window.electronAPI.selectFolder();
+  const folder = await electronAPI.selectFolder();
   if (folder) {
     savePathInput.value = folder;
     console.log(`[RENDERER] New save path set in UI: ${folder}`);
@@ -234,7 +258,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
   console.log('[RENDERER] Sending configuration to Main process via IPC.');
 
   /** @type {boolean} */
-  const success = await window.electronAPI.saveConfig(config);
+  const success = await electronAPI.saveConfig(config);
   if (success) {
     alert('Settings saved successfully! The recording system is active.');
   } else {
@@ -246,7 +270,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
 
 document.getElementById('btnGithub').addEventListener('click', () => {
   console.log('[RENDERER] Opening GitHub repository...');
-  window.electronAPI.openExternal('https://github.com/JasminDreasond/Tiny-Pony-Clipper');
+  electronAPI.openExternal('https://github.com/JasminDreasond/Tiny-Pony-Clipper');
 });
 
 init();

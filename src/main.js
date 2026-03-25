@@ -140,6 +140,7 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {string} iceServers
  * @property {number} frameRate
  * @property {boolean} streamVideoEnabled
+ * @property {string} signalingMethod
  */
 
 // Update your default config function
@@ -168,6 +169,7 @@ const getDefaultConfig = () => ({
   gamepadType: 'xbox',
   maxGamepads: 12,
   iceServers: 'stun:stun.l.google.com:19302',
+  signalingMethod: 'auto',
 });
 
 /**
@@ -691,7 +693,7 @@ const applyConfigurationAndStart = (config) => {
   }
 
   // Only start the server if enabled in config
-  if (config && config.streamEnabled) {
+  if (config && config.streamEnabled && config.signalingMethod === 'auto') {
     startStreamServer(config, windowsCache.captureWindow.webContents);
   }
 
@@ -829,6 +831,28 @@ if (gotTheLock) {
     // Route WebRTC signals back to the StreamServer
     ipcMain.on('webrtc-signal-back', (event, data) => {
       sendSignalToClient(data);
+    });
+
+    /**
+     * @param {Electron.IpcMainEvent} event
+     * @param {string} offerString
+     * @returns {void}
+     */
+    ipcMain.on('process-manual-offer', (event, offerString) => {
+      if (windowsCache.captureWindow) {
+        windowsCache.captureWindow.webContents.send('webrtc-manual-offer', offerString);
+      }
+    });
+
+    /**
+     * @param {Electron.IpcMainEvent} event
+     * @param {string} answerString
+     * @returns {void}
+     */
+    ipcMain.on('relay-manual-answer', (event, answerString) => {
+      if (windowsCache.configWindow) {
+        windowsCache.configWindow.webContents.send('webrtc-manual-answer', answerString);
+      }
     });
 
     // --- WAYLAND PORTAL HANDLER ---

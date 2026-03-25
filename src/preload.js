@@ -2,7 +2,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   log: (...args) => ipcRenderer.send('console.log', ...args),
-  error: (...args) => console.error(...args),
+  error: (...args) =>
+    ipcRenderer.send(
+      'console.error',
+      ...args.map((err) => (err instanceof Error ? err.message : err)),
+    ),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   getConfig: () => ipcRenderer.invoke('get-config'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
@@ -10,6 +14,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startSegment: (timestamp) => ipcRenderer.send('start-segment', timestamp),
   sendSignal: (data) => ipcRenderer.send('webrtc-signal-back', data),
   onSignal: (callback) => ipcRenderer.on('webrtc-signal', (event, data) => callback(data)),
+  onManualOffer: (callback) => ipcRenderer.on('webrtc-manual-offer', callback),
+  sendManualAnswer: (answerString) => ipcRenderer.send('relay-manual-answer', answerString),
+  sendManualOffer: (offerString) => ipcRenderer.send('process-manual-offer', offerString),
+  onManualAnswer: (callback) => ipcRenderer.on('webrtc-manual-answer', callback),
   sendGamepadInput: (data) => ipcRenderer.send('gamepad-input', data),
   getGamepadStatus: () => ipcRenderer.invoke('get-gamepad-status'),
   getHardware: () => ipcRenderer.invoke('get-hardware'),

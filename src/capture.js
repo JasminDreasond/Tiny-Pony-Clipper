@@ -10,8 +10,8 @@ let segmentTimer = null;
 /** @type {MediaStream | null} */
 let activeStream = null;
 
-/** @type {RTCPeerConnection | null} */
-let peerConnection = null;
+/** @type {Map<string, RTCPeerConnection>} */
+const peers = new Map();
 
 /** @type {string[]} */
 let hostIceServers = ['stun:stun.l.google.com:19302'];
@@ -25,7 +25,7 @@ const recordSegment = (stream) => {
   const timestamp = Date.now();
   currentTimestamp = timestamp;
 
-  window.electronAPI.startSegment(timestamp);
+  electronAPI.startSegment(timestamp);
 
   /** @type {Object} */
   const options = { mimeType: 'video/webm; codecs=vp8', videoBitsPerSecond: 15000000 };
@@ -39,7 +39,7 @@ const recordSegment = (stream) => {
     if (e.data.size > 0) {
       /** @type {ArrayBuffer} */
       const buffer = await e.data.arrayBuffer();
-      window.electronAPI.sendVideoChunk({
+      electronAPI.sendVideoChunk({
         buffer: buffer,
         timestamp: timestamp,
       });
@@ -56,9 +56,10 @@ const recordSegment = (stream) => {
   }, 60000);
 };
 
-window.electronAPI.onCaptureCommand(async (data) => {
+electronAPI.onCaptureCommand(async (data) => {
   if (data.action === 'start') {
     try {
+      /** @type {number} */
       const targetFps = data.frameRate ?? 60;
 
       if (data.iceServers) {
@@ -86,7 +87,7 @@ window.electronAPI.onCaptureCommand(async (data) => {
         electronAPI.log('[CAPTURE] Wayland stream ended by user.');
       };
     } catch (error) {
-      electronAPI.log('[CAPTURE ERROR] Wayland Portal denied or failed.', error.message);
+      electronAPI.error('[CAPTURE ERROR] Wayland Portal denied or failed.', error);
     }
   } else if (data.action === 'stop') {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -96,70 +97,163 @@ window.electronAPI.onCaptureCommand(async (data) => {
     if (activeStream) {
       activeStream.getTracks().forEach((track) => track.stop());
     }
-    electronAPI.log('[CAPTURE] Video engine completely stopped.');
+
+    peers.forEach((pc, clientId) => {
+      pc.close();
+      peers.delete(clientId);
+    });
+
+    electronAPI.log('[CAPTURE] Video engine completely stopped and peers cleared.');
   }
 });
 
 // --- WebRTC Host Signaling ---
 
-window.electronAPI.onSignal(async (data) => {
-  if (data.type === 'offer') {
-    electronAPI.log('[WEBRTC HOST] Remote offer received. Establishing connection...');
+/**
+ * @param {string} clientId
+ * @returns {RTCPeerConnection}
+ */
+const createPeerConnection = (clientId) => {
+  /** @type {RTCPeerConnection} */
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: hostIceServers }],
+  });
 
-    peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: hostIceServers }],
+  // GLITCH FIX 1: Attach video stream BEFORE creating the answer
+  if (activeStream) {
+    activeStream.getTracks().forEach((track) => {
+      pc.addTrack(track, activeStream);
     });
+    electronAPI.log(`[WEBRTC HOST] Video track attached for client [${clientId}].`);
+  } else {
+    electronAPI.error(`[WEBRTC HOST ERROR] No active stream available for client [${clientId}].`);
+  }
 
-    // GLITCH FIX 1: Attach video stream BEFORE creating the answer
-    if (activeStream) {
-      activeStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, activeStream);
+  // GLITCH FIX 2: Listen for the DataChannel to capture Gamepad inputs
+  pc.ondatachannel = (event) => {
+    electronAPI.log(`[WEBRTC HOST] Gamepad DataChannel opened for client [${clientId}]!`);
+
+    /** @type {RTCDataChannel} */
+    const inputChannel = event.channel;
+
+    inputChannel.onmessage = (msg) => {
+      /** @type {Object} */
+      const gamepadData = JSON.parse(msg.data);
+      electronAPI.sendGamepadInput(gamepadData);
+    };
+  };
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      electronAPI.sendSignal({
+        type: 'ice_candidate',
+        candidate: event.candidate,
+        clientId: clientId,
       });
-      electronAPI.log('[WEBRTC HOST] Active video track attached to peer.');
-    } else {
-      electronAPI.error('[WEBRTC HOST ERROR] No active stream available to send!');
     }
+  };
 
-    // GLITCH FIX 2: Listen for the DataChannel to capture Gamepad inputs
-    peerConnection.ondatachannel = (event) => {
-      electronAPI.log('[WEBRTC HOST] Gamepad DataChannel opened!');
-      /** @type {RTCDataChannel} */
-      const inputChannel = event.channel;
+  pc.onconnectionstatechange = () => {
+    electronAPI.log(`[WEBRTC HOST] Status [${clientId}]: ${pc.connectionState}`);
 
-      inputChannel.onmessage = (msg) => {
-        /** @type {Object} */
-        const gamepadData = JSON.parse(msg.data);
-        window.electronAPI.sendGamepadInput(gamepadData);
+    if (
+      pc.connectionState === 'disconnected' ||
+      pc.connectionState === 'failed' ||
+      pc.connectionState === 'closed'
+    ) {
+      peers.delete(clientId);
+      electronAPI.log(`[WEBRTC HOST] Cleaned up inactive peer connection for [${clientId}].`);
+    }
+  };
+
+  peers.set(clientId, pc);
+  return pc;
+};
+
+/**
+ * @param {RTCPeerConnection} peerConnection
+ * @returns {Promise<void>}
+ */
+export const waitForIceGathering = (peerConnection) => {
+  return new Promise((resolve) => {
+    if (peerConnection.iceGatheringState === 'complete') {
+      resolve();
+    } else {
+      /**
+       * @returns {void}
+       */
+      const checkState = () => {
+        if (peerConnection.iceGatheringState === 'complete') {
+          peerConnection.removeEventListener('icegatheringstatechange', checkState);
+          resolve();
+        }
       };
-    };
+      peerConnection.addEventListener('icegatheringstatechange', checkState);
+    }
+  });
+};
 
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        window.electronAPI.sendSignal({
-          type: 'ice_candidate',
-          candidate: event.candidate,
-        });
-      }
-    };
+electronAPI.onManualOffer(async (event, offerString) => {
+  /** @type {string} */
+  const clientId = `manual_${Date.now()}`;
+  /** @type {RTCPeerConnection} */
+  const pc = createPeerConnection(clientId);
 
-    peerConnection.onconnectionstatechange = () => {
-      electronAPI.log(`[WEBRTC HOST] Status: ${peerConnection.connectionState}`);
-    };
-
-    // Fulfill the WebRTC handshake
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+  try {
+    /** @type {RTCSessionDescriptionInit} */
+    const remoteOffer = JSON.parse(offerString);
+    await pc.setRemoteDescription(remoteOffer);
 
     /** @type {RTCSessionDescriptionInit} */
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-    window.electronAPI.sendSignal({ type: 'answer', answer: answer });
+    electronAPI.log(`[WEBRTC] Waiting for ICE candidates to finish gathering for [${clientId}]...`);
+    await waitForIceGathering(pc);
+
+    /** @type {string} */
+    const answerString = JSON.stringify(pc.localDescription);
+    electronAPI.sendManualAnswer(answerString);
+
+    electronAPI.log(`[WEBRTC] Manual answer generated and dispatched for [${clientId}].`);
+  } catch (error) {
+    electronAPI.error(
+      `[WEBRTC ERROR] Failed to process manual SDP offer for [${clientId}]:`,
+      error,
+    );
+    peers.delete(clientId);
+  }
+});
+
+electronAPI.onSignal(async (data) => {
+  /** @type {string} */
+  const clientId = data.clientId || 'ws_client';
+
+  if (data.type === 'offer') {
+    electronAPI.log(
+      `[WEBRTC HOST] Remote offer received from [${clientId}]. Establishing connection...`,
+    );
+
+    /** @type {RTCPeerConnection} */
+    const pc = createPeerConnection(clientId);
+
+    // Fulfill the WebRTC handshake
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+    /** @type {RTCSessionDescriptionInit} */
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    electronAPI.sendSignal({ type: 'answer', answer: answer, clientId: clientId });
   } else if (data.type === 'ice_candidate') {
-    if (peerConnection) {
+    /** @type {RTCPeerConnection | undefined} */
+    const pc = peers.get(clientId);
+
+    if (pc) {
       try {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
       } catch (err) {
-        electronAPI.error('[WEBRTC HOST ERROR] Failed to add ICE candidate', err);
+        electronAPI.error(`[WEBRTC HOST ERROR] Failed to add ICE candidate for [${clientId}]`, err);
       }
     }
   }

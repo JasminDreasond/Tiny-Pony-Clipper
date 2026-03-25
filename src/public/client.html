@@ -32,18 +32,18 @@
       #login {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
         z-index: 10;
         position: absolute;
-        background: rgba(30, 30, 46, 0.65);
+        background: rgba(30, 30, 46, 0.85);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        padding: 32px;
-        border-radius: 16px;
+        padding: 24px;
+        border-radius: 12px;
         border: 1px solid rgba(203, 166, 247, 0.2);
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
         width: 100%;
-        max-width: 320px;
+        max-width: 340px;
         box-sizing: border-box;
         animation: fadeIn 0.4s ease-out;
       }
@@ -62,18 +62,20 @@
       #login h2 {
         text-align: center;
         color: #cba6f7;
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
+        font-size: 1.4rem;
         font-weight: 700;
-        letter-spacing: 0.5px;
       }
 
       input[type='text'],
-      input[type='password'] {
-        padding: 14px;
-        font-size: 15px;
-        border-radius: 8px;
-        border: 2px solid transparent;
-        background: rgba(49, 50, 68, 0.7);
+      input[type='password'],
+      textarea,
+      select {
+        padding: 10px;
+        font-size: 14px;
+        border-radius: 6px;
+        border: 1px solid #45475a;
+        background: rgba(49, 50, 68, 0.9);
         color: #cdd6f4;
         transition: all 0.3s ease;
         outline: none;
@@ -82,30 +84,42 @@
       }
 
       input[type='text']:focus,
-      input[type='password']:focus {
+      input[type='password']:focus,
+      textarea:focus,
+      select:focus {
         border-color: #cba6f7;
-        background: rgba(49, 50, 68, 0.95);
-        box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.15);
+        box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.2);
       }
 
-      input::placeholder {
+      input::placeholder,
+      textarea::placeholder {
         color: #a6adc8;
+      }
+
+      .options-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(24, 24, 37, 0.5);
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #45475a;
       }
 
       label.checkbox-container {
         color: #bac2de;
-        font-size: 14px;
+        font-size: 13px;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         cursor: pointer;
         user-select: none;
       }
 
       button {
-        padding: 14px;
-        font-size: 16px;
-        border-radius: 8px;
+        padding: 12px;
+        font-size: 15px;
+        border-radius: 6px;
         border: none;
         background: linear-gradient(135deg, #cba6f7, #b4befe);
         color: #11111b;
@@ -119,7 +133,7 @@
 
       button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(203, 166, 247, 0.3);
+        box-shadow: 0 4px 12px rgba(203, 166, 247, 0.3);
       }
 
       button:active {
@@ -132,6 +146,10 @@
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
+      }
+
+      .section-hidden {
+        display: none !important;
       }
 
       /* HUD Debug Panel */
@@ -158,7 +176,6 @@
       #debugPanel.hidden {
         opacity: 0;
         transform: translateY(-10px) scale(0.98);
-        pointer-events: none;
       }
 
       /* Toggle Button */
@@ -180,8 +197,6 @@
       #btnToggleDebug:hover {
         opacity: 1;
         background: rgba(49, 50, 68, 1);
-        transform: none;
-        box-shadow: none;
       }
 
       .debug-section {
@@ -264,20 +279,20 @@
       <div class="debug-section">
         <span class="debug-header">Network & Signaling</span>
         <div class="debug-row">
-          Signaling (WS): <span id="dbgWs" class="debug-val debug-err">Disconnected</span>
+          Signaling: <span id="dbgWs" class="debug-val debug-err">Disconnected</span>
         </div>
         <div class="debug-row">
-          RTC Conn State: <span id="dbgRtcConn" class="debug-val debug-err">New</span>
+          RTC Conn: <span id="dbgRtcConn" class="debug-val debug-err">New</span>
         </div>
         <div class="debug-row">
-          ICE Conn State: <span id="dbgRtcIce" class="debug-val debug-err">New</span>
+          ICE Conn: <span id="dbgRtcIce" class="debug-val debug-err">New</span>
         </div>
       </div>
 
       <div class="debug-section">
         <span class="debug-header">Video Stream</span>
         <div class="debug-row">
-          Track Status: <span id="dbgVidTrack" class="debug-val debug-err">Waiting...</span>
+          Track: <span id="dbgVidTrack" class="debug-val debug-err">Waiting...</span>
         </div>
         <div class="debug-row">
           Playback: <span id="dbgVidPlay" class="debug-val debug-err">Stopped</span>
@@ -298,12 +313,56 @@
 
     <div id="login">
       <h2>Tiny Pony Stream</h2>
-      <input type="text" id="serverHost" placeholder="Server IP (e.g. 192.168.1.10:8080)" />
-      <input type="password" id="pass" placeholder="Password" />
-      <label class="checkbox-container">
-        <input type="checkbox" id="wantsAudio" checked /> Enable Audio Stream
-      </label>
-      <button id="btnConnect">Connect & Play</button>
+
+      <select id="connectionMethod">
+        <option value="ip">Connect via IP Address</option>
+        <option value="sdp">Manual SDP Signaling</option>
+      </select>
+
+      <div class="options-row">
+        <label class="checkbox-container">
+          <input type="checkbox" id="wantsVideo" checked /> Enable Video
+        </label>
+        <label class="checkbox-container">
+          <input type="checkbox" id="wantsAudio" checked /> Enable Audio
+        </label>
+      </div>
+
+      <div id="ipSection" style="display: flex; flex-direction: column; gap: 12px">
+        <input type="text" id="serverHost" placeholder="Server IP (e.g. 192.168.1.10:8080)" />
+        <input type="password" id="pass" placeholder="Password" />
+        <button id="btnConnect">Connect & Play</button>
+      </div>
+
+      <div
+        id="manualClientSection"
+        class="section-hidden"
+        style="display: flex; flex-direction: column; gap: 12px"
+      >
+        <input
+          type="text"
+          id="stunServer"
+          placeholder="Custom STUN/TURN"
+          value="stun:stun.l.google.com:19302"
+        />
+
+        <button id="generateOfferBtn">1. Generate Offer</button>
+        <label for="serverAnswerInput">2. Send this to Server:</label>
+        <textarea
+          id="myOfferOutput"
+          rows="4"
+          readonly
+          placeholder="Your offer will appear here..."
+        ></textarea>
+
+        <label for="serverAnswerInput">3. Paste Server Answer:</label>
+        <textarea
+          id="serverAnswerInput"
+          rows="4"
+          placeholder="Paste the server answer here..."
+        ></textarea>
+        <button id="connectManualBtn">3. Apply & Connect</button>
+      </div>
     </div>
 
     <video id="streamView" autoplay playsinline muted></video>
@@ -325,6 +384,16 @@
       const debugPanel = document.getElementById('debugPanel');
       /** @type {HTMLInputElement} */
       const wantsAudioInput = document.getElementById('wantsAudio');
+      /** @type {HTMLInputElement} */
+      const wantsVideoInput = document.getElementById('wantsVideo');
+      /** @type {HTMLInputElement} */
+      const stunInput = document.getElementById('stunServer');
+      /** @type {HTMLSelectElement} */
+      const connMethodSelect = document.getElementById('connectionMethod');
+      /** @type {HTMLElement} */
+      const ipSection = document.getElementById('ipSection');
+      /** @type {HTMLElement} */
+      const sdpSection = document.getElementById('manualClientSection');
 
       // Debug Elements
       const dbgWs = document.getElementById('dbgWs');
@@ -337,11 +406,157 @@
       const dbgPad = document.getElementById('dbgPad');
       const dbgInput = document.getElementById('dbgInput');
 
-      /** @type {string[]} */
-      let iceServerUrls = ['stun:stun.l.google.com:19302'];
+      connMethodSelect.addEventListener('change', () => {
+        if (connMethodSelect.value === 'ip') {
+          ipSection.classList.remove('section-hidden');
+          sdpSection.classList.add('section-hidden');
+        } else {
+          ipSection.classList.add('section-hidden');
+          sdpSection.classList.remove('section-hidden');
+        }
+      });
 
+      /**
+       * @param {RTCPeerConnection} peerConnection
+       * @returns {Promise<void>}
+       */
+      const waitForIceGathering = (peerConnection) => {
+        return new Promise((resolve) => {
+          if (peerConnection.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            /**
+             * @returns {void}
+             */
+            const checkState = () => {
+              if (peerConnection.iceGatheringState === 'complete') {
+                peerConnection.removeEventListener('icegatheringstatechange', checkState);
+                resolve();
+              }
+            };
+            peerConnection.addEventListener('icegatheringstatechange', checkState);
+          }
+        });
+      };
+
+      /** @type {RTCPeerConnection | null} */
+      let pc = null;
+      /** @type {RTCDataChannel | null} */
+      let dataChannel = null;
       /** @type {boolean} */
-      let expectVideo = true;
+      let audioRequested = true;
+      /** @type {boolean} */
+      let videoRequested = true;
+      /** @type {WebSocket | null} */
+      let ws = null;
+      /** @type {string[]} */
+      let iceServerUrls = [];
+
+      // The Gamepad Cache Map
+      /** @type {Map<number, boolean>} */
+      const activeGamepadsCache = new Map();
+
+      /**
+       * @param {string} customStun
+       * @returns {string[]}
+       */
+      const parseStunUrls = (customStun) => {
+        return customStun
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s);
+      };
+
+      /**
+       * @returns {void}
+       */
+      const checkMediaPreferences = () => {
+        audioRequested = wantsAudioInput.checked;
+        videoRequested = wantsVideoInput.checked;
+        iceServerUrls = parseStunUrls(stunInput.value);
+
+        if (!videoRequested) {
+          document.body.classList.add('gamepad-only-mode');
+          updateDebug(dbgVidTrack, 'Disabled', 'warn');
+          updateDebug(dbgVidPlay, 'Disabled', 'warn');
+        } else {
+          document.body.classList.remove('gamepad-only-mode');
+        }
+      };
+
+      /**
+       * @param {RTCConfiguration} config
+       * @returns {Promise<string>}
+       */
+      export const generateClientOffer = async (config) => {
+        pc = new RTCPeerConnection(config);
+        setupWebRTCEvents();
+
+        // Setup your WebRTC tracks/data channels here on manualPc before creating the offer
+        // manualPc.addTransceiver('video', { direction: 'recvonly' });
+        // const dataChannel = manualPc.createDataChannel('gamepad');
+
+        /** @type {RTCSessionDescriptionInit} */
+        const offer = await pc.createOffer({
+          offerToReceiveVideo: videoRequested,
+          offerToReceiveAudio: audioRequested,
+        });
+
+        await pc.setLocalDescription(offer);
+        await waitForIceGathering(pc);
+
+        return JSON.stringify(pc.localDescription);
+      };
+
+      /**
+       * @param {string} answerString
+       * @returns {Promise<void>}
+       */
+      export const applyServerAnswer = async (answerString) => {
+        if (!pc) return;
+        /** @type {RTCSessionDescriptionInit} */
+        const remoteAnswer = JSON.parse(answerString);
+        await pc.setRemoteDescription(remoteAnswer);
+      };
+
+      // --- DOM Event Listeners for Manual SDP ---
+
+      /** @type {HTMLButtonElement} */
+      const generateOfferBtn = document.getElementById('generateOfferBtn');
+
+      /** @type {HTMLTextAreaElement} */
+      const myOfferOutput = document.getElementById('myOfferOutput');
+
+      /** @type {HTMLButtonElement} */
+      const connectManualBtn = document.getElementById('connectManualBtn');
+
+      /** @type {HTMLTextAreaElement} */
+      const serverAnswerInput = document.getElementById('serverAnswerInput');
+
+      generateOfferBtn.addEventListener('click', async () => {
+        checkMediaPreferences();
+        myOfferOutput.value = 'Gathering ICE candidates...';
+
+        /** @type {RTCConfiguration} */
+        const rtcConfig = { iceServers: [{ urls: iceServerUrls }] };
+
+        /** @type {string} */
+        const offerString = await generateClientOffer(rtcConfig);
+        myOfferOutput.value = offerString;
+        updateDebug(dbgWs, 'Manual SDP Ready', 'ok');
+      });
+
+      connectManualBtn.addEventListener('click', async () => {
+        /** @type {string} */
+        const answerStr = serverAnswerInput.value.trim();
+
+        if (answerStr) {
+          await applyServerAnswer(answerStr);
+          console.log('[CLIENT] Connected via manual signaling!');
+          loginDiv.style.display = 'none';
+          if (videoRequested) video.style.display = 'block';
+        }
+      });
 
       // Recuperar senha do cache
       window.onload = () => {
@@ -349,37 +564,24 @@
         const cachedHost = localStorage.getItem('pony_stream_host');
         /** @type {string | null} */
         const cachedPass = localStorage.getItem('pony_stream_pass');
+        /** @type {string | null} */
+        const cachedStun = localStorage.getItem('pony_stream_stun');
 
         if (cachedHost) serverInput.value = cachedHost;
         if (cachedPass) passInput.value = cachedPass;
+        if (cachedStun) stunInput.value = cachedStun;
       };
 
       // Apertar Enter no campo de senha envia o formulário
       passInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          initConnection();
-        }
+        if (e.key === 'Enter') initConnection();
       });
-
-      /** @type {WebSocket | null} */
-      let ws = null;
-      /** @type {RTCPeerConnection | null} */
-      let pc = null;
-      /** @type {RTCDataChannel | null} */
-      let dataChannel = null;
-      /** @type {boolean} */
-      let audioRequested = true;
-
-      // The Gamepad Cache Map
-      /** @type {Map<number, boolean>} */
-      const activeGamepadsCache = new Map();
-
-      // --- UI & DEBUG LOGIC ---
 
       /**
        * @param {HTMLElement} el
        * @param {string} text
        * @param {'error' | 'warn' | 'ok'} [state]
+       * @returns {void}
        */
       const updateDebug = (el, text, state) => {
         el.textContent = text;
@@ -420,6 +622,9 @@
 
       const initConnection = () => {
         // Usa a porta atual do navegador para o WebSocket
+        checkMediaPreferences();
+        localStorage.setItem('pony_stream_stun', stunInput.value.trim());
+
         /** @type {string} */
         let host = !serverInput.disabled
           ? serverInput.value.trim()
@@ -450,13 +655,8 @@
 
         ws.onopen = () => {
           updateDebug(dbgWs, 'Auth...', 'warn');
-          audioRequested = wantsAudioInput.checked;
-
           localStorage.setItem('pony_stream_host', serverInput.value.trim());
-
-          ws.send(
-            JSON.stringify({ type: 'auth', password: passInput.value, audio: audioRequested }),
-          );
+          ws.send(JSON.stringify({ type: 'auth', password: passInput.value }));
         };
 
         ws.onclose = () => {
@@ -478,32 +678,18 @@
             updateDebug(dbgWs, 'Connected', 'ok');
             loginDiv.style.display = 'none';
 
-            // Define se vamos ou não tratar video
-            expectVideo = data.enableVideo;
-
             // Flexibiliza o STUN server enviando pelo config
+            iceServerUrls = [];
             if (data.iceServers) {
               /** @type {string[]} */
-              const parsedUrls = data.iceServers
-                .split(',')
-                .map((s) => s.trim())
-                .filter((s) => s);
-              if (parsedUrls.length > 0) iceServerUrls = parsedUrls;
-              console.log(`[HOST ICE SERVERS]`, parsedUrls);
+              const serverUrls = parseStunUrls(data.iceServers);
+              if (serverUrls.length > 0) iceServerUrls = serverUrls;
+              console.log(`[HOST ICE SERVERS]`, serverUrls);
             }
 
-            if (!expectVideo) {
-              document.body.classList.add('gamepad-only-mode');
-              audioRequested = false;
-              // Ajusta o Debug de vídeo já que não usaremos
-              updateDebug(dbgVidTrack, 'Disabled', 'warn');
-              updateDebug(dbgVidPlay, 'Disabled', 'warn');
-            } else {
-              // Show video only when connected and expecting video
-              video.style.display = 'block';
-            }
+            if (videoRequested) video.style.display = 'block';
 
-            setupWebRTC();
+            setupIPWebRTC();
           } else if (data.type === 'auth_error') {
             updateDebug(dbgWs, 'Auth Failed', 'error');
             alert('Wrong password!');
@@ -524,11 +710,8 @@
         };
       };
 
-      const setupWebRTC = async () => {
+      const setupWebRTCEvents = () => {
         updateDebug(dbgRtcConn, 'Initializing...', 'warn');
-
-        // Configuração padrão usando STUN público do Google
-        pc = new RTCPeerConnection({ iceServers: [{ urls: iceServerUrls }] });
 
         // Configuração do DataChannel para Inputs (Não confiável/Ordenado para latência mínima)
         dataChannel = pc.createDataChannel('gamepad', { ordered: false, maxRetransmits: 0 });
@@ -576,7 +759,7 @@
 
         // --- VIDEO DEBUGGING LOGIC ---
 
-        if (expectVideo) {
+        if (videoRequested) {
           pc.ontrack = (event) => {
             console.log('[WEBRTC] Video track received:', event.track);
             updateDebug(dbgVidTrack, `Recv (${event.track.kind})`, 'ok');
@@ -618,8 +801,15 @@
           console.error('[VIDEO ELEMENT ERROR]', video.error);
         };
 
+        requestAnimationFrame(pollGamepad);
+      };
+
+      const setupIPWebRTC = async () => {
+        pc = new RTCPeerConnection({ iceServers: [{ urls: iceServerUrls }] });
+        setupWebRTCEvents();
+
         pc.onicecandidate = (event) => {
-          if (event.candidate && ws.readyState === WebSocket.OPEN) {
+          if (event.candidate && ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ice_candidate', candidate: event.candidate }));
           }
         };
@@ -627,13 +817,14 @@
         // Criação da Oferta (Nós somos o cliente, iniciamos a conexão)
         /** @type {RTCSessionDescriptionInit} */
         const offer = await pc.createOffer({
-          offerToReceiveVideo: true,
+          offerToReceiveVideo: videoRequested,
           offerToReceiveAudio: audioRequested,
         });
-        await pc.setLocalDescription(offer);
-        ws.send(JSON.stringify({ type: 'offer', offer: offer }));
 
-        requestAnimationFrame(pollGamepad);
+        await pc.setLocalDescription(offer);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'offer', offer: offer }));
+        }
       };
 
       // --- EFFICIENT POLLING WITH CACHE ---
@@ -654,19 +845,11 @@
           // STRICT CHECK: Ensure the gamepad is actually connected to avoid ghosts
           if (gp && gp.connected) {
             /** @type {Object[]} */
-            const buttonsData = gp.buttons.map((b) => ({
-              pressed: b.pressed,
-              value: b.value,
-            }));
-
+            const buttonsData = gp.buttons.map((b) => ({ pressed: b.pressed, value: b.value }));
             /** @type {number[]} */
             const axesVals = gp.axes;
 
-            padData.push({
-              index: gp.index,
-              buttons: buttonsData,
-              axes: axesVals,
-            });
+            padData.push({ index: gp.index, buttons: buttonsData, axes: axesVals });
 
             /** @type {number} */
             const activeBtnsCount = buttonsData.reduce(
@@ -682,9 +865,7 @@
             /** @type {string} */
             const ry = axesVals[3]?.toFixed(2) || '0.00';
 
-            debugText +=
-              `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>` +
-              `L: ${lx}, ${ly} | R: ${rx}, ${ry}<br><br>`;
+            debugText += `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br><br>`;
           } else {
             // Cleanup ghost disconnections
             activeGamepadsCache.delete(index);

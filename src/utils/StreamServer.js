@@ -42,6 +42,7 @@ export const startStreamServer = (config, captureWebContents) => {
             ? data
                 .replace('id="serverHost"', 'id="serverHost" disabled')
                 .replace(/\(\'pony_stream\_/g, "('host_pony_stream_")
+                .replace('id="connectionMethod"', 'id="connectionMethod" style="display: none;"')
             : data,
         );
       });
