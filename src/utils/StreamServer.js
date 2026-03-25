@@ -25,7 +25,7 @@ export const startStreamServer = (config, captureWebContents) => {
   }
 
   currentServer = http.createServer((req, res) => {
-    if (req.url === '/') {
+    if (req.url === '/' || req.url === '/public') {
       /** @type {string} */
       const clientHtmlPath = path.join(srcFolder, './public/client.html');
 
@@ -37,7 +37,13 @@ export const startStreamServer = (config, captureWebContents) => {
           return;
         }
         res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(data.replace('id="serverHost"', 'id="serverHost" disabled'));
+        res.end(
+          req.url === '/'
+            ? data
+                .replace('id="serverHost"', 'id="serverHost" disabled')
+                .replace(/\(\'pony_stream\_/g, "('host_pony_stream_")
+            : data,
+        );
       });
     } else {
       res.writeHead(404);
