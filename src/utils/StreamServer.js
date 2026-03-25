@@ -48,8 +48,18 @@ export const startStreamServer = (config, captureWebContents) => {
         );
       });
     } else {
-      res.writeHead(404);
-      res.end('Not found');
+      /** @type {string} */
+      const htmlFilePath = path.join(srcFolder, './public/404.html');
+      fs.readFile(htmlFilePath, (err, data) => {
+        if (err) {
+          console.error('[STREAM ERROR] Failed to load client UI:', err);
+          res.writeHead(500);
+          res.end('Error loading 404 page');
+          return;
+        }
+        res.writeHead(404, { 'Content-Type': 'text/html' });
+        res.end(data);
+      });
     }
   });
 
