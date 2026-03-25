@@ -341,6 +341,7 @@ const startRecording = (config) => {
     action: 'start',
     streamEnabled: config.streamEnabled,
     frameRate: config.frameRate,
+    iceServers: config.iceServers,
   });
   startGarbageCollector(config.minutes);
 };

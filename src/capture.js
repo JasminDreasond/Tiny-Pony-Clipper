@@ -13,6 +13,9 @@ let activeStream = null;
 /** @type {RTCPeerConnection | null} */
 let peerConnection = null;
 
+/** @type {string[]} */
+let hostIceServers = ['stun:stun.l.google.com:19302'];
+
 /**
  * @param {MediaStream} stream
  * @returns {void}
@@ -58,6 +61,15 @@ window.electronAPI.onCaptureCommand(async (data) => {
     try {
       const targetFps = data.frameRate ?? 60;
 
+      if (data.iceServers) {
+        /** @type {string[]} */
+        const parsedUrls = data.iceServers
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s);
+        if (parsedUrls.length > 0) hostIceServers = parsedUrls;
+      }
+
       /** @type {MediaStream} */
       const rawStream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: 'always', frameRate: { ideal: targetFps, max: targetFps } },
@@ -94,7 +106,7 @@ window.electronAPI.onSignal(async (data) => {
     electronAPI.log('[WEBRTC HOST] Remote offer received. Establishing connection...');
 
     peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      iceServers: [{ urls: hostIceServers }],
     });
 
     // GLITCH FIX 1: Attach video stream BEFORE creating the answer

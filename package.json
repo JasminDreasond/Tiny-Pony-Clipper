@@ -23,6 +23,7 @@
     "remote-play",
     "webrtc",
     "gamepad-streaming",
+    "local-multiplayer-online",
     "virtual-gamepad",
     "uinput",
     "input-streaming",
