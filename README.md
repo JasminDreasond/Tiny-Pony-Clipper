@@ -40,6 +40,9 @@ sudo apt update
 sudo apt install ffmpeg pulseaudio-utils libnotify-bin
 ```
 
+### 🎮 Virtual Gamepad Support (uinput)
+To use the **Remote Play Server**, the application needs permission to write to `/dev/uinput`.
+
 ## 🚀 How to Use
 
 1.  **Launch the App:** Open Tiny Pony Clipper. It will quietly reside in your system tray.
