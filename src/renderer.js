@@ -377,7 +377,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
 
 document.getElementById('btnGithub').addEventListener('click', () => {
   console.log('[RENDERER] Opening GitHub repository...');
-  electronAPI.openExternal('https://github.com/JasminDreasond/Tiny-Pony-Clipper');
+  electronAPI.openExternal('https://github.com/Pony-House/Tiny-Pony-Clipper');
 });
 
 init();

@@ -11,4 +11,4 @@ Turn your PC into a remote multiplayer hub! We have implemented a new WebRTC-bas
 
 Tiny thanks for using Tiny Pony Clipper! 💖
 
-**Full Changelog**: https://github.com/JasminDreasond/Tiny-Pony-Clipper/compare/1.0.0...1.1.0
+**Full Changelog**: https://github.com/Pony-House/Tiny-Pony-Clipper/compare/1.0.0...1.1.0
