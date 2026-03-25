@@ -153,6 +153,23 @@
         display: none !important;
       }
 
+      .github-link-btn {
+        background: transparent;
+        color: #a6adc8;
+        font-size: 12px;
+        padding: 8px;
+        margin-top: 8px;
+        border: 1px dashed #45475a;
+      }
+
+      .github-link-btn:hover {
+        background: rgba(69, 71, 90, 0.3);
+        color: #cdd6f4;
+        transform: none;
+        box-shadow: none;
+        border-color: #cba6f7;
+      }
+
       /* HUD Debug Panel */
       #debugPanel {
         position: absolute;
@@ -444,6 +461,14 @@
         ></textarea>
         <button id="connectManualBtn">3. Apply & Connect</button>
       </div>
+
+      <button
+        id="btnClientGithub"
+        class="github-link-btn"
+        onclick="window.open('https://github.com/JasminDreasond/Tiny-Pony-Clipper', '_blank')"
+      >
+        💖 Support the project (Donate/Contribute)
+      </button>
     </div>
 
     <video id="streamView" autoplay playsinline muted></video>

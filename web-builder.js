@@ -1,4 +1,4 @@
-import { mkdir, readdir, copyFile, stat } from 'fs/promises';
+import { rm, mkdir, readdir, copyFile, stat } from 'fs/promises';
 import { join } from 'path';
 
 /**
@@ -30,6 +30,16 @@ const copyRecursive = async (source, destination) => {
 };
 
 /**
+ * @param {string} path
+ * @returns {Promise<void>}
+ */
+const cleanDirectory = async (path) => {
+    /** @type {object} */
+    const options = { recursive: true, force: true };
+    await rm(path, options);
+};
+
+/**
  * @returns {Promise<void>}
  */
 const buildWeb = async () => {
@@ -39,8 +49,12 @@ const buildWeb = async () => {
     const distDir = 'dist/web';
 
     try {
+        console.log('Cleaning destination folder...');
+        await cleanDirectory(distDir);
+
         console.log('Starting file copy...');
         await copyRecursive(srcDir, distDir);
+        
         console.log('Build completed successfully!');
     } catch (error) {
         /** @type {Error} */

@@ -212,6 +212,7 @@
         background: #313244;
         color: #cdd6f4;
         margin-top: 15px;
+        font-size: 14px;
       }
 
       .github-btn:hover:not(:disabled) {
@@ -240,12 +241,22 @@
         padding-top: 15px;
         border-top: 1px dashed var(--border-color);
       }
+
+      .about-content {
+        line-height: 1.6;
+        color: #bac2de;
+      }
+
+      .about-content strong {
+        color: #cdd6f4;
+      }
     </style>
   </head>
   <body>
     <div class="tabs">
       <button class="tab-btn active" data-target="tab-clipping">Clipping Settings</button>
       <button class="tab-btn" data-target="tab-remote">Remote Play</button>
+      <button class="tab-btn" data-target="tab-about">About</button>
     </div>
 
     <div class="scroll-content">
@@ -451,7 +462,28 @@
         </div>
       </div>
 
-      <button id="btnGithub" class="github-btn">💖 Contribute on GitHub (Code & Donations)</button>
+      <div id="tab-about" class="tab-content">
+        <h2>About Tiny Pony Clipper</h2>
+        <div class="about-content">
+          <p>
+            <strong>Tiny Pony Clipper</strong> is an open-source, lightweight background recording
+            and remote play server designed for Linux (Wayland).
+          </p>
+          <p>
+            Built with Electron, WebRTC, and FFmpeg, it aims to provide a seamless experience for
+            clipping your best gaming moments and sharing your screen with friends for low-latency
+            remote couch co-op.
+          </p>
+          <p>
+            If you enjoy using this tool, consider supporting its development! You can contribute to
+            the code, report bugs, or send a donation to help keep the project alive and improving.
+          </p>
+        </div>
+
+        <button id="btnGithub" class="github-btn">
+          💖 Support the project (Donate or Contribute on GitHub)
+        </button>
+      </div>
     </div>
 
     <div class="footer">
