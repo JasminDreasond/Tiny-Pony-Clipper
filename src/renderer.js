@@ -106,6 +106,10 @@ const toggleSdpSection = (isEnabled = streamEnabledInput.checked) => {
 streamEnabledInput.addEventListener('change', toggleSdpSection);
 toggleSdpSection();
 
+clientOfferInput.addEventListener('input', () => {
+  serverAnswerOutput.value = '';
+});
+
 processOfferBtn.addEventListener('click', () => {
   /** @type {string} */
   const b64Offer = clientOfferInput.value.trim();
