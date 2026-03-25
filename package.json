@@ -37,6 +37,8 @@
   "scripts": {
     "start": "yarn build:npx && electron .",
     "fix:prettier": "prettier --write ./src/*",
+    "build": "yarn build:web && yarn build:linux",
+    "build:web": "node ./web-builder.js",
     "build:npx": "npx node-gyp configure build",
     "build:linux": "yarn build:npx && electron-builder --linux -p never",
     "build:release": "yarn build:npx && electron-builder --linux -p always"

@@ -28,7 +28,7 @@ export const startStreamServer = (config, captureWebContents) => {
   currentServer = http.createServer((req, res) => {
     if (req.url === '/' || req.url === '/public') {
       /** @type {string} */
-      const clientHtmlPath = path.join(srcFolder, './public/client.html');
+      const clientHtmlPath = path.join(srcFolder, './public/index.html');
 
       fs.readFile(clientHtmlPath, 'utf-8', (err, data) => {
         if (err) {
