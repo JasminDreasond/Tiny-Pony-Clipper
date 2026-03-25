@@ -23,7 +23,12 @@ import {
   windowsCache,
 } from './utils/values.js';
 
-import { canAccessUinput, destroyAllGamepads, updateGamepadState } from './utils/VirtualGamepad.js';
+import {
+  canAccessUinput,
+  destroyAllGamepads,
+  destroyGamepadsForClient,
+  updateGamepadState,
+} from './utils/VirtualGamepad.js';
 import { startStreamServer, sendSignalToClient } from './utils/StreamServer.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
@@ -812,19 +817,32 @@ if (gotTheLock) {
           }
 
           /** @type {string} */
-          const status = updateGamepadState(pad.index, pad, currentConfig.gamepadType);
+          const status = updateGamepadState(
+            data.clientId,
+            pad.index,
+            pad,
+            currentConfig.gamepadType,
+          );
 
-          if (status === 'LIMIT_REACHED' && !warnedPads.has(pad.index)) {
-            warnedPads.add(pad.index);
+          if (status === 'LIMIT_REACHED' && !warnedPads.has(`${data.clientId}_${pad.index}`)) {
+            warnedPads.add(`${data.clientId}_${pad.index}`);
             console.warn(
-              `[STREAM WARN] Rejected gamepad ${pad.index} - Max limit of ${currentConfig.maxGamepads} reached.`,
+              `[STREAM WARN] Rejected gamepad ${pad.index} for ${data.clientId} - Max limit of ${currentConfig.maxGamepads} reached.`,
             );
             sendSignalToClient({
               type: 'server_warning',
-              message: `Gamepad [${pad.index}] blocked: Server max limit of 12 reached.`,
+              message: `Gamepad [${pad.index}] blocked: Server max limit reached.`,
             });
           }
         }
+      }
+    });
+
+    ipcMain.on('gamepad-cleanup', (event, clientId) => {
+      if (clientId === 'all') {
+        destroyAllGamepads();
+      } else {
+        destroyGamepadsForClient(clientId);
       }
     });
 

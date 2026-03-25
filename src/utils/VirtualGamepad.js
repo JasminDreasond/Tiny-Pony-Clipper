@@ -47,16 +47,19 @@ const BUTTON_MAP = [
  */
 const AXIS_MAP = [keyCodes.ABS_X, keyCodes.ABS_Y, keyCodes.ABS_RX, keyCodes.ABS_RY];
 
-/** @type {Map<number, Object>} */
+/** @type {Map<string, Object>} */
 const persistentGamepads = new Map();
 
 /**
+ * @param {string} clientId
  * @param {number} padIndex
  * @param {string} padType
  * @returns {number}
  */
-export const getOrInitGamepad = (padIndex, padType) => {
-  if (persistentGamepads.has(padIndex)) return persistentGamepads.get(padIndex).id;
+export const getOrInitGamepad = (clientId, padIndex, padType) => {
+  /** @type {string} */
+  const key = `${clientId}_${padIndex}`;
+  if (persistentGamepads.has(key)) return persistentGamepads.get(key).id;
   if (persistentGamepads.size >= MAX_GAMEPADS) return -2;
 
   /** @type {number} */
@@ -65,16 +68,14 @@ export const getOrInitGamepad = (padIndex, padType) => {
   const id = uinput.setup(typeCode);
 
   if (id !== -1) {
-    persistentGamepads.set(padIndex, {
+    persistentGamepads.set(key, {
       id: id,
       previousButtons: new Array(BUTTON_MAP.length).fill(false),
       previousAxes: new Array(6).fill(0),
       prevHatX: 0,
       prevHatY: 0,
     });
-    console.log(
-      `[GAMEPAD] Created persistent virtual ${padType.toUpperCase()} for index ${padIndex}`,
-    );
+    console.log(`[GAMEPAD] Created persistent virtual ${padType.toUpperCase()} for [${key}]`);
   }
   return id;
 };
@@ -90,18 +91,35 @@ export const destroyAllGamepads = () => {
 };
 
 /**
+ * @param {string} clientId
+ * @returns {void}
+ */
+export const destroyGamepadsForClient = (clientId) => {
+  for (const [key, session] of persistentGamepads.entries()) {
+    if (key.startsWith(`${clientId}_`)) {
+      uinput.destroy(session.id);
+      persistentGamepads.delete(key);
+      console.log(`[GAMEPAD] Destroyed and released gamepad [${key}] due to client disconnect.`);
+    }
+  }
+};
+
+/**
+ * @param {string} clientId
  * @param {number} padIndex
  * @param {Object} state
  * @param {string} padType
  * @returns {string}
  */
-export const updateGamepadState = (padIndex, state, padType) => {
+export const updateGamepadState = (clientId, padIndex, state, padType) => {
   /** @type {number} */
-  const id = getOrInitGamepad(padIndex, padType);
+  const id = getOrInitGamepad(clientId, padIndex, padType);
   if (id < 0) return id === -2 ? 'LIMIT_REACHED' : 'ERROR';
 
+  /** @type {string} */
+  const key = `${clientId}_${padIndex}`;
   /** @type {Object} */
-  const session = persistentGamepads.get(padIndex);
+  const session = persistentGamepads.get(key);
   /** @type {boolean} */
   let needsSync = false;
 
@@ -174,7 +192,6 @@ export const canAccessUinput = () => {
   return uinput.checkPermissions();
 };
 
-// Exemplo de uso na inicialização:
 if (!canAccessUinput()) {
   console.error(
     '[GAMEPAD] Error: No RW permissions for /dev/uinput. Try running with sudo or check udev rules.',

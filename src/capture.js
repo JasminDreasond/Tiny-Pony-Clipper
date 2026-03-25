@@ -139,6 +139,7 @@ const createPeerConnection = (clientId) => {
     inputChannel.onmessage = (msg) => {
       /** @type {Object} */
       const gamepadData = JSON.parse(msg.data);
+      gamepadData.clientId = clientId;
       electronAPI.sendGamepadInput(gamepadData);
     };
   };
@@ -162,6 +163,7 @@ const createPeerConnection = (clientId) => {
       pc.connectionState === 'closed'
     ) {
       peers.delete(clientId);
+      electronAPI.sendGamepadCleanup(clientId);
       electronAPI.log(`[WEBRTC HOST] Cleaned up inactive peer connection for [${clientId}].`);
     }
   };

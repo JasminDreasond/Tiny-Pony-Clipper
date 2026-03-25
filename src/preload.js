@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getHardware: () => ipcRenderer.invoke('get-hardware'),
   isWayland: () => ipcRenderer.invoke('is-wayland'),
   openExternal: (url) => ipcRenderer.send('open-external', url),
+  sendGamepadCleanup: (clientId) => ipcRenderer.send('gamepad-cleanup', clientId),
   onCaptureCommand: (callback) =>
     ipcRenderer.on('capture-command', (event, data) => callback(data)),
 });
