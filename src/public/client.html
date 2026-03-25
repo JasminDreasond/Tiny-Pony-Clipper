@@ -25,6 +25,7 @@
         width: 100vw;
         height: 100vh;
       }
+
       #serverHost:disabled {
         display: none !important;
       }
@@ -176,6 +177,7 @@
       #debugPanel.hidden {
         opacity: 0;
         transform: translateY(-10px) scale(0.98);
+        pointer-events: none;
       }
 
       /* Toggle Button */
@@ -237,6 +239,57 @@
         line-height: 1.5;
       }
 
+      /* HUD Client ID */
+      #clientIdHud {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(30, 30, 46, 0.85);
+        color: #cba6f7;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        border: 1px solid #cba6f7;
+        z-index: 50;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+      }
+
+      #clientIdHud.hidden {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+        pointer-events: none;
+      }
+
+      /* Notification Toast */
+      #disconnectToast {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translate(-50%, -20px);
+        background: rgba(243, 139, 168, 0.95);
+        color: #11111b;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: bold;
+        border: 2px solid #f38ba8;
+        box-shadow: 0 4px 15px rgba(243, 139, 168, 0.4);
+        z-index: 2000;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+      }
+
+      #disconnectToast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      /* Gamepad Only Mode */
       .gamepad-only-msg {
         display: none;
         position: absolute;
@@ -250,45 +303,35 @@
         z-index: 5;
       }
 
-      body.gamepad-only-mode #streamView {
+      body.gamepad-only-mode.is-playing #streamView {
         display: none !important;
       }
-      body.gamepad-only-mode #debugPanel {
+      body.gamepad-only-mode.is-playing .gamepad-only-msg {
+        display: block;
+      }
+
+      body.gamepad-only-mode.is-playing #debugPanel {
         position: static;
         margin: 0 auto;
         transform: scale(1.2);
         pointer-events: auto;
       }
-      body.gamepad-only-mode #debugPanel.hidden {
-        opacity: 1;
-        transform: scale(1.2);
+
+      body.gamepad-only-mode.is-playing #debugPanel.hidden {
+        opacity: 0;
+        transform: scale(1.2) translateY(-10px);
+        pointer-events: none;
       }
-      body.gamepad-only-mode .gamepad-only-msg {
-        display: block;
-      }
-      body.gamepad-only-mode #btnToggleDebug {
+
+      body.gamepad-only-mode.is-playing #btnToggleDebug {
         display: none;
       }
     </style>
   </head>
   <body>
-    <div
-      id="clientIdHud"
-      style="
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(30, 30, 46, 0.8);
-        color: #cba6f7;
-        padding: 6px 16px;
-        border-radius: 20px;
-        font-weight: bold;
-        border: 1px solid #cba6f7;
-        z-index: 50;
-        display: none;
-      "
-    >
+    <div id="disconnectToast">Connection Lost</div>
+
+    <div id="clientIdHud" style="display: none">
       My ID: <span id="myClientId">Connecting...</span>
     </div>
 
@@ -429,6 +472,8 @@
       const ipSection = document.getElementById('ipSection');
       /** @type {HTMLElement} */
       const sdpSection = document.getElementById('manualClientSection');
+      /** @type {HTMLElement} */
+      const clientIdHud = document.getElementById('clientIdHud');
 
       // Debug Elements
       const dbgWs = document.getElementById('dbgWs');
@@ -440,6 +485,25 @@
       const dbgDc = document.getElementById('dbgDc');
       const dbgPad = document.getElementById('dbgPad');
       const dbgInput = document.getElementById('dbgInput');
+
+      /** @type {NodeJS.Timeout | null} */
+      let notificationTimer = null;
+
+      /**
+       * @param {string} message
+       * @returns {void}
+       */
+      const showDisconnectNotification = (message) => {
+        /** @type {HTMLElement} */
+        const toast = document.getElementById('disconnectToast');
+        toast.textContent = message;
+        toast.classList.add('show');
+
+        if (notificationTimer) clearTimeout(notificationTimer);
+        notificationTimer = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 5000);
+      };
 
       connMethodSelect.addEventListener('change', () => {
         if (connMethodSelect.value === 'ip') {
@@ -527,10 +591,6 @@
         pc = new RTCPeerConnection(config);
         setupWebRTCEvents();
 
-        // Setup your WebRTC tracks/data channels here on manualPc before creating the offer
-        // manualPc.addTransceiver('video', { direction: 'recvonly' });
-        // const dataChannel = manualPc.createDataChannel('gamepad');
-
         /** @type {RTCSessionDescriptionInit} */
         const offer = await pc.createOffer({
           offerToReceiveVideo: videoRequested,
@@ -605,6 +665,7 @@
           await applyServerAnswer(answerStr);
           console.log('[CLIENT] Connected via manual signaling!');
           loginDiv.style.display = 'none';
+          document.body.classList.add('is-playing');
           if (videoRequested) video.style.display = 'block';
         }
       });
@@ -642,8 +703,16 @@
       };
 
       const toggleDebug = () => {
+        /** @type {boolean} */
         const isHidden = debugPanel.classList.toggle('hidden');
         btnToggleDebug.textContent = isHidden ? 'Show Debug (F2)' : 'Hide Debug (F2)';
+
+        if (isHidden) {
+          clientIdHud.classList.add('hidden');
+        } else {
+          clientIdHud.classList.remove('hidden');
+        }
+
         btnToggleDebug.blur(); // Remove foco do botão
       };
 
@@ -724,7 +793,7 @@
 
           if (data.type === 'auth_success') {
             if (data.clientId) {
-              document.getElementById('clientIdHud').style.display = 'block';
+              clientIdHud.style.display = 'block';
               document.getElementById('myClientId').textContent = data.clientId;
             }
 
@@ -733,6 +802,7 @@
 
             updateDebug(dbgWs, 'Connected', 'ok');
             loginDiv.style.display = 'none';
+            document.body.classList.add('is-playing');
 
             // Flexibiliza o STUN server enviando pelo config
             iceServerUrls = [];
@@ -759,8 +829,9 @@
               await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
           } else if (data.type === 'server_warning') {
-            updateDebug(dbgPad, 'Limit Reached!', 'error');
+            updateDebug(dbgPad, 'Limit Reached / Kicked!', 'error');
             dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${data.message}</span>`;
+            showDisconnectNotification(`Host Message: ${data.message}`);
             console.warn('[SERVER WARNING]', data.message);
           }
         };
@@ -778,7 +849,7 @@
           /** @type {Object} */
           const msg = JSON.parse(event.data);
           if (msg.type === 'server_hello') {
-            document.getElementById('clientIdHud').style.display = 'block';
+            clientIdHud.style.display = 'block';
             document.getElementById('myClientId').textContent = msg.clientId;
           } else if (msg.type === 'vibration') {
             /** @type {Gamepad[]} */
@@ -799,15 +870,21 @@
 
         // Monitoramento de Estados da Conexão
         pc.onconnectionstatechange = () => {
-          const s = pc.connectionstate;
+          /** @type {string} */
+          const s = pc.connectionState;
           updateDebug(
             dbgRtcConn,
             s,
             s === 'disconnected' || s === 'failed' ? 'error' : s === 'connected' ? 'ok' : 'warn',
           );
+
+          if (s === 'disconnected' || s === 'failed') {
+            showDisconnectNotification('Lost connection to host.');
+          }
         };
 
         pc.oniceconnectionstatechange = () => {
+          /** @type {string} */
           const s = pc.iceConnectionState;
           updateDebug(
             dbgRtcIce,
@@ -933,7 +1010,7 @@
 
         if (padData.length > 0) {
           updateDebug(dbgPad, `Active Pads: ${padData.length}`, 'ok');
-          if (dbgInput && !dbgInput.innerHTML.includes('blocked: Server max limit')) {
+          if (dbgInput && !dbgInput.innerHTML.includes('Limit Reached / Kicked!')) {
             dbgInput.innerHTML = debugText;
           }
           if (dataChannel && dataChannel.readyState === 'open') {
@@ -941,7 +1018,7 @@
           }
         } else {
           updateDebug(dbgPad, 'Awaiting Input...', 'warn');
-          if (dbgInput && !dbgInput.innerHTML.includes('blocked: Server max limit')) {
+          if (dbgInput && !dbgInput.innerHTML.includes('Limit Reached / Kicked!')) {
             dbgInput.textContent = 'Move sticks or press buttons.';
           }
         }
