@@ -29,7 +29,7 @@ export const startStreamServer = (config, captureWebContents) => {
       /** @type {string} */
       const clientHtmlPath = path.join(srcFolder, './public/client.html');
 
-      fs.readFile(clientHtmlPath, (err, data) => {
+      fs.readFile(clientHtmlPath, 'utf-8', (err, data) => {
         if (err) {
           console.error('[STREAM ERROR] Failed to load client UI:', err);
           res.writeHead(500);
@@ -37,7 +37,7 @@ export const startStreamServer = (config, captureWebContents) => {
           return;
         }
         res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(data);
+        res.end(data.replace('id="serverHost"', 'id="serverHost" disabled'));
       });
     } else {
       res.writeHead(404);

@@ -21,12 +21,19 @@
         object-fit: contain;
         background: #111;
       }
+      #serverHost:disabled {
+        display: none !important;
+      }
       #login {
         display: flex;
         flex-direction: column;
         gap: 10px;
         z-index: 10;
         position: absolute;
+        background: rgba(24, 24, 37, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #cba6f7;
       }
       input,
       button {
@@ -34,6 +41,11 @@
         font-size: 16px;
         border-radius: 6px;
         border: none;
+        box-sizing: border-box;
+      }
+      input {
+        background: #313244;
+        color: #cdd6f4;
       }
       button {
         background-color: #cba6f7;
@@ -204,6 +216,7 @@
 
     <div id="login">
       <h2 style="text-align: center; color: #cba6f7; margin-top: 0">Pony Stream</h2>
+      <input type="text" id="serverHost" placeholder="Server IP (e.g. 192.168.1.10:8080)" />
       <input type="password" id="pass" placeholder="Password" />
       <label style="color: #cdd6f4; font-size: 14px; display: flex; gap: 8px">
         <input type="checkbox" id="wantsAudio" checked /> Enable Audio Stream
@@ -216,6 +229,8 @@
     <script type="module">
       /** @type {HTMLVideoElement} */
       const video = document.getElementById('streamView');
+      /** @type {HTMLInputElement} */
+      const serverInput = document.getElementById('serverHost');
       /** @type {HTMLInputElement} */
       const passInput = document.getElementById('pass');
       /** @type {HTMLButtonElement} */
@@ -249,10 +264,12 @@
       // Recuperar senha do cache
       window.onload = () => {
         /** @type {string | null} */
+        const cachedHost = localStorage.getItem('pony_stream_host');
+        /** @type {string | null} */
         const cachedPass = localStorage.getItem('pony_stream_pass');
-        if (cachedPass) {
-          passInput.value = cachedPass;
-        }
+
+        if (cachedHost) serverInput.value = cachedHost;
+        if (cachedPass) passInput.value = cachedPass;
       };
 
       // Apertar Enter no campo de senha envia o formulário
@@ -320,16 +337,41 @@
       // --- NETWORKING ---
 
       const initConnection = () => {
+        // Usa a porta atual do navegador para o WebSocket
+        /** @type {string} */
+        let host = !serverInput.disabled
+          ? serverInput.value.trim()
+          : `ws://${window.location.host}`;
+
+        if (!host) {
+          alert('Please provide a server IP or address.');
+          return;
+        }
+
+        if (!host.startsWith('ws://') && !host.startsWith('wss://')) {
+          host = `ws://${host}`;
+        }
+
         updateDebug(dbgWs, 'Connecting...', 'warn');
         btnConnect.disabled = true;
         btnConnect.textContent = 'Connecting...';
 
-        // Usa a porta atual do navegador para o WebSocket
-        ws = new WebSocket(`ws://${window.location.host}`);
+        try {
+          ws = new WebSocket(host);
+        } catch (err) {
+          updateDebug(dbgWs, 'Invalid URL', 'error');
+          alert('Invalid server address format.');
+          btnConnect.disabled = false;
+          btnConnect.textContent = 'Connect & Play';
+          return;
+        }
 
         ws.onopen = () => {
           updateDebug(dbgWs, 'Auth...', 'warn');
           audioRequested = wantsAudioInput.checked;
+
+          localStorage.setItem('pony_stream_host', serverInput.value.trim());
+
           ws.send(
             JSON.stringify({ type: 'auth', password: passInput.value, audio: audioRequested }),
           );
