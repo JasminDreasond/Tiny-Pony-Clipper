@@ -21,6 +21,9 @@ A lightweight, background clipping tool built with Electron and FFmpeg. Specific
 * **Advanced Audio Routing:** Native PulseAudio/PipeWire integration. Record system audio and microphone into a single track, or split them into entirely separate audio tracks.
 * **Smart Queue System:** Save multiple clips back-to-back. The background job dispatcher isolates the cache, allowing you to keep playing while FFmpeg processes the videos in parallel.
 * **Highly Customizable:** Tweak FFmpeg parameters (codecs, presets, and quality commands) directly from the UI.
+* **🎮 Remote Play Server (Experimental):** Turn your PC into a remote multiplayer hub! We have implemented a new WebRTC-based server that allows you to receive Gamepad inputs directly from a web browser.
+* **👥 Up to 12 Players:** Bring everyone in! You can configure the server to accept up to 12 simultaneous remote gamepads.
+* **🌐 Bandwidth Saver (Video On/Off):** You can stream both your gameplay video and audio directly through the web client. However, if you prefer using other software for screen sharing (like Discord or OBS) to save bandwidth, you can disable the video stream entirely! The client page will elegantly adapt into a pure, ultra-low latency "Gamepad Only" dashboard.
 
 ## 🛠️ Prerequisites
 
@@ -31,6 +34,7 @@ Tiny Pony Clipper relies on robust native Linux tools to handle audio and video 
 * `libnotify-bin` (for native system notifications)
 
 On Ubuntu/Kubuntu/Debian systems, you can install them via:
+
 ```bash
 sudo apt update
 sudo apt install ffmpeg pulseaudio-utils libnotify-bin
@@ -41,7 +45,7 @@ sudo apt install ffmpeg pulseaudio-utils libnotify-bin
 1.  **Launch the App:** Open Tiny Pony Clipper. It will quietly reside in your system tray.
 2.  **Configure Your Hardware:** Click the tray icon to open the Settings window. Select your Desktop Sound output and your Microphone.
 3.  **Set the Buffer:** Choose how many minutes of history you want to keep in the buffer.
-4.  **Save a Clip:** While playing a game or working, press the designated shortcut (default is `F10` on Wayland environments). A notification will confirm that your clip is being processed and saved to your chosen directory\!
+4.  **Save a Clip:** While playing a game or working, press the designated shortcut (default is `F10` on Wayland environments). A notification will confirm that your clip is being processed and saved to your chosen directory!
 
 *Note for Wayland users: Due to Wayland's strict security protocols regarding global keyloggers, the application internally locks the capture shortcut to `F10`. Ensure your desktop environment passes this key to the application.*
 
@@ -63,9 +67,11 @@ cd Tiny-Pony-Clipper
 ```
 
 #### 1.1- System Prerequisites
+
 Since `node-gyp` compiles C++ code, your system must have a C++ compiler and Python installed.
 
 #### 1.2- Global Node.js Dependencies
+
 You will need `node-gyp` to handle the native build configurations and `yarn` for package management:
 
 ```bash
@@ -73,6 +79,7 @@ npm install -g node-gyp yarn
 ```
 
 #### 1.3- Running the Build
+
 Once the dependencies are met, you can trigger the configuration and compilation process:
 
 ```bash
@@ -101,7 +108,9 @@ yarn build:linux
 
 ## 💖 Contributing
 
-Contributions, bug reports, and pull requests are always welcome\! If this tool helps you capture your best moments, consider starring the repository or supporting the project to help keep the development active.
+Contributions, bug reports, and pull requests are always welcome! If this tool helps you capture your best moments, consider starring the repository or supporting the project to help keep the development active.
+
+Tiny thanks for using Tiny Pony Clipper! 💖
 
 ---
 
