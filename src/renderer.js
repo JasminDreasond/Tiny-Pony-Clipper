@@ -55,6 +55,32 @@ const iceServersInput = document.getElementById('iceServers');
 /** @type {HTMLInputElement} */
 const frameRateInput = document.getElementById('frameRate');
 
+/** @type {HTMLInputElement} */
+const streamVideoEnabledInput = document.getElementById('streamVideoEnabled');
+
+/**
+ * @param {HTMLInputElement} inputElement
+ * @returns {void}
+ */
+const enforceNumberValidation = (inputElement) => {
+  if (!inputElement) return;
+
+  inputElement.addEventListener('change', () => {
+    /** @type {number} */
+    const min = parseInt(inputElement.getAttribute('min') || '-999999', 10);
+    /** @type {number} */
+    const max = parseInt(inputElement.getAttribute('max') || '999999', 10);
+    /** @type {number} */
+    let val = parseInt(inputElement.value, 10);
+
+    if (isNaN(val)) val = min > 0 ? min : 0;
+    if (val < min) val = min;
+    if (val > max) val = max;
+
+    inputElement.value = String(val);
+  });
+};
+
 /** @type {boolean} */
 let isWaylandEnvironment = false;
 
@@ -128,6 +154,7 @@ const init = async () => {
   maxGamepadsInput.value = config.maxGamepads ?? 12;
   iceServersInput.value = config.iceServers ?? 'stun:stun.l.google.com:19302';
   frameRateInput.value = String(config.frameRate ?? 60);
+  streamVideoEnabledInput.checked = config.streamVideoEnabled ?? true;
 
   if (isWaylandEnvironment) {
     console.log('[RENDERER] Wayland detected. Forcing F10 shortcut and hiding input.');
@@ -158,6 +185,8 @@ const init = async () => {
     // streamEnabledInput.checked = false;
     streamEnabledInput.disabled = true;
   }
+
+  document.querySelectorAll('input[type="number"]').forEach(enforceNumberValidation);
 };
 
 document.getElementById('btnBrowse').addEventListener('click', async () => {
@@ -191,6 +220,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     videoQualityCmd: videoQualityCmdInput.value || '-cq',
     videoQualityValue: videoQualityValueInput.value || '19',
     frameRate: Number(frameRateInput.value) > 0 ? Number(frameRateInput.value) : 60,
+    streamVideoEnabled: streamVideoEnabledInput.checked,
     // Stream values
     streamEnabled: streamEnabledInput.checked,
     streamPort: Number(streamPortInput.value) || 8080,

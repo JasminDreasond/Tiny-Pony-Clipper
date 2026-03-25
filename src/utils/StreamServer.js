@@ -62,7 +62,7 @@ export const startStreamServer = (config, captureWebContents) => {
           ws.send(
             JSON.stringify({
               type: 'auth_success',
-              enableVideo: config.enableClipping,
+              enableVideo: config.enableClipping && config.streamVideoEnabled,
               iceServers: config.iceServers,
             }),
           );

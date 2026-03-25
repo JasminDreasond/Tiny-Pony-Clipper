@@ -139,6 +139,7 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {number} maxGamepads
  * @property {string} iceServers
  * @property {number} frameRate
+ * @property {boolean} streamVideoEnabled
  */
 
 // Update your default config function
@@ -161,6 +162,7 @@ const getDefaultConfig = () => ({
   frameRate: 60,
   // Stream Settings
   streamEnabled: false,
+  streamVideoEnabled: true,
   streamPort: 8080,
   streamPassword: 'pony',
   gamepadType: 'xbox',
