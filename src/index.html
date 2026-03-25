@@ -54,6 +54,42 @@
         overflow: hidden;
       }
 
+      /* TABS CSS */
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 10px;
+        flex-shrink: 0;
+      }
+
+      .tab-btn {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        padding: 10px 16px;
+        width: auto;
+      }
+
+      .tab-btn.active {
+        background: #cba6f7;
+        color: #11111b;
+        border-color: #cba6f7;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
       .scroll-content {
         flex: 1;
         overflow-y: auto;
@@ -110,18 +146,28 @@
         color: var(--text-color);
         border: 1px solid var(--border-color);
       }
+
       input:focus,
       textarea:focus,
       select:focus {
         outline: none;
         border-color: #cba6f7;
       }
+
+      textarea:disabled,
+      input:disabled,
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
       .shortcut-input {
         text-align: center;
         font-size: 16px;
         font-weight: bold;
         cursor: pointer;
       }
+
       button {
         padding: 12px 20px;
         background: #cba6f7;
@@ -132,44 +178,60 @@
         font-weight: bold;
         width: 100%;
       }
-      button:hover {
+
+      button:hover:not(:disabled) {
         background: #b4befe;
       }
+
       .row {
         display: flex;
         gap: 10px;
       }
+
       .row input,
       .row textarea {
         flex-grow: 1;
       }
+
       .row button {
         width: auto;
       }
+
+      .col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
       .checkbox-label {
         font-weight: normal;
         cursor: pointer;
       }
+
       .github-btn {
         background: #313244;
         color: #cdd6f4;
         margin-top: 15px;
       }
-      .github-btn:hover {
+
+      .github-btn:hover:not(:disabled) {
         background: #45475a;
       }
+
       .stream-section {
-        margin-top: 30px;
+        margin-top: 20px;
         padding: 15px;
         border: 2px solid #cba6f7;
         border-radius: 8px;
         background-color: rgba(203, 166, 247, 0.05);
       }
+
       .stream-title {
         color: #cba6f7;
         margin-top: 0;
         margin-bottom: 15px;
       }
+
       .warning-box {
         display: none;
         background-color: #f38ba8;
@@ -180,99 +242,114 @@
         font-weight: bold;
         font-size: 14px;
       }
+
+      .manual-sdp-container {
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px dashed var(--border-color);
+      }
     </style>
   </head>
   <body>
+    <div class="tabs">
+      <button class="tab-btn active" data-target="tab-clipping">Clipping Settings</button>
+      <button class="tab-btn" data-target="tab-remote">Remote Play</button>
+    </div>
+
     <div class="scroll-content">
-      <h2>Hardware & Recording Settings</h2>
+      <div id="tab-clipping" class="tab-content active">
+        <h2>Hardware & Recording Settings</h2>
 
-      <div class="form-group">
-        <label class="checkbox-label">
-          <input type="checkbox" id="enableClipping" checked /> Enable Audio/Video Recording &
-          Clipping
-        </label>
-      </div>
-
-      <div class="form-group">
-        <label for="sysInput">System Audio Output (Desktop Sound)</label>
-        <select id="sysInput"></select>
-      </div>
-
-      <div class="form-group">
-        <label for="micInput">Microphone Input</label>
-        <select id="micInput">
-          <option value="none">Disabled</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label class="checkbox-label">
-          <input type="checkbox" id="separateAudio" /> Separate Microphone Audio Track
-        </label>
-      </div>
-
-      <div class="form-group">
-        <label for="bufferMinutes">Buffer Size (Minutes)</label>
-        <input type="number" id="bufferMinutes" min="1" max="120" />
-      </div>
-
-      <div class="form-group">
-        <label for="frameRate">Capture Frame Rate (FPS)</label>
-        <input type="number" id="frameRate" placeholder="60" min="10" max="240" />
-      </div>
-
-      <div class="form-group">
-        <label for="shortcutKey">Clip Shortcut (Click and press keys)</label>
-        <input
-          type="text"
-          id="shortcutKey"
-          class="shortcut-input"
-          readonly
-          placeholder="Press a key combination..."
-        />
-      </div>
-
-      <div class="form-group">
-        <label>Save Directory</label>
-        <div class="row">
-          <input type="text" id="savePath" readonly />
-          <button id="btnBrowse">Browse Folder</button>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="enableClipping" checked /> Enable Audio/Video Recording &
+            Clipping
+          </label>
         </div>
-      </div>
 
-      <div class="advanced-section">
-        <h3>Advanced FFmpeg Parameters</h3>
-        <p style="font-size: 13px; margin-top: 0; color: #888">
-          Only modify these if you know what you are doing. Default is optimized for NVIDIA GPUs.
-        </p>
+        <div class="form-group">
+          <label for="sysInput">System Audio Output (Desktop Sound)</label>
+          <select id="sysInput"></select>
+        </div>
 
-        <div class="row">
-          <div class="form-group-sm" style="flex: 1">
-            <label class="label-sm" for="videoCodec">Video Codec</label>
-            <input type="text" id="videoCodec" placeholder="h264_nvenc, libx264, etc." />
-          </div>
-          <div class="form-group-sm" style="flex: 1">
-            <label class="label-sm" for="audioCodec">Audio Codec</label>
-            <input type="text" id="audioCodec" placeholder="aac, libopus, etc." />
+        <div class="form-group">
+          <label for="micInput">Microphone Input</label>
+          <select id="micInput">
+            <option value="none">Disabled</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="separateAudio" /> Separate Microphone Audio Track
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="bufferMinutes">Buffer Size (Minutes)</label>
+          <input type="number" id="bufferMinutes" min="1" max="120" />
+        </div>
+
+        <div class="form-group">
+          <label for="frameRate">Capture Frame Rate (FPS)</label>
+          <input type="number" id="frameRate" placeholder="60" min="10" max="240" />
+        </div>
+
+        <div class="form-group">
+          <label for="shortcutKey">Clip Shortcut (Click and press keys)</label>
+          <input
+            type="text"
+            id="shortcutKey"
+            class="shortcut-input"
+            readonly
+            placeholder="Press a key combination..."
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Save Directory</label>
+          <div class="row">
+            <input type="text" id="savePath" readonly />
+            <button id="btnBrowse">Browse Folder</button>
           </div>
         </div>
 
-        <div class="row">
-          <div class="form-group-sm" style="flex: 1">
-            <label class="label-sm" for="videoPreset">Video Preset</label>
-            <input type="text" id="videoPreset" placeholder="p6, fast, slow, etc." />
+        <div class="advanced-section">
+          <h3>Advanced FFmpeg Parameters</h3>
+          <p style="font-size: 13px; margin-top: 0; color: #888">
+            Only modify these if you know what you are doing. Default is optimized for NVIDIA GPUs.
+          </p>
+
+          <div class="row">
+            <div class="form-group-sm col">
+              <label class="label-sm" for="videoCodec">Video Codec</label>
+              <input type="text" id="videoCodec" placeholder="h264_nvenc, libx264, etc." />
+            </div>
+            <div class="form-group-sm col">
+              <label class="label-sm" for="audioCodec">Audio Codec</label>
+              <input type="text" id="audioCodec" placeholder="aac, libopus, etc." />
+            </div>
           </div>
-          <div class="form-group-sm" style="flex: 1">
-            <label class="label-sm" for="videoQualityCmd">Quality Command</label>
-            <input type="text" id="videoQualityCmd" placeholder="-cq, -crf, etc." />
-          </div>
-          <div class="form-group-sm" style="flex: 1">
-            <label class="label-sm" for="videoQualityValue">Quality Value</label>
-            <input type="text" id="videoQualityValue" placeholder="19, 23, etc." />
+
+          <div class="row">
+            <div class="form-group-sm col">
+              <label class="label-sm" for="videoPreset">Video Preset</label>
+              <input type="text" id="videoPreset" placeholder="p6, fast, slow, etc." />
+            </div>
+            <div class="form-group-sm col">
+              <label class="label-sm" for="videoQualityCmd">Quality Command</label>
+              <input type="text" id="videoQualityCmd" placeholder="-cq, -crf, etc." />
+            </div>
+            <div class="form-group-sm col">
+              <label class="label-sm" for="videoQualityValue">Quality Value</label>
+              <input type="text" id="videoQualityValue" placeholder="19, 23, etc." />
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="stream-section">
+      <div id="tab-remote" class="tab-content">
+        <div class="stream-section" style="margin-top: 0">
           <h3 class="stream-title">🌐 Remote Multiplayer Streaming (Experimental)</h3>
 
           <div id="uinputWarning" class="warning-box">
@@ -294,15 +371,15 @@
           </div>
 
           <div class="row">
-            <div class="form-group-sm" style="flex: 1">
+            <div class="form-group-sm col">
               <label class="label-sm" for="streamPort">Server Port</label>
               <input type="number" id="streamPort" placeholder="8080" />
             </div>
-            <div class="form-group-sm" style="flex: 1">
+            <div class="form-group-sm col">
               <label class="label-sm" for="streamPassword">Access Password</label>
               <input type="text" id="streamPassword" placeholder="Enter a secure password" />
             </div>
-            <div class="form-group-sm" style="flex: 1">
+            <div class="form-group-sm col">
               <label class="label-sm" for="gamepadType">Emulator Type</label>
               <select id="gamepadType" disabled>
                 <option value="xbox">Xbox 360</option>
@@ -313,7 +390,7 @@
 
           <div class="row" style="margin-top: 10px">
             <div class="form-group-sm" style="flex: 1">
-              <label class="label-sm" for="maxGamepads">Max Gamepads Limit</label>
+              <label class="label-sm" for="maxGamepads">Max Gamepads</label>
               <input type="number" id="maxGamepads" min="0" max="12" placeholder="12" />
             </div>
             <div class="form-group-sm" style="flex: 2">
@@ -323,26 +400,32 @@
               <input type="text" id="iceServers" placeholder="stun:stun.l.google.com:19302" />
             </div>
           </div>
-        </div>
 
-        <div id="manualSignalingContainer">
-          <h3>Manual SDP Signaling</h3>
+          <div id="manualSdpContainer" class="manual-sdp-container hidden">
+            <h3>Manual SDP Signaling</h3>
 
-          <label for="clientOfferInput">Client Offer (Paste here):</label>
-          <textarea
-            id="clientOfferInput"
-            rows="5"
-            placeholder="Paste the client SDP offer..."
-          ></textarea>
-          <button id="processOfferBtn">Generate Server Answer</button>
+            <div class="row">
+              <div class="form-group-sm col">
+                <label for="clientOfferInput" class="label-sm">Client Offer (Paste here):</label>
+                <textarea
+                  id="clientOfferInput"
+                  rows="6"
+                  placeholder="Paste the client SDP offer..."
+                ></textarea>
+              </div>
+              <div class="form-group-sm col">
+                <label for="serverAnswerOutput" class="label-sm">Server Answer (Copy this):</label>
+                <textarea
+                  id="serverAnswerOutput"
+                  rows="6"
+                  readonly
+                  placeholder="Server answer will appear here..."
+                ></textarea>
+              </div>
+            </div>
 
-          <label for="serverAnswerOutput">Server Answer (Copy this):</label>
-          <textarea
-            id="serverAnswerOutput"
-            rows="5"
-            readonly
-            placeholder="Server answer will appear here..."
-          ></textarea>
+            <button id="processOfferBtn" style="margin-top: 5px">Generate Server Answer</button>
+          </div>
         </div>
       </div>
 

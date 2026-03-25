@@ -67,17 +67,63 @@ const serverAnswerOutput = document.getElementById('serverAnswerOutput');
 /** @type {HTMLButtonElement} */
 const processOfferBtn = document.getElementById('processOfferBtn');
 
+/** @type {HTMLDivElement} */
+const manualSdpContainer = document.getElementById('manualSdpContainer');
+
+/** @type {NodeListOf<HTMLButtonElement>} */
+const tabBtns = document.querySelectorAll('.tab-btn');
+/** @type {NodeListOf<HTMLDivElement>} */
+const tabContents = document.querySelectorAll('.tab-content');
+
+tabBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach((b) => b.classList.remove('active'));
+    tabContents.forEach((c) => c.classList.remove('active'));
+
+    btn.classList.add('active');
+    /** @type {string | null} */
+    const targetId = btn.getAttribute('data-target');
+    if (targetId) {
+      /** @type {HTMLElement | null} */
+      const targetElement = document.getElementById(targetId);
+      if (targetElement) targetElement.classList.add('active');
+    }
+  });
+});
+
+/**
+ * @param {boolean} isEnabled
+ * @returns {void}
+ */
+const toggleSdpSection = (isEnabled = streamEnabledInput.checked) => {
+  if (isEnabled) {
+    manualSdpContainer.classList.remove('hidden');
+  } else {
+    manualSdpContainer.classList.add('hidden');
+  }
+};
+
+streamEnabledInput.addEventListener('change', toggleSdpSection);
+toggleSdpSection();
+
 processOfferBtn.addEventListener('click', () => {
   /** @type {string} */
   const offer = clientOfferInput.value.trim();
+  clientOfferInput.value = '';
 
   if (offer) {
+    clientOfferInput.disabled = true;
+    serverAnswerOutput.disabled = true;
+    processOfferBtn.disabled = true;
     serverAnswerOutput.value = 'Processing... Please wait for ICE gathering.';
     electronAPI.sendManualOffer(offer);
   }
 });
 
 electronAPI.onManualAnswer((event, answerString) => {
+  clientOfferInput.disabled = false;
+  serverAnswerOutput.disabled = false;
+  processOfferBtn.disabled = false;
   serverAnswerOutput.value = answerString;
   console.log('[UI] Server answer received and ready to copy.');
 });
@@ -199,6 +245,7 @@ const init = async () => {
   streamPortInput.value = config.streamPort ?? 8080;
   streamPasswordInput.value = config.streamPassword ?? 'pony';
   gamepadTypeSelect.value = config.gamepadType ?? 'xbox';
+  toggleSdpSection();
 
   // Check gamepad permissions
   /** @type {boolean} */
