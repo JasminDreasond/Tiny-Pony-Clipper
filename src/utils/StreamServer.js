@@ -47,12 +47,27 @@ export const startStreamServer = (config, captureWebContents) => {
             : data,
         );
       });
+    } else if (req.url === '/img/tray-icon.png') {
+      /** @type {string} */
+      const iconPath = path.join(srcFolder, './icons/tray-icon.png');
+
+      fs.readFile(iconPath, (err, data) => {
+        if (err) {
+          console.error('[STREAM ERROR] Failed to load tray icon:', err);
+          res.writeHead(404);
+          res.end('Not found');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'image/png' });
+        res.end(data);
+      });
     } else {
       /** @type {string} */
       const htmlFilePath = path.join(srcFolder, './public/404.html');
+
       fs.readFile(htmlFilePath, (err, data) => {
         if (err) {
-          console.error('[STREAM ERROR] Failed to load client UI:', err);
+          console.error('[STREAM ERROR] Failed to load 404 UI:', err);
           res.writeHead(500);
           res.end('Error loading 404 page');
           return;

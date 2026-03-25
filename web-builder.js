@@ -55,6 +55,17 @@ const buildWeb = async () => {
         console.log('Starting file copy...');
         await copyRecursive(srcDir, distDir);
         
+        console.log('Copying tray icon...');
+        /** @type {string} */
+        const imgDestDir = join(distDir, 'img');
+        await mkdir(imgDestDir, { recursive: true });
+        
+        /** @type {string} */
+        const srcIconPath = 'src/icons/tray-icon.png';
+        /** @type {string} */
+        const destIconPath = join(imgDestDir, 'tray-icon.png');
+        await copyFile(srcIconPath, destIconPath);
+        
         console.log('Build completed successfully!');
     } catch (error) {
         /** @type {Error} */
