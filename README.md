@@ -21,9 +21,9 @@ A lightweight, background clipping tool built with Electron and FFmpeg. Specific
 * **Advanced Audio Routing:** Native PulseAudio/PipeWire integration. Record system audio and microphone into a single track, or split them into entirely separate audio tracks.
 * **Smart Queue System:** Save multiple clips back-to-back. The background job dispatcher isolates the cache, allowing you to keep playing while FFmpeg processes the videos in parallel.
 * **Highly Customizable:** Tweak FFmpeg parameters (codecs, presets, and quality commands) directly from the UI.
-* **🎮 Remote Play Server (Experimental):** Turn your PC into a remote multiplayer hub! We have implemented a new WebRTC-based server that allows you to receive Gamepad inputs directly from a web browser.
-* **👥 Up to 12 Players:** Bring everyone in! You can configure the server to accept up to 12 simultaneous remote gamepads.
-* **🌐 Bandwidth Saver (Video On/Off):** You can stream both your gameplay video and audio directly through the web client. However, if you prefer using other software for screen sharing (like Discord or OBS) to save bandwidth, you can disable the video stream entirely! The client page will elegantly adapt into a pure, ultra-low latency "Gamepad Only" dashboard.
+* **Remote Play Server (Experimental):** Turn your PC into a remote multiplayer hub! We have implemented a new WebRTC-based server that allows you to receive Gamepad inputs directly from a web browser.
+* **Up to 12 Players:** Bring everyone in! You can configure the server to accept up to 12 simultaneous remote gamepads.
+* **Bandwidth Saver (Video On/Off):** You can stream both your gameplay video and audio directly through the web client. However, if you prefer using other software for screen sharing (like Discord or OBS) to save bandwidth, you can disable the video stream entirely! The client page will elegantly adapt into a pure, ultra-low latency "Gamepad Only" dashboard.
 
 ## 🛠️ Prerequisites
 
@@ -110,7 +110,7 @@ yarn build:linux
 
 Contributions, bug reports, and pull requests are always welcome! If this tool helps you capture your best moments, consider starring the repository or supporting the project to help keep the development active.
 
-Tiny thanks for using Tiny Pony Clipper! 💖
+Tiny thanks for using Tiny Pony Clipper!
 
 ---
 
