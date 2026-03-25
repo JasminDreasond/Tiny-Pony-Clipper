@@ -96,12 +96,19 @@ electronAPI.onClientListUpdate((event, data) => {
     /** @type {string} */
     const dateStr = new Date(client.time).toLocaleTimeString();
 
+    /** @type {string} */
+    const pingColor =
+      client.latency < 80 ? '#a6e3a1' : client.latency < 150 ? '#fab387' : '#f38ba8';
+    /** @type {string} */
+    const pingText = client.latency !== undefined ? `${client.latency} ms` : 'Measuring...';
+
     card.innerHTML = `
       <div>
         <div style="color: #cba6f7; font-weight: bold; margin-bottom: 4px;">Player ${index + 1} (${client.type})</div>
         <div style="font-size: 12px; color: #bac2de;">ID: ${client.id}</div>
         <div style="font-size: 12px; color: #a6e3a1; margin-top: 4px;">🎮 Gamepads Active: ${client.gamepads}</div>
-        <div style="font-size: 11px; color: #6c7086; margin-top: 2px;">Joined at: ${dateStr}</div>
+        <div style="font-size: 12px; color: ${pingColor}; margin-top: 2px;">📶 Latency: ${pingText}</div>
+        <div style="font-size: 11px; color: #6c7086; margin-top: 4px;">Joined at: ${dateStr}</div>
       </div>
       <button class="kick-btn" data-id="${client.id}" style="width: auto; background: #f38ba8; color: #11111b; padding: 8px 16px;">Kick</button>
     `;

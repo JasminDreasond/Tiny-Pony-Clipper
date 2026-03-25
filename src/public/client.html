@@ -350,6 +350,9 @@
         <div class="debug-row">
           ICE Conn: <span id="dbgRtcIce" class="debug-val debug-err">New</span>
         </div>
+        <div class="debug-row">
+          Ping (RTT): <span id="dbgPing" class="debug-val debug-warn">-- ms</span>
+        </div>
       </div>
 
       <div class="debug-section">
@@ -474,6 +477,8 @@
       const sdpSection = document.getElementById('manualClientSection');
       /** @type {HTMLElement} */
       const clientIdHud = document.getElementById('clientIdHud');
+      /** @type {HTMLElement} */
+      const dbgPing = document.getElementById('dbgPing');
 
       // Debug Elements
       const dbgWs = document.getElementById('dbgWs');
@@ -843,11 +848,29 @@
         // Configuração do DataChannel para Inputs (Não confiável/Ordenado para latência mínima)
         dataChannel = pc.createDataChannel('gamepad', { ordered: false, maxRetransmits: 0 });
 
-        dataChannel.onopen = () => updateDebug(dbgDc, 'Open', 'ok');
-        dataChannel.onclose = () => updateDebug(dbgDc, 'Closed', 'error');
+        /** @type {number} */
+        let pingInterval;
+
+        dataChannel.onopen = () => {
+          updateDebug(dbgDc, 'Open', 'ok');
+
+          // Inicia o envio do Ping a cada 2 segundos
+          pingInterval = setInterval(() => {
+            if (dataChannel.readyState === 'open') {
+              dataChannel.send(JSON.stringify({ type: 'ping', time: Date.now() }));
+            }
+          }, 2000);
+        };
+
+        dataChannel.onclose = () => {
+          updateDebug(dbgDc, 'Closed', 'error');
+          if (pingInterval) clearInterval(pingInterval);
+        };
+
         dataChannel.onmessage = (event) => {
           /** @type {Object} */
           const msg = JSON.parse(event.data);
+
           if (msg.type === 'server_hello') {
             clientIdHud.style.display = 'block';
             document.getElementById('myClientId').textContent = msg.clientId;
@@ -865,6 +888,20 @@
                 strongMagnitude: msg.strong || 0.5,
               });
             }
+          } else if (msg.type === 'pong') {
+            // Calcula o tempo de ida e volta
+            /** @type {number} */
+            const currentLatency = Date.now() - msg.time;
+
+            // Atualiza a tela do cliente
+            updateDebug(
+              dbgPing,
+              `${currentLatency} ms`,
+              currentLatency < 80 ? 'ok' : currentLatency < 150 ? 'warn' : 'error',
+            );
+
+            // Envia o resultado pro Host anotar no painel dele
+            dataChannel.send(JSON.stringify({ type: 'client_latency', latency: currentLatency }));
           }
         };
 

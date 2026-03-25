@@ -142,6 +142,14 @@ const createPeerConnection = (clientId) => {
     inputChannel.onmessage = (msg) => {
       /** @type {Object} */
       const gamepadData = JSON.parse(msg.data);
+
+      // Se for Ping, rebate como Pong imediatamente sem passar pelo main.js
+      if (gamepadData.type === 'ping') {
+        inputChannel.send(JSON.stringify({ type: 'pong', time: gamepadData.time }));
+        return;
+      }
+
+      // Se for inputs ou latência calculada, envia pro main.js
       gamepadData.clientId = clientId;
       electronAPI.sendGamepadInput(gamepadData);
     };

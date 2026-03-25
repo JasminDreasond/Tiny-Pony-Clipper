@@ -815,6 +815,7 @@ if (gotTheLock) {
         type: c.id.startsWith('ip') ? 'IP Address' : 'Manual SDP',
         time: c.connectedAt,
         gamepads: getGamepadCountForClient(c.id),
+        latency: c.latency,
       }));
 
       windowsCache.configWindow.webContents.send('update-client-list', {
@@ -823,6 +824,17 @@ if (gotTheLock) {
         maxGamepads: currentConfig ? currentConfig.maxGamepads : 12,
       });
     };
+
+    // Loop que atualiza a UI do host a cada 2 segundos para mostrar o ping variando
+    setInterval(() => {
+      if (
+        activeClientsMap.size > 0 &&
+        windowsCache.configWindow &&
+        windowsCache.configWindow.isVisible()
+      ) {
+        broadcastClientList();
+      }
+    }, 2000);
 
     ipcMain.on('webrtc-client-connected', (event, clientId) => {
       if (!activeClientsMap.has(clientId)) {
@@ -865,6 +877,14 @@ if (gotTheLock) {
 
     // Handle Gamepad Inputs from WebRTC DataChannel
     ipcMain.on('gamepad-input', (event, data) => {
+      // Salva a latência recebida pelo DataChannel
+      if (data.type === 'client_latency') {
+        if (activeClientsMap.has(data.clientId)) {
+          activeClientsMap.get(data.clientId).latency = data.latency;
+        }
+        return;
+      }
+
       if (data.type === 'multi_input') {
         for (const pad of data.pads) {
           if (pad.index >= currentConfig.maxGamepads) {
@@ -897,16 +917,17 @@ if (gotTheLock) {
             sendSignalToClient({
               type: 'server_warning',
               message: `Gamepad [${pad.index}] blocked: Server max limit reached.`,
+              clientId: data.clientId,
             });
           }
         }
-      }
 
-      /** @type {number} */
-      const currentCount = getTotalGamepads();
-      if (currentCount !== lastKnownGamepadCount) {
-        lastKnownGamepadCount = currentCount;
-        broadcastClientList();
+        /** @type {number} */
+        const currentCount = getTotalGamepads();
+        if (currentCount !== lastKnownGamepadCount) {
+          lastKnownGamepadCount = currentCount;
+          broadcastClientList();
+        }
       }
     });
 
