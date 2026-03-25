@@ -365,6 +365,7 @@
                 .map((s) => s.trim())
                 .filter((s) => s);
               if (parsedUrls.length > 0) iceServerUrls = parsedUrls;
+              console.log(`[HOST-ICE-SERVERS]`, parsedUrls);
             }
 
             if (!expectVideo) {
