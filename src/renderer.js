@@ -148,21 +148,6 @@ tabBtns.forEach((btn) => {
   });
 });
 
-/**
- * @param {boolean} isEnabled
- * @returns {void}
- */
-const toggleSdpSection = (isEnabled = streamEnabledInput.checked) => {
-  if (isEnabled) {
-    manualSdpContainer.classList.remove('hidden');
-  } else {
-    manualSdpContainer.classList.add('hidden');
-  }
-};
-
-streamEnabledInput.addEventListener('change', toggleSdpSection);
-toggleSdpSection();
-
 clientOfferInput.addEventListener('input', () => {
   serverAnswerOutput.value = '';
 });
@@ -321,7 +306,6 @@ const init = async () => {
   streamPortInput.value = config.streamPort ?? 8080;
   streamPasswordInput.value = config.streamPassword ?? 'pony';
   gamepadTypeSelect.value = config.gamepadType ?? 'xbox';
-  toggleSdpSection();
 
   // Check gamepad permissions
   /** @type {boolean} */
