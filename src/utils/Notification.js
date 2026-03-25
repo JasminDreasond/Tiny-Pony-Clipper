@@ -13,6 +13,7 @@ export const sendNotification = (options, soundFile, onClick) => {
   /** @type {Electron.Notification} */
   const noti = new Notification({
     icon: appIconPath,
+    urgency: 'normal',
     ...options,
     silent: true,
     timeoutType: 'default',

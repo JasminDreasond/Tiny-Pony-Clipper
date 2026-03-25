@@ -386,7 +386,7 @@ const saveClip = (saveDir) => {
   sendNotification(
     {
       title: 'Tiny Pony Clipper',
-      urgency: 'normal',
+      urgency: 'critical',
       body: `Processing your clip... (${clipsProcessingCount} in queue)`,
       icon: appIconProcessingPath,
     },
@@ -713,7 +713,6 @@ const applyConfigurationAndStart = (config) => {
 
     sendNotification({
       title: 'Tiny Pony Clipper',
-      urgency: 'normal',
       body: readyMessage,
     });
   } else {
@@ -724,7 +723,6 @@ const applyConfigurationAndStart = (config) => {
     currentConfig = config;
     sendNotification({
       title: 'Tiny Pony Clipper',
-      urgency: 'normal',
       body: 'Gamepad Server is active! (Audio/Video Engine is Disabled)',
     });
   }
@@ -829,7 +827,11 @@ if (gotTheLock) {
     ipcMain.on('webrtc-client-connected', (event, clientId) => {
       if (!activeClientsMap.has(clientId)) {
         activeClientsMap.set(clientId, { id: clientId, connectedAt: Date.now() });
-        sendNotification({ title: 'New Player Connected!', body: `ID: ${clientId}` });
+        sendNotification({
+          title: 'New Player Connected!',
+          urgency: 'critical',
+          body: `ID: ${clientId}`,
+        });
       }
       broadcastClientList();
     });
@@ -840,6 +842,7 @@ if (gotTheLock) {
         destroyGamepadsForClient(clientId);
         sendNotification({
           title: 'Player Disconnected',
+          urgency: 'critical',
           body: `ID: ${clientId} left the server.`,
         });
         broadcastClientList();
@@ -848,7 +851,11 @@ if (gotTheLock) {
 
     ipcMain.on('kick-client-request', (event, clientId) => {
       console.log(`[SYSTEM] Manual kick requested for: ${clientId}`);
-      sendNotification({ title: 'Player Kicked', body: `You removed: ${clientId}` });
+      sendNotification({
+        title: 'Player Kicked',
+        urgency: 'critical',
+        body: `You removed: ${clientId}`,
+      });
 
       kickWsClient(clientId);
       if (windowsCache.captureWindow) {
