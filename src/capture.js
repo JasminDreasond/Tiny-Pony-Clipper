@@ -68,7 +68,7 @@ window.electronAPI.onCaptureCommand(async (data) => {
           .map((s) => s.trim())
           .filter((s) => s);
         if (parsedUrls.length > 0) hostIceServers = parsedUrls;
-        electronAPI.log('[HOST-ICE-SERVERS]', parsedUrls);
+        electronAPI.log('[HOST ICE SERVERS]', parsedUrls);
       }
 
       /** @type {MediaStream} */
