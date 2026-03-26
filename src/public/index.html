@@ -140,27 +140,34 @@
         user-select: none;
       }
 
-      button {
-        padding: 12px;
-        font-size: 15px;
+      button,
+      .github-link-btn {
         border-radius: 6px;
-        border: none;
-        background: linear-gradient(135deg, #cba6f7, #b4befe);
-        color: #11111b;
+        font-size: 15px;
+        text-align: center;
         font-weight: bold;
         cursor: pointer;
         transition:
           transform 0.2s,
           box-shadow 0.2s;
+      }
+
+      button {
+        padding: 12px;
+        border: none;
+        background: linear-gradient(135deg, #cba6f7, #b4befe);
+        color: #11111b;
         margin-top: 4px;
       }
 
-      button:hover {
+      button:hover,
+      .github-link-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(203, 166, 247, 0.3);
       }
 
-      button:active {
+      button:active,
+      .github-link-btn:hover {
         transform: translateY(0);
       }
 
@@ -485,14 +492,14 @@
         <button id="connectManualBtn">3. Apply & Connect</button>
       </div>
 
-      <button
+      <a
         id="btnClientGithub"
         class="github-link-btn"
         href="https://github.com/Pony-House/Tiny-Pony-Clipper"
         target="_blank"
       >
         💖 Support the project (Donate/Contribute)
-      </button>
+      </a>
     </div>
 
     <video id="streamView" autoplay playsinline muted></video>
