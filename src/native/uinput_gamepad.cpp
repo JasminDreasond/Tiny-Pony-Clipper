@@ -12,8 +12,11 @@ std::map<int, int> active_pads;
 int next_pad_id = 1;
 
 /**
- * @param {const Napi::CallbackInfo&} info
- * @returns {Napi::Value}
+ * Initializes a new virtual gamepad device at the kernel level via uinput.
+ * Configures supported buttons, axes, and basic force feedback features.
+ *
+ * @param {const Napi::CallbackInfo&} info - The arguments passed from Node.js.
+ * @returns {Napi::Value} The internal integer ID representing the created device, or -1 on failure.
  */
 Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
     /** @type {Napi::Env} */
@@ -106,9 +109,10 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
 }
 
 /**
- * Emits an input event.
- * @param {const Napi::CallbackInfo&} info
- * @returns {Napi::Value}
+ * Emits an input event (button press, axis movement) to a previously created virtual gamepad.
+ *
+ * @param {const Napi::CallbackInfo&} info - The arguments passed from Node.js (id, type, code, value).
+ * @returns {Napi::Value} A boolean indicating if the event was successfully sent.
  */
 Napi::Value EmitEvent(const Napi::CallbackInfo& info) {
     /** @type {Napi::Env} */
@@ -132,9 +136,10 @@ Napi::Value EmitEvent(const Napi::CallbackInfo& info) {
 }
 
 /**
- * Destroys the virtual device.
- * @param {const Napi::CallbackInfo&} info
- * @returns {Napi::Value}
+ * Destroys a virtual gamepad device and closes its file descriptor.
+ *
+ * @param {const Napi::CallbackInfo&} info - The arguments passed from Node.js.
+ * @returns {Napi::Value} A boolean indicating success.
  */
 Napi::Value DestroyVirtualGamepad(const Napi::CallbackInfo& info) {
     /** @type {Napi::Env} */
@@ -151,9 +156,10 @@ Napi::Value DestroyVirtualGamepad(const Napi::CallbackInfo& info) {
 }
 
 /**
- * Checks if the process has read/write permissions for /dev/uinput.
- * @param {const Napi::CallbackInfo&} info
- * @returns {Napi::Value}
+ * Checks if the current Node.js process has read and write permissions for the /dev/uinput character device.
+ *
+ * @param {const Napi::CallbackInfo&} info - The arguments passed from Node.js.
+ * @returns {Napi::Value} A boolean indicating if access is granted.
  */
 Napi::Value CheckPermissions(const Napi::CallbackInfo& info) {
     /** @type {Napi::Env} */
@@ -168,9 +174,11 @@ Napi::Value CheckPermissions(const Napi::CallbackInfo& info) {
 }
 
 /**
- * @param {Napi::Env} env
- * @param {Napi::Object} exports
- * @returns {Napi::Object}
+ * Initializes the Native Node Addon, mapping JavaScript function names to their C++ implementations.
+ *
+ * @param {Napi::Env} env - The Node.js environment.
+ * @param {Napi::Object} exports - The exports object to attach the functions to.
+ * @returns {Napi::Object} The populated exports object.
  */
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set(Napi::String::New(env, "setup"), Napi::Function::New(env, SetupVirtualGamepad));

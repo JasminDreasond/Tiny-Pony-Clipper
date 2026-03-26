@@ -35,7 +35,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 });
 
 /**
- * @param {string} audioPath
+ * Plays an audio file from a given path and ensures the memory is cleaned up after playback.
+ * Removes event listeners and clears the audio reference to assist garbage collection.
+ *
+ * @param {string} audioPath - The absolute file path to the audio file.
  * @returns {void}
  */
 const playAndDestroy = (audioPath) => {

@@ -2,8 +2,11 @@ import fs from 'fs';
 import { srcFolder, windowsCache } from './values.js';
 
 /**
- * Accepting only audio files that are in the "src" folder.
- * @param {string} [soundFile]
+ * Instructs the hidden capture window to play an audio file.
+ * Accepts only audio files located within the "src" folder for security.
+ *
+ * @param {string} [soundFile] - The absolute path to the audio file.
+ * @returns {void}
  */
 export const playAudio = (soundFile) => {
   if (!windowsCache.captureWindow) {

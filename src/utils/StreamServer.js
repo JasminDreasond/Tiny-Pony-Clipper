@@ -10,13 +10,16 @@ let currentServer = null;
 /** @type {WebSocketServer | null} */
 let currentWss = null;
 
-// Mapa para rastrear os websockets e podermos kickar
+// Map to track websockets so we can kick clients
 /** @type {Map<string, import('ws').WebSocket>} */
 const activeWsClients = new Map();
 
 /**
- * @param {Object} config
- * @param {Electron.WebContents} captureWebContents
+ * Initializes and starts the local HTTP and WebSocket servers for Remote Play.
+ * Serves the client UI and handles WebSocket authentication and WebRTC signaling.
+ *
+ * @param {Object} config - The active application configuration object.
+ * @param {Electron.WebContents} captureWebContents - The WebContents instance of the hidden capture window.
  * @returns {void}
  */
 export const startStreamServer = (config, captureWebContents) => {
@@ -94,7 +97,7 @@ export const startStreamServer = (config, captureWebContents) => {
         if (data.password === config.streamPassword) {
           isAuthenticated = true;
 
-          // Geramos o ID aqui e registramos o WebSocket
+          // We generate the ID here and register the WebSocket
           clientId = `ip_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
           activeWsClients.set(clientId, ws);
 
@@ -137,11 +140,13 @@ export const startStreamServer = (config, captureWebContents) => {
 };
 
 /**
- * @param {Object} data
- * @param {string} data.type
- * @param {string} data.clientId
- * @param {RTCSessionDescriptionInit} [data.answer]
- * @param {RTCIceCandidateInit} [data.candidate]
+ * Sends a WebRTC signaling payload or an event message directly to a specific connected WebSocket client.
+ *
+ * @param {Object} data - The payload to send.
+ * @param {string} data.type - The type of signal or message.
+ * @param {string} data.clientId - The target client's unique identifier.
+ * @param {RTCSessionDescriptionInit} [data.answer] - The WebRTC answer object (optional).
+ * @param {RTCIceCandidateInit} [data.candidate] - The WebRTC ICE candidate object (optional).
  * @returns {void}
  */
 export const sendSignalToClient = (data) => {
@@ -153,7 +158,10 @@ export const sendSignalToClient = (data) => {
 };
 
 /**
- * @param {string} clientId
+ * Forcefully closes a WebSocket connection for a given client after sending a warning message.
+ * Removes the client from the active connections map.
+ *
+ * @param {string} clientId - The unique identifier of the client to be kicked.
  * @returns {void}
  */
 export const kickWsClient = (clientId) => {

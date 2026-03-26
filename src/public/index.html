@@ -543,7 +543,9 @@
       let notificationTimer = null;
 
       /**
-       * @param {string} message
+       * Displays a temporary toast notification on the screen to inform the user of disconnections.
+       *
+       * @param {string} message - The text to display inside the toast.
        * @returns {void}
        */
       const showDisconnectNotification = (message) => {
@@ -569,8 +571,10 @@
       });
 
       /**
-       * @param {RTCPeerConnection} peerConnection
-       * @returns {Promise<void>}
+       * Waits for the WebRTC ICE candidate gathering process to complete.
+       *
+       * @param {RTCPeerConnection} peerConnection - The connection gathering the candidates.
+       * @returns {Promise<void>} Resolves when the ICE gathering state is 'complete'.
        */
       const waitForIceGathering = (peerConnection) => {
         return new Promise((resolve) => {
@@ -609,8 +613,10 @@
       const activeGamepadsCache = new Map();
 
       /**
-       * @param {string} customStun
-       * @returns {string[]}
+       * Parses a comma-separated string of STUN/TURN server URLs into an array.
+       *
+       * @param {string} customStun - The raw string input containing the server URLs.
+       * @returns {string[]} An array of cleaned up server URLs.
        */
       const parseStunUrls = (customStun) => {
         return customStun
@@ -620,6 +626,9 @@
       };
 
       /**
+       * Reads the DOM input fields to update the user's media preferences (audio/video).
+       * Toggles the UI into a 'gamepad-only' mode if video is disabled.
+       *
        * @returns {void}
        */
       const checkMediaPreferences = () => {
@@ -637,8 +646,11 @@
       };
 
       /**
-       * @param {RTCConfiguration} config
-       * @returns {Promise<string>}
+       * Initializes a new WebRTC PeerConnection, generates an offer based on media preferences,
+       * and waits for all ICE candidates to be gathered for manual signaling.
+       *
+       * @param {RTCConfiguration} config - The WebRTC configuration object (e.g., ICE servers).
+       * @returns {Promise<string>} The stringified local session description (SDP).
        */
       export const generateClientOffer = async (config) => {
         pc = new RTCPeerConnection(config);
@@ -657,8 +669,10 @@
       };
 
       /**
-       * @param {string} answerString
-       * @returns {Promise<void>}
+       * Applies the server's base64-decoded answer to the local PeerConnection to finalize the WebRTC handshake.
+       *
+       * @param {string} answerString - The JSON stringified remote session description.
+       * @returns {Promise<void>} Resolves when the remote description is successfully set.
        */
       export const applyServerAnswer = async (answerString) => {
         if (!pc) return;
@@ -691,7 +705,7 @@
         /** @type {string} */
         const offerString = await generateClientOffer(rtcConfig);
 
-        // Codifica a oferta para Base64 antes de exibir na tela
+        // Encodes the offer to Base64 before displaying it on screen
         myOfferOutput.value = btoa(offerString);
         updateDebug(dbgWs, 'Manual SDP Ready', 'ok');
       });
@@ -706,7 +720,7 @@
 
           try {
             answerStr = atob(b64Answer);
-            // Verifica se decodificou num JSON válido
+            // Checks if it decoded into a valid JSON
             JSON.parse(answerStr);
           } catch (e) {
             alert(
@@ -723,7 +737,7 @@
         }
       });
 
-      // Recuperar senha do cache
+      // Recover password and settings from cache
       window.onload = () => {
         /** @type {string | null} */
         const cachedHost = localStorage.getItem('pony_stream_host');
@@ -737,15 +751,17 @@
         if (cachedStun) stunInput.value = cachedStun;
       };
 
-      // Apertar Enter no campo de senha envia o formulário
+      // Pressing Enter in the password field submits the form
       passInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') initConnection();
       });
 
       /**
-       * @param {HTMLElement} el
-       * @param {string} text
-       * @param {'error' | 'warn' | 'ok'} [state]
+       * Updates a specific element in the debug panel with text and a color-coded state.
+       *
+       * @param {HTMLElement} el - The DOM element to update.
+       * @param {string} text - The new text content for the element.
+       * @param {'error' | 'warn' | 'ok'} [state] - The visual state to apply (changes the text color).
        * @returns {void}
        */
       const updateDebug = (el, text, state) => {
@@ -755,6 +771,11 @@
         else if (state === 'warn') el.classList.add('debug-warn');
       };
 
+      /**
+       * Toggles the visibility of the on-screen debug panel and the client ID HUD.
+       *
+       * @returns {void}
+       */
       const toggleDebug = () => {
         /** @type {boolean} */
         const isHidden = debugPanel.classList.toggle('hidden');
@@ -766,12 +787,12 @@
           clientIdHud.classList.remove('hidden');
         }
 
-        btnToggleDebug.blur(); // Remove foco do botão
+        btnToggleDebug.blur(); // Removes focus from the button
       };
 
       btnToggleDebug.addEventListener('click', toggleDebug);
 
-      // Atalho de teclado F2 para toggle
+      // F2 keyboard shortcut to toggle
       window.addEventListener('keydown', (e) => {
         if (e.key === 'F2') {
           e.preventDefault();
@@ -793,8 +814,13 @@
 
       // --- NETWORKING ---
 
+      /**
+       * Initializes the WebSocket connection to the server for automatic IP-based signaling and authentication.
+       *
+       * @returns {void}
+       */
       const initConnection = () => {
-        // Usa a porta atual do navegador para o WebSocket
+        // Uses the current browser port for the WebSocket
         checkMediaPreferences();
         localStorage.setItem('pony_stream_stun', stunInput.value.trim());
 
@@ -850,14 +876,14 @@
               document.getElementById('myClientId').textContent = data.clientId;
             }
 
-            // Salva no cache
+            // Saves to cache
             localStorage.setItem('pony_stream_pass', passInput.value);
 
             updateDebug(dbgWs, 'Connected', 'ok');
             loginDiv.style.display = 'none';
             document.body.classList.add('is-playing');
 
-            // Flexibiliza o STUN server enviando pelo config
+            // Makes the STUN server flexible by reading from config
             iceServerUrls = [];
             if (data.iceServers) {
               /** @type {string[]} */
@@ -890,10 +916,16 @@
         };
       };
 
+      /**
+       * Configures all necessary event listeners for the WebRTC PeerConnection.
+       * Handles data channels (ping/pong, gamepad inputs), connection states, and incoming video tracks.
+       *
+       * @returns {void}
+       */
       const setupWebRTCEvents = () => {
         updateDebug(dbgRtcConn, 'Initializing...', 'warn');
 
-        // Configuração do DataChannel para Inputs (Não confiável/Ordenado para latência mínima)
+        // DataChannel configuration for Inputs (Unreliable/Unordered for minimum latency)
         dataChannel = pc.createDataChannel('gamepad', { ordered: false, maxRetransmits: 0 });
 
         /** @type {number} */
@@ -902,7 +934,7 @@
         dataChannel.onopen = () => {
           updateDebug(dbgDc, 'Open', 'ok');
 
-          // Inicia o envio do Ping a cada 2 segundos
+          // Starts sending Ping every 2 seconds
           pingInterval = setInterval(() => {
             if (dataChannel.readyState === 'open') {
               dataChannel.send(JSON.stringify({ type: 'ping', time: Date.now() }));
@@ -937,21 +969,21 @@
               });
             }
           } else if (msg.type === 'pong') {
-            // Calcula o tempo de ida e volta
+            // Calculates round-trip time (latency)
             /** @type {number} */
             const currentLatency = Date.now() - msg.time;
 
-            // Atualiza a tela do cliente
+            // Updates the client debug screen
             updateDebug(
               dbgPing,
               `${currentLatency} ms`,
               currentLatency < 80 ? 'ok' : currentLatency < 150 ? 'warn' : 'error',
             );
 
-            // Envia o resultado pro Host anotar no painel dele
+            // Sends the result to the Host to log on their panel
             dataChannel.send(JSON.stringify({ type: 'client_latency', latency: currentLatency }));
           } else if (msg.type === 'server_warning') {
-            // ---> ISSO AQUI FAZ O CLIENTE P2P LER OS AVISOS DO SERVIDOR <---
+            // ---> THIS ALLOWS THE P2P CLIENT TO READ SERVER WARNINGS <---
             updateDebug(dbgPad, 'Limit Reached / Kicked!', 'error');
             dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${msg.message}</span>`;
             showDisconnectNotification(`Host Message: ${msg.message}`);
@@ -959,7 +991,7 @@
           }
         };
 
-        // Monitoramento de Estados da Conexão
+        // Connection State Monitoring
         pc.onconnectionstatechange = () => {
           /** @type {string} */
           const s = pc.connectionState;
@@ -994,7 +1026,7 @@
             if (video.srcObject !== event.streams[0]) {
               video.srcObject = event.streams[0];
 
-              // Tenta forçar o playback. Navegadores exigem muted para autoplay sem interação.
+              // Tries to force playback. Browsers require 'muted' for autoplay without user interaction.
               video
                 .play()
                 .then(() => {
@@ -1004,12 +1036,12 @@
                   console.error('[VIDEO ERROR] Autoplay blocked:', error);
                   updateDebug(dbgVidPlay, 'Blocked (Click Video)', 'error');
 
-                  // Adiciona um ouvinte único: se o usuário clicar no vídeo, tenta dar play.
+                  // Adds a one-time listener: if the user clicks the video, it tries to play.
                   video.addEventListener(
                     'click',
                     () => {
                       video.play();
-                      video.muted = false; // Tenta desmutar após o clique
+                      video.muted = false; // Tries to unmute after click
                     },
                     { once: true },
                   );
@@ -1018,7 +1050,7 @@
           };
         }
 
-        // Detecta resolução real quando o vídeo começa a rodar
+        // Detects actual resolution when the video starts playing
         video.onloadedmetadata = () => {
           updateDebug(dbgVidRes, `${video.videoWidth}x${video.videoHeight}`, 'ok');
         };
@@ -1031,6 +1063,12 @@
         requestAnimationFrame(pollGamepad);
       };
 
+      /**
+       * Sets up the WebRTC PeerConnection specifically for the IP/WebSocket connection flow.
+       * Generates the initial offer and sends it directly to the server via WebSocket.
+       *
+       * @returns {Promise<void>}
+       */
       const setupIPWebRTC = async () => {
         pc = new RTCPeerConnection({ iceServers: [{ urls: iceServerUrls }] });
         setupWebRTCEvents();
@@ -1041,7 +1079,7 @@
           }
         };
 
-        // Criação da Oferta (Nós somos o cliente, iniciamos a conexão)
+        // Offer Creation (We are the client, so we initiate the connection)
         /** @type {RTCSessionDescriptionInit} */
         const offer = await pc.createOffer({
           offerToReceiveVideo: videoRequested,
@@ -1056,6 +1094,12 @@
 
       // --- EFFICIENT POLLING WITH CACHE ---
 
+      /**
+       * Continuously polls active gamepads using the browser's Gamepad API.
+       * Gathers pressed buttons and analog axis data, formats it, and sends it to the server via the DataChannel.
+       *
+       * @returns {void}
+       */
       const pollGamepad = () => {
         /** @type {Gamepad[]} */
         const gamepads = navigator.getGamepads();

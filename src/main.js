@@ -109,8 +109,10 @@ const TEMP_DIR = path.join(os.tmpdir(), 'pony_clipper_segments');
 const JOBS_DIR = path.join(os.tmpdir(), 'pony_clipper_jobs');
 
 /**
- * @param {string} dirPath
- * @returns {boolean}
+ * Checks if a given string path exists and is a valid directory.
+ *
+ * @param {string} dirPath - The directory path to validate.
+ * @returns {boolean} True if the directory exists and is valid, false otherwise.
  */
 const isDirectoryValid = (dirPath) => {
   try {
@@ -121,7 +123,9 @@ const isDirectoryValid = (dirPath) => {
 };
 
 /**
- * @returns {string}
+ * Retrieves the absolute path to the main application configuration JSON file.
+ *
+ * @returns {string} The full path to config.json within the user data folder.
  */
 const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
 
@@ -152,7 +156,9 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
 
 // Update your default config function
 /**
- * @returns {AppConfig}
+ * Generates and returns the default application configuration object.
+ *
+ * @returns {AppConfig} The default configuration settings.
  */
 const getDefaultConfig = () => ({
   enableClipping: true,
@@ -180,7 +186,10 @@ const getDefaultConfig = () => ({
 });
 
 /**
- * @returns {AppConfig}
+ * Loads the user's configuration from the disk.
+ * Falls back to default settings if the file does not exist or is malformed.
+ *
+ * @returns {AppConfig} The merged application configuration.
  */
 const loadConfig = () => {
   const defaultCfg = getDefaultConfig();
@@ -201,7 +210,9 @@ const loadConfig = () => {
 };
 
 /**
- * @param {AppConfig} config
+ * Saves the provided configuration object to the disk as a JSON file.
+ *
+ * @param {AppConfig} config - The configuration object to save.
  * @returns {void}
  */
 const saveConfig = (config) => {
@@ -212,7 +223,9 @@ const saveConfig = (config) => {
 };
 
 /**
- * @param {string} dirPath
+ * Ensures that a directory exists at the specified path, creating it recursively if necessary.
+ *
+ * @param {string} dirPath - The target directory path.
  * @returns {void}
  */
 const ensureDirExists = (dirPath) => {
@@ -223,7 +236,10 @@ const ensureDirExists = (dirPath) => {
 };
 
 /**
- * @param {number} maxMinutes
+ * Starts a background interval to clean up old video and audio segments from the temporary directory.
+ * Maintains the most recent segments based on the configured buffer duration.
+ *
+ * @param {number} maxMinutes - The maximum amount of minutes (segments) to keep in the buffer.
  * @returns {void}
  */
 const startGarbageCollector = (maxMinutes) => {
@@ -300,8 +316,10 @@ const startGarbageCollector = (maxMinutes) => {
 };
 
 /**
- * Starts the FFmpeg recording process based on the provided configuration.
- * @param {AppConfig} config
+ * Prepares the system for a new recording session, cleans old temporary files,
+ * and signals the capture window to begin recording the screen and audio.
+ *
+ * @param {AppConfig} config - The current application configuration.
  * @returns {void}
  */
 const startRecording = (config) => {
@@ -356,7 +374,10 @@ const startRecording = (config) => {
 };
 
 /**
- * @param {string} saveDir
+ * Processes and merges the recorded video and audio segments from the temporary directory into a final MP4 file.
+ * Executes FFmpeg commands based on the selected hardware and quality settings.
+ *
+ * @param {string} saveDir - The directory where the final MP4 clip should be saved.
  * @returns {void}
  */
 const saveClip = (saveDir) => {
@@ -630,7 +651,10 @@ const saveClip = (saveDir) => {
 };
 
 /**
- * @param {AppConfig} config
+ * Applies the parsed configuration, registers global hotkeys, and initializes either the recording engine,
+ * the streaming server, or both depending on the settings.
+ *
+ * @param {AppConfig} config - The configuration object to apply.
  * @returns {void}
  */
 const applyConfigurationAndStart = (config) => {
@@ -729,7 +753,9 @@ const applyConfigurationAndStart = (config) => {
 };
 
 /**
- * @returns {Promise<void>}
+ * Creates and displays the main graphical user interface window for settings configuration.
+ *
+ * @returns {void}
  */
 const createHiddenCaptureWindow = async () => {
   windowsCache.captureWindow = new BrowserWindow({
@@ -745,6 +771,8 @@ const createHiddenCaptureWindow = async () => {
 };
 
 /**
+ * Creates and displays the main graphical user interface window for settings configuration.
+ *
  * @returns {void}
  */
 const createConfigWindow = () => {
@@ -778,6 +806,8 @@ const createConfigWindow = () => {
 };
 
 /**
+ * Toggles the visibility of the configuration window. Creates it if it doesn't currently exist.
+ *
  * @returns {void}
  */
 const toggleConfigWindow = () => {
@@ -804,6 +834,9 @@ if (gotTheLock) {
     let lastKnownGamepadCount = 0;
 
     /**
+     * Broadcasts the current list of connected WebRTC and WebSocket clients to the UI.
+     * Maps the internal connection data into a simplified format for the renderer.
+     *
      * @returns {void}
      */
     const broadcastClientList = () => {
@@ -825,7 +858,7 @@ if (gotTheLock) {
       });
     };
 
-    // Loop que atualiza a UI do host a cada 2 segundos para mostrar o ping variando
+    // Loop that updates the host UI every 2 seconds to show varying ping
     setInterval(() => {
       if (
         activeClientsMap.size > 0 &&
@@ -877,7 +910,7 @@ if (gotTheLock) {
 
     // Handle Gamepad Inputs from WebRTC DataChannel
     ipcMain.on('gamepad-input', (event, data) => {
-      // Salva a latência recebida pelo DataChannel
+      // Saves the latency received through the DataChannel
       if (data.type === 'client_latency') {
         if (activeClientsMap.has(data.clientId)) {
           activeClientsMap.get(data.clientId).latency = data.latency;
@@ -915,14 +948,14 @@ if (gotTheLock) {
               `[STREAM WARN] Rejected gamepad ${pad.index} for ${data.clientId} - Max limit of ${currentConfig.maxGamepads} reached.`,
             );
 
-            // Tenta enviar pelo WebSocket (funciona para clientes IP)
+            // Tries to send via WebSocket (works for IP clients)
             sendSignalToClient({
               type: 'server_warning',
               message: `Gamepad [${pad.index}] blocked: Server max limit reached.`,
               clientId: data.clientId,
             });
 
-            // Tenta enviar pelo DataChannel do WebRTC (funciona para clientes P2P)
+            // Tries to send via WebRTC DataChannel (works for P2P clients)
             if (windowsCache.captureWindow) {
               windowsCache.captureWindow.webContents.send('send-datachannel-message', {
                 clientId: data.clientId,

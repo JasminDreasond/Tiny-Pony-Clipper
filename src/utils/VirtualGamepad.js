@@ -51,8 +51,10 @@ const AXIS_MAP = [keyCodes.ABS_X, keyCodes.ABS_Y, keyCodes.ABS_RX, keyCodes.ABS_
 const persistentGamepads = new Map();
 
 /**
- * @param {string} clientId
- * @returns {number}
+ * Counts how many active virtual gamepads are currently assigned to a specific client.
+ *
+ * @param {string} clientId - The unique identifier of the client.
+ * @returns {number} The amount of gamepads associated with the client.
  */
 export const getGamepadCountForClient = (clientId) => {
   /** @type {number} */
@@ -64,17 +66,22 @@ export const getGamepadCountForClient = (clientId) => {
 };
 
 /**
- * @returns {number}
+ * Gets the total amount of active virtual gamepads across all connected clients.
+ *
+ * @returns {number} The total count of active virtual gamepads.
  */
 export const getTotalGamepads = () => {
   return persistentGamepads.size;
 };
 
 /**
- * @param {string} clientId
- * @param {number} padIndex
- * @param {string} padType
- * @returns {number}
+ * Retrieves an existing virtual gamepad ID for a client or initializes a new one if it doesn't exist.
+ * Validates maximum connection limits before creating a new device via uinput.
+ *
+ * @param {string} clientId - The unique identifier of the client.
+ * @param {number} padIndex - The index of the gamepad from the client's side.
+ * @param {string} padType - The hardware type to emulate ('ds4' for DualShock 4 or 'xbox' for Xbox 360).
+ * @returns {number} The internal uinput device ID, or a negative error code if it failed or limits were reached.
  */
 export const getOrInitGamepad = (clientId, padIndex, padType) => {
   /** @type {string} */
@@ -101,6 +108,9 @@ export const getOrInitGamepad = (clientId, padIndex, padType) => {
 };
 
 /**
+ * Destroys all currently active virtual gamepads and clears the persistent map.
+ * Called when the application is shutting down.
+ *
  * @returns {void}
  */
 export const destroyAllGamepads = () => {
@@ -111,7 +121,10 @@ export const destroyAllGamepads = () => {
 };
 
 /**
- * @param {string} clientId
+ * Destroys all virtual gamepads associated with a specific client and removes them from the persistent map.
+ * Called when a client disconnects from the server.
+ *
+ * @param {string} clientId - The unique identifier of the client.
  * @returns {void}
  */
 export const destroyGamepadsForClient = (clientId) => {
@@ -125,11 +138,14 @@ export const destroyGamepadsForClient = (clientId) => {
 };
 
 /**
- * @param {string} clientId
- * @param {number} padIndex
- * @param {Object} state
- * @param {string} padType
- * @returns {string}
+ * Translates Web Gamepad API states into kernel-level uinput events.
+ * Only sends events if the state of a button or axis has changed to optimize performance.
+ *
+ * @param {string} clientId - The unique identifier of the client.
+ * @param {number} padIndex - The index of the gamepad from the client's side.
+ * @param {Object} state - The current gamepad state containing 'buttons' and 'axes' arrays.
+ * @param {string} padType - The hardware type to emulate.
+ * @returns {string} The status of the operation: 'OK', 'ERROR', or 'LIMIT_REACHED'.
  */
 export const updateGamepadState = (clientId, padIndex, state, padType) => {
   /** @type {number} */
@@ -205,8 +221,9 @@ export const updateGamepadState = (clientId, padIndex, state, padType) => {
 };
 
 /**
- * Verifies if the system allows creating virtual devices.
- * @returns {boolean}
+ * Checks if the current process has the required Read/Write permissions to access /dev/uinput.
+ *
+ * @returns {boolean} True if the system grants access, false otherwise.
  */
 export const canAccessUinput = () => {
   return uinput.checkPermissions();

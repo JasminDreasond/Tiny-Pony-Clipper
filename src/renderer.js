@@ -76,6 +76,9 @@ const clientListContainer = document.getElementById('clientList');
 const gamepadSlotsInfo = document.getElementById('gamepadSlotsInfo');
 
 /**
+ * Updates the user interface state for the streaming section based on whether the stream is enabled.
+ * Toggles the disabled state of manual SDP inputs and updates the connected players status message.
+ *
  * @returns {void}
  */
 const updateStreamUIState = () => {
@@ -187,7 +190,7 @@ processOfferBtn.addEventListener('click', () => {
 
     try {
       offerString = atob(b64Offer);
-      // Validação rápida para garantir que o resultado decodificado é um JSON válido
+      // Quick validation to ensure the decoded result is a valid JSON
       JSON.parse(offerString);
     } catch (e) {
       alert('Invalid Base64 format! Please ensure you copied the entire code correctly.');
@@ -214,7 +217,10 @@ electronAPI.onManualAnswer((event, answerString) => {
 });
 
 /**
- * @param {HTMLInputElement} inputElement
+ * Enforces minimum and maximum numerical limits on an HTML input element.
+ * Listens to the 'change' event and corrects out-of-bounds values.
+ *
+ * @param {HTMLInputElement} inputElement - The input element to apply validation to.
  * @returns {void}
  */
 const enforceNumberValidation = (inputElement) => {
@@ -240,9 +246,12 @@ const enforceNumberValidation = (inputElement) => {
 let isWaylandEnvironment = false;
 
 /**
- * @param {HTMLSelectElement} selectElement
- * @param {Object[]} items
- * @param {string} selectedValue
+ * Populates an HTML select element with options generated from an array of objects.
+ * Clears existing options before appending new ones and sets the selected value.
+ *
+ * @param {HTMLSelectElement} selectElement - The select dropdown element to populate.
+ * @param {Object[]} items - An array of objects containing 'id' and 'name' properties.
+ * @param {string} selectedValue - The value to be set as selected after population.
  * @returns {void}
  */
 const populateSelect = (selectElement, items, selectedValue) => {
@@ -258,7 +267,10 @@ const populateSelect = (selectElement, items, selectedValue) => {
 };
 
 /**
- * @param {KeyboardEvent} event
+ * Handles the keyboard event to capture a combination of modifier keys and a main key.
+ * Formats the combination and updates the shortcut input field value.
+ *
+ * @param {KeyboardEvent} event - The keyboard event triggered by the user input.
  * @returns {void}
  */
 const handleShortcutCapture = (event) => {
@@ -282,7 +294,10 @@ const handleShortcutCapture = (event) => {
 };
 
 /**
- * @returns {Promise<void>}
+ * Initializes the application state by fetching configuration and hardware details from the main process.
+ * Applies the fetched data to the UI components and sets up environment-specific behaviors like Wayland shortcuts.
+ *
+ * @returns {Promise<void>} Resolves when the initialization is complete.
  */
 const init = async () => {
   console.log('[RENDERER] Loading saved configuration...');

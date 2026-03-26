@@ -26,7 +26,9 @@ export const appIconPath = path.join(srcFolder, './icons/tray-icon.png');
 export const appIconProcessingPath = path.join(srcFolder, './icons/tray-icon-processing.png');
 
 /**
- * @returns {{ monitors: Object[], audioOutputs: Object[], audioInputs: Object[] }}
+ * Queries the system for available monitors and audio devices (inputs and outputs) using Electron and PulseAudio.
+ *
+ * @returns {{ monitors: Object[], audioOutputs: Object[], audioInputs: Object[] }} An object containing lists of available hardware.
  */
 export const getHardwareInfo = () => {
   /** @type {Object[]} */

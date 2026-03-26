@@ -2,9 +2,11 @@ import { rm, mkdir, readdir, copyFile, stat } from 'fs/promises';
 import { join } from 'path';
 
 /**
- * @param {string} source
- * @param {string} destination
- * @returns {Promise<void>}
+ * Recursively copies all files and subdirectories from a source path to a destination path.
+ *
+ * @param {string} source - The absolute or relative path to the source folder or file.
+ * @param {string} destination - The absolute or relative path to the target folder.
+ * @returns {Promise<void>} Resolves when the copy operation is completely finished.
  */
 const copyRecursive = async (source, destination) => {
     /** @type {import('node:fs').Stats} */
@@ -30,8 +32,11 @@ const copyRecursive = async (source, destination) => {
 };
 
 /**
- * @param {string} path
- * @returns {Promise<void>}
+ * Forcefully removes a directory and all of its contents.
+ * Used to clean up the build folder before starting a fresh copy.
+ *
+ * @param {string} path - The path to the directory to be removed.
+ * @returns {Promise<void>} Resolves when the directory is successfully deleted.
  */
 const cleanDirectory = async (path) => {
     /** @type {object} */
@@ -40,7 +45,10 @@ const cleanDirectory = async (path) => {
 };
 
 /**
- * @returns {Promise<void>}
+ * Orchestrates the web client build process. 
+ * Cleans the destination directory, copies public assets, and handles the tray icon.
+ *
+ * @returns {Promise<void>} Resolves when the build script finishes executing.
  */
 const buildWeb = async () => {
     /** @type {string} */

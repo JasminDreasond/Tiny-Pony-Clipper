@@ -20,7 +20,10 @@ const dataChannels = new Map();
 let hostIceServers = ['stun:stun.l.google.com:19302'];
 
 /**
- * @param {MediaStream} stream
+ * Starts recording a specific media stream segment, saving data chunks and restarting automatically
+ * after a fixed duration to create manageable pieces for later assembly.
+ *
+ * @param {MediaStream} stream - The combined audio and video stream to record.
  * @returns {void}
  */
 const recordSegment = (stream) => {
@@ -113,8 +116,11 @@ electronAPI.onCaptureCommand(async (data) => {
 // --- WebRTC Host Signaling ---
 
 /**
- * @param {string} clientId
- * @returns {RTCPeerConnection}
+ * Initializes a new WebRTC Peer Connection for a specific client, attaches the active video stream,
+ * and configures data channels for remote gamepad inputs.
+ *
+ * @param {string} clientId - The unique identifier for the connecting client.
+ * @returns {RTCPeerConnection} The fully configured WebRTC Peer Connection object.
  */
 const createPeerConnection = (clientId) => {
   /** @type {RTCPeerConnection} */
@@ -139,23 +145,23 @@ const createPeerConnection = (clientId) => {
     /** @type {RTCDataChannel} */
     const inputChannel = event.channel;
 
-    // Salva o canal de dados para podermos enviar mensagens do main.js
+    // Saves the data channel so we can send messages from main.js
     dataChannels.set(clientId, inputChannel);
 
-    // Envia o ClientId também pelo SDP manual usando o canal de dados
+    // Also sends the ClientId via manual SDP using the data channel
     inputChannel.send(JSON.stringify({ type: 'server_hello', clientId: clientId }));
 
     inputChannel.onmessage = (msg) => {
       /** @type {Object} */
       const data = JSON.parse(msg.data);
 
-      // Se for Ping, rebate como Pong imediatamente sem passar pelo main.js
+      // If it's a Ping, replies as Pong immediately without passing through main.js
       if (data.type === 'ping') {
         inputChannel.send(JSON.stringify({ type: 'pong', time: data.time }));
         return;
       }
 
-      // Se for inputs ou latência calculada, envia pro main.js
+      // If it's inputs or calculated latency, sends it to main.js
       data.clientId = clientId;
       electronAPI.sendGamepadInput(data);
     };
@@ -195,8 +201,11 @@ const createPeerConnection = (clientId) => {
 };
 
 /**
- * @param {RTCPeerConnection} peerConnection
- * @returns {Promise<void>}
+ * Waits for the WebRTC ICE gathering process to complete before resolving.
+ * Used primarily to generate complete manual SDP offers/answers.
+ *
+ * @param {RTCPeerConnection} peerConnection - The peer connection gathering ICE candidates.
+ * @returns {Promise<void>} Resolves when the ICE gathering state becomes 'complete'.
  */
 export const waitForIceGathering = (peerConnection) => {
   return new Promise((resolve) => {
@@ -287,14 +296,14 @@ electronAPI.onForceCloseWebrtc((event, clientId) => {
   /** @type {RTCDataChannel | undefined} */
   const dc = dataChannels.get(clientId);
 
-  // Envia a mensagem de aviso pelo P2P antes de matar a conexão
+  // Sends the warning message via P2P before killing the connection
   if (dc && dc.readyState === 'open') {
     dc.send(
       JSON.stringify({ type: 'server_warning', message: 'You have been kicked by the host.' }),
     );
   }
 
-  // Dá um pequeno atraso de 250ms para garantir que a mensagem viajou pela rede antes de cortar o cabo
+  // Gives a small 250ms delay to ensure the message traveled through the network before cutting the connection
   setTimeout(() => {
     /** @type {RTCPeerConnection | undefined} */
     const pc = peers.get(clientId);
