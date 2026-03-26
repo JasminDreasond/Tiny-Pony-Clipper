@@ -60,7 +60,7 @@ const buildWeb = async () => {
         console.log('Cleaning destination folder...');
         await cleanDirectory(distDir);
 
-        console.log('Starting file copy...');
+        console.log('Starting file copy (including HTML and JS)...');
         await copyRecursive(srcDir, distDir);
         
         console.log('Copying tray icon...');

@@ -64,6 +64,20 @@ export const startStreamServer = (config, captureWebContents) => {
         res.writeHead(200, { 'Content-Type': 'image/png' });
         res.end(data);
       });
+    } else if (req.url === '/js/main.js') {
+      /** @type {string} */
+      const jsPath = path.join(srcFolder, './public/js/main.js');
+
+      fs.readFile(jsPath, 'utf-8', (err, data) => {
+        if (err) {
+          console.error('[STREAM ERROR] Failed to load main.js:', err);
+          res.writeHead(404);
+          res.end('Not found');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/javascript' });
+        res.end(data);
+      });
     } else {
       /** @type {string} */
       const htmlFilePath = path.join(srcFolder, './public/404.html');
