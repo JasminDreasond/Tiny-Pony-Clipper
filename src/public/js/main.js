@@ -29,15 +29,46 @@ const clientIdHud = document.getElementById('clientIdHud');
 /** @type {HTMLElement} */
 const dbgPing = document.getElementById('dbgPing');
 
+// Keyboard Gamepad UI
+/** @type {HTMLInputElement} */
+const useKbPadInput = document.getElementById('useKbPad');
+/** @type {HTMLButtonElement} */
+const btnOpenKbConfig = document.getElementById('btnOpenKbConfig');
+/** @type {HTMLElement} */
+const kbModal = document.getElementById('kbModal');
+/** @type {HTMLCanvasElement} */
+const gamepadCanvas = document.getElementById('gamepadCanvas');
+/** @type {HTMLElement} */
+const kbMappings = document.getElementById('kbMappings');
+/** @type {HTMLButtonElement} */
+const btnCloseKb = document.getElementById('btnCloseKb');
+/** @type {HTMLButtonElement} */
+const btnExportKb = document.getElementById('btnExportKb');
+/** @type {HTMLButtonElement} */
+const btnImportKbBtn = document.getElementById('btnImportKbBtn');
+/** @type {HTMLInputElement} */
+const btnImportKbFile = document.getElementById('btnImportKbFile');
+/** @type {HTMLButtonElement} */
+const btnOpenTx = document.getElementById('btnOpenTx');
+
 // Debug Elements
+/** @type {HTMLElement} */
 const dbgWs = document.getElementById('dbgWs');
+/** @type {HTMLElement} */
 const dbgRtcConn = document.getElementById('dbgRtcConn');
+/** @type {HTMLElement} */
 const dbgRtcIce = document.getElementById('dbgRtcIce');
+/** @type {HTMLElement} */
 const dbgVidTrack = document.getElementById('dbgVidTrack');
+/** @type {HTMLElement} */
 const dbgVidPlay = document.getElementById('dbgVidPlay');
+/** @type {HTMLElement} */
 const dbgVidRes = document.getElementById('dbgVidRes');
+/** @type {HTMLElement} */
 const dbgDc = document.getElementById('dbgDc');
+/** @type {HTMLElement} */
 const dbgPad = document.getElementById('dbgPad');
+/** @type {HTMLElement} */
 const dbgInput = document.getElementById('dbgInput');
 
 /** @type {NodeJS.Timeout | null} */
@@ -56,9 +87,7 @@ const showDisconnectNotification = (message) => {
   toast.classList.add('show');
 
   if (notificationTimer) clearTimeout(notificationTimer);
-  notificationTimer = setTimeout(() => {
-    toast.classList.remove('show');
-  }, 5000);
+  notificationTimer = setTimeout(() => toast.classList.remove('show'), 5000);
 };
 
 connMethodSelect.addEventListener('change', () => {
@@ -82,9 +111,6 @@ const waitForIceGathering = (peerConnection) => {
     if (peerConnection.iceGatheringState === 'complete') {
       resolve();
     } else {
-      /**
-       * @returns {void}
-       */
       const checkState = () => {
         if (peerConnection.iceGatheringState === 'complete') {
           peerConnection.removeEventListener('icegatheringstatechange', checkState);
@@ -119,12 +145,11 @@ const activeGamepadsCache = new Map();
  * @param {string} customStun - The raw string input containing the server URLs.
  * @returns {string[]} An array of cleaned up server URLs.
  */
-const parseStunUrls = (customStun) => {
-  return customStun
+const parseStunUrls = (customStun) =>
+  customStun
     .split(',')
     .map((s) => s.trim())
     .filter((s) => s);
-};
 
 /**
  * Reads the DOM input fields to update the user's media preferences (audio/video).
@@ -157,7 +182,6 @@ export const generateClientOffer = async (config) => {
   pc = new RTCPeerConnection(config);
   setupWebRTCEvents();
 
-  /** @type {RTCSessionDescriptionInit} */
   const offer = await pc.createOffer({
     offerToReceiveVideo: videoRequested,
     offerToReceiveAudio: audioRequested,
@@ -181,6 +205,303 @@ export const applyServerAnswer = async (answerString) => {
   const remoteAnswer = JSON.parse(answerString);
   await pc.setRemoteDescription(remoteAnswer);
 };
+
+// --- KEYBOARD EMULATOR LOGIC ---
+
+/**
+ * @typedef {Object} VirtualGamepadConfig
+ * @property {boolean} connected
+ * @property {number} index
+ * @property {number[]} axes
+ * @property {{pressed: boolean, value: number}[]} buttons
+ */
+
+/** @type {VirtualGamepadConfig} */
+const virtualPad = {
+  connected: false,
+  axes: [0, 0, 0, 0],
+  buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
+};
+
+/**
+ * @typedef {Object} KeyMapAction
+ * @property {string} name
+ * @property {'button'|'axis'} type
+ * @property {number} index
+ * @property {number} [val]
+ */
+
+/** @type {Record<string, KeyMapAction>} */
+const defaultActionMap = {
+  btnA: { name: 'A Button', type: 'button', index: 0 },
+  btnB: { name: 'B Button', type: 'button', index: 1 },
+  btnX: { name: 'X Button', type: 'button', index: 2 },
+  btnY: { name: 'Y Button', type: 'button', index: 3 },
+  btnLB: { name: 'Left Bumper', type: 'button', index: 4 },
+  btnRB: { name: 'Right Bumper', type: 'button', index: 5 },
+  btnLT: { name: 'Left Trigger', type: 'button', index: 6 },
+  btnRT: { name: 'Right Trigger', type: 'button', index: 7 },
+  btnSelect: { name: 'Select', type: 'button', index: 8 },
+  btnStart: { name: 'Start', type: 'button', index: 9 },
+  dUp: { name: 'D-Pad Up', type: 'button', index: 12 },
+  dDown: { name: 'D-Pad Down', type: 'button', index: 13 },
+  dLeft: { name: 'D-Pad Left', type: 'button', index: 14 },
+  dRight: { name: 'D-Pad Right', type: 'button', index: 15 },
+  lsUp: { name: 'LS Up', type: 'axis', index: 1, val: -1 },
+  lsDown: { name: 'LS Down', type: 'axis', index: 1, val: 1 },
+  lsLeft: { name: 'LS Left', type: 'axis', index: 0, val: -1 },
+  lsRight: { name: 'LS Right', type: 'axis', index: 0, val: 1 },
+  rsUp: { name: 'RS Up', type: 'axis', index: 3, val: -1 },
+  rsDown: { name: 'RS Down', type: 'axis', index: 3, val: 1 },
+  rsLeft: { name: 'RS Left', type: 'axis', index: 2, val: -1 },
+  rsRight: { name: 'RS Right', type: 'axis', index: 2, val: 1 },
+};
+
+/** @type {Record<string, string>} */
+let currentKeyBinds = {
+  btnA: 'KeyK',
+  btnB: 'KeyL',
+  btnX: 'KeyJ',
+  btnY: 'KeyI',
+  dUp: 'ArrowUp',
+  dDown: 'ArrowDown',
+  dLeft: 'ArrowLeft',
+  dRight: 'ArrowRight',
+  lsUp: 'KeyW',
+  lsDown: 'KeyS',
+  lsLeft: 'KeyA',
+  lsRight: 'KeyD',
+  btnStart: 'Enter',
+  btnSelect: 'ShiftRight',
+};
+
+/** @type {Set<string>} */
+const pressedKeys = new Set();
+/** @type {string|null} */
+let awaitingBind = null;
+/** @type {number|null} */
+let animFrameId = null;
+
+/**
+ * @returns {void}
+ */
+const generateKbUI = () => {
+  kbMappings.innerHTML = '';
+  Object.keys(defaultActionMap).forEach((actionId) => {
+    const action = defaultActionMap[actionId];
+    const bindBtn = document.createElement('button');
+    bindBtn.textContent = currentKeyBinds[actionId] || 'Unbound';
+    bindBtn.onclick = () => {
+      if (awaitingBind) return;
+      awaitingBind = actionId;
+      bindBtn.textContent = 'Press Key...';
+    };
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'kb-map-item';
+    wrapper.innerHTML = `<span>${action.name}</span>`;
+    wrapper.appendChild(bindBtn);
+    kbMappings.appendChild(wrapper);
+  });
+};
+
+/**
+ * @returns {void}
+ */
+const drawGamepadCanvas = () => {
+  if (kbModal.style.display === 'none') return;
+
+  const ctx = gamepadCanvas.getContext('2d');
+  ctx.clearRect(0, 0, 300, 180);
+
+  // Draw Body
+  const drawRect = (x, y, w, h, r, pressed) => {
+    ctx.fillStyle = pressed ? '#cba6f7' : '#45475a';
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fill();
+  };
+
+  const drawBtn = (x, y, r, pressed) => {
+    ctx.fillStyle = pressed ? '#cba6f7' : '#45475a';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  // Triggers (LT / RT)
+  drawRect(60, 10, 40, 20, 5, virtualPad.buttons[6].pressed);
+  drawRect(200, 10, 40, 20, 5, virtualPad.buttons[7].pressed);
+
+  // Bumpers (LB / RB)
+  drawRect(50, 35, 60, 15, 5, virtualPad.buttons[4].pressed);
+  drawRect(190, 35, 60, 15, 5, virtualPad.buttons[5].pressed);
+
+  // Body
+  ctx.fillStyle = '#313244';
+  ctx.beginPath();
+  ctx.roundRect(40, 50, 220, 90, 40);
+  ctx.fill();
+
+  // Select / Start
+  drawRect(130, 70, 15, 8, 4, virtualPad.buttons[8].pressed);
+  drawRect(155, 70, 15, 8, 4, virtualPad.buttons[9].pressed);
+
+  // ABXY (+20 Y Offset)
+  drawBtn(230, 100, 8, virtualPad.buttons[0].pressed); // A
+  drawBtn(250, 80, 8, virtualPad.buttons[1].pressed); // B
+  drawBtn(210, 80, 8, virtualPad.buttons[2].pressed); // X
+  drawBtn(230, 60, 8, virtualPad.buttons[3].pressed); // Y
+
+  // D-Pad (+20 Y Offset)
+  drawBtn(70, 80, 8, virtualPad.buttons[12].pressed); // Up
+  drawBtn(70, 110, 8, virtualPad.buttons[13].pressed); // Down
+  drawBtn(55, 95, 8, virtualPad.buttons[14].pressed); // Left
+  drawBtn(85, 95, 8, virtualPad.buttons[15].pressed); // Right
+
+  // Sticks (+20 Y Offset)
+  ctx.fillStyle = '#45475a';
+  ctx.beginPath();
+  ctx.arc(110, 100, 15, 0, Math.PI * 2);
+  ctx.fill();
+  drawBtn(
+    110 + virtualPad.axes[0] * 10,
+    100 + virtualPad.axes[1] * 10,
+    8,
+    virtualPad.buttons[10]?.pressed || virtualPad.axes[0] !== 0 || virtualPad.axes[1] !== 0,
+  );
+
+  ctx.fillStyle = '#45475a';
+  ctx.beginPath();
+  ctx.arc(190, 100, 15, 0, Math.PI * 2);
+  ctx.fill();
+  drawBtn(
+    190 + virtualPad.axes[2] * 10,
+    100 + virtualPad.axes[3] * 10,
+    8,
+    virtualPad.buttons[11]?.pressed || virtualPad.axes[2] !== 0 || virtualPad.axes[3] !== 0,
+  );
+
+  animFrameId = requestAnimationFrame(drawGamepadCanvas);
+};
+
+/**
+ * @param {string} code
+ * @param {boolean} isDown
+ * @returns {void}
+ */
+const handleVirtualInput = (code, isDown) => {
+  if (isDown) pressedKeys.add(code);
+  else pressedKeys.delete(code);
+
+  virtualPad.axes.fill(0);
+  virtualPad.buttons.forEach((b) => {
+    b.pressed = false;
+    b.value = 0;
+  });
+
+  for (const key of pressedKeys) {
+    // Find all actions mapped to this key
+    const mappedActions = Object.entries(currentKeyBinds)
+      .filter(([, k]) => k === key)
+      .map(([a]) => a);
+
+    mappedActions.forEach((actionId) => {
+      const config = defaultActionMap[actionId];
+      if (config.type === 'button') {
+        virtualPad.buttons[config.index].pressed = true;
+        virtualPad.buttons[config.index].value = 1;
+      } else if (config.type === 'axis') {
+        virtualPad.axes[config.index] += config.val;
+      }
+    });
+  }
+
+  for (let i = 0; i < 4; i++) {
+    virtualPad.axes[i] = Math.max(-1, Math.min(1, virtualPad.axes[i]));
+  }
+};
+
+window.addEventListener('keydown', (e) => {
+  if (awaitingBind) {
+    e.preventDefault();
+    currentKeyBinds[awaitingBind] = e.code;
+    awaitingBind = null;
+    generateKbUI();
+    return;
+  }
+  handleVirtualInput(e.code, true);
+});
+
+window.addEventListener('keyup', (e) => {
+  handleVirtualInput(e.code, false);
+});
+
+btnOpenKbConfig.addEventListener('click', () => {
+  kbModal.style.display = 'flex';
+  generateKbUI();
+  drawGamepadCanvas();
+});
+
+btnCloseKb.addEventListener('click', () => {
+  kbModal.style.display = 'none';
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  localStorage.setItem('pony_kb_binds', JSON.stringify(currentKeyBinds));
+});
+
+btnExportKb.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(currentKeyBinds, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tiny_pony_kb_map.json';
+  a.click();
+});
+
+btnImportKbBtn.addEventListener('click', () => btnImportKbFile.click());
+
+btnImportKbFile.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      currentKeyBinds = JSON.parse(evt.target.result);
+      generateKbUI();
+    } catch (err) {
+      alert('Invalid JSON format!');
+    }
+  };
+  reader.readAsText(file);
+});
+
+useKbPadInput.addEventListener('change', (e) => {
+  virtualPad.connected = e.target.checked;
+  localStorage.setItem('pony_use_kb', e.target.checked.toString());
+});
+
+wantsVideoInput.addEventListener('change', (e) => {
+  localStorage.setItem('pony_wants_video', e.target.checked.toString());
+});
+
+wantsAudioInput.addEventListener('change', (e) => {
+  localStorage.setItem('pony_wants_audio', e.target.checked.toString());
+});
+
+// --- POPUP TRANSMITTER ---
+
+btnOpenTx.addEventListener('click', () => {
+  const popupHtml = `<!DOCTYPE html><html><head><title>Input Transmitter</title><style>body{background:#1e1e2e;color:#cba6f7;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h3{margin:0;}</style></head><body><div><h3>Transmitter Active</h3><p>Keep this window focused to send keyboard inputs to Tiny Pony Stream.</p></div><script>['keydown','keyup'].forEach(evt=>{window.addEventListener(evt,e=>{e.preventDefault();if(window.opener){window.opener.postMessage({type:'kb_event',event:evt,code:e.code},'*');}});});</script></body></html>`;
+  const blob = new Blob([popupHtml], { type: 'text/html' });
+  window.open(URL.createObjectURL(blob), 'InputTransmitter', 'width=350,height=250');
+});
+
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'kb_event') {
+    handleVirtualInput(e.data.code, e.data.event === 'keydown');
+  }
+});
+
+// --- MAIN APPLICATION RESTORE ---
 
 // --- DOM Event Listeners for Manual SDP ---
 
@@ -244,10 +565,32 @@ window.onload = () => {
   const cachedPass = localStorage.getItem('pony_stream_pass');
   /** @type {string | null} */
   const cachedStun = localStorage.getItem('pony_stream_stun');
+  /** @type {string | null} */
+  const cachedBinds = localStorage.getItem('pony_kb_binds');
+
+  /** @type {string | null} */
+  const cachedVideo = localStorage.getItem('pony_wants_video');
+  /** @type {string | null} */
+  const cachedAudio = localStorage.getItem('pony_wants_audio');
+  /** @type {string | null} */
+  const cachedUseKb = localStorage.getItem('pony_use_kb');
 
   if (cachedHost) serverInput.value = cachedHost;
   if (cachedPass) passInput.value = cachedPass;
   if (cachedStun) stunInput.value = cachedStun;
+
+  if (cachedVideo !== null) wantsVideoInput.checked = cachedVideo === 'true';
+  if (cachedAudio !== null) wantsAudioInput.checked = cachedAudio === 'true';
+  if (cachedUseKb !== null) {
+    useKbPadInput.checked = cachedUseKb === 'true';
+    virtualPad.connected = useKbPadInput.checked;
+  }
+
+  if (cachedBinds) {
+    try {
+      currentKeyBinds = JSON.parse(cachedBinds);
+    } catch (e) {}
+  }
 };
 
 // Pressing Enter in the password field submits the form
@@ -279,13 +622,8 @@ const toggleDebug = () => {
   /** @type {boolean} */
   const isHidden = debugPanel.classList.toggle('hidden');
   btnToggleDebug.textContent = isHidden ? 'Show Debug (F2)' : 'Hide Debug (F2)';
-
-  if (isHidden) {
-    clientIdHud.classList.add('hidden');
-  } else {
-    clientIdHud.classList.remove('hidden');
-  }
-
+  if (isHidden) clientIdHud.classList.add('hidden');
+  else clientIdHud.classList.remove('hidden');
   btnToggleDebug.blur(); // Removes focus from the button
 };
 
@@ -330,10 +668,7 @@ const initConnection = () => {
     alert('Please provide a server IP or address.');
     return;
   }
-
-  if (!host.startsWith('ws://') && !host.startsWith('wss://')) {
-    host = `ws://${host}`;
-  }
+  if (!host.startsWith('ws://') && !host.startsWith('wss://')) host = `ws://${host}`;
 
   updateDebug(dbgWs, 'Connecting...', 'warn');
   btnConnect.disabled = true;
@@ -379,6 +714,7 @@ const initConnection = () => {
       updateDebug(dbgWs, 'Connected', 'ok');
       loginDiv.style.display = 'none';
       document.body.classList.add('is-playing');
+      btnOpenTx.style.display = 'block'; // Show Transmitter button on auth
 
       // Makes the STUN server flexible by reading from config
       iceServerUrls = [];
@@ -498,9 +834,8 @@ const setupWebRTCEvents = () => {
       s === 'disconnected' || s === 'failed' ? 'error' : s === 'connected' ? 'ok' : 'warn',
     );
 
-    if (s === 'disconnected' || s === 'failed') {
+    if (s === 'disconnected' || s === 'failed')
       showDisconnectNotification('Lost connection to host.');
-    }
   };
 
   pc.oniceconnectionstatechange = () => {
@@ -526,9 +861,7 @@ const setupWebRTCEvents = () => {
         // Tries to force playback. Browsers require 'muted' for autoplay without user interaction.
         video
           .play()
-          .then(() => {
-            updateDebug(dbgVidPlay, 'Playing', 'ok');
-          })
+          .then(() => updateDebug(dbgVidPlay, 'Playing', 'ok'))
           .catch((error) => {
             console.error('[VIDEO ERROR] Autoplay blocked:', error);
             updateDebug(dbgVidPlay, 'Blocked (Click Video)', 'error');
@@ -548,10 +881,8 @@ const setupWebRTCEvents = () => {
   }
 
   // Detects actual resolution when the video starts playing
-  video.onloadedmetadata = () => {
+  video.onloadedmetadata = () =>
     updateDebug(dbgVidRes, `${video.videoWidth}x${video.videoHeight}`, 'ok');
-  };
-
   video.onerror = (e) => {
     updateDebug(dbgVidPlay, `Error: ${video.error.code}`, 'error');
     console.error('[VIDEO ELEMENT ERROR]', video.error);
@@ -606,7 +937,7 @@ const pollGamepad = () => {
   let debugText = '';
 
   // Iterate ONLY over pads we verified through events
-  for (const [index, isValid] of activeGamepadsCache.entries()) {
+  for (const [index] of activeGamepadsCache.entries()) {
     /** @type {Gamepad | null} */
     const gp = gamepads[index];
 
@@ -617,7 +948,11 @@ const pollGamepad = () => {
       /** @type {number[]} */
       const axesVals = gp.axes;
 
-      padData.push({ index: gp.index, buttons: buttonsData, axes: axesVals });
+      padData.push({
+        index: gp.index + (virtualPad.connected ? 1 : 0),
+        buttons: buttonsData,
+        axes: axesVals,
+      });
 
       /** @type {number} */
       const activeBtnsCount = buttonsData.reduce((acc, val) => acc + (val.pressed ? 1 : 0), 0);
@@ -637,19 +972,24 @@ const pollGamepad = () => {
     }
   }
 
+  // Inject Virtual Keyboard Pad
+  if (virtualPad.connected) {
+    padData.push({ index: 0, buttons: virtualPad.buttons, axes: virtualPad.axes });
+    const activeBtnsCount = virtualPad.buttons.reduce((acc, val) => acc + (val.pressed ? 1 : 0), 0);
+    debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>`;
+  }
+
   if (padData.length > 0) {
     updateDebug(dbgPad, `Active Pads: ${padData.length}`, 'ok');
-    if (dbgInput && !dbgInput.innerHTML.includes('Limit Reached / Kicked!')) {
+    if (dbgInput && !dbgInput.innerHTML.includes('Limit Reached / Kicked!'))
       dbgInput.innerHTML = debugText;
-    }
     if (dataChannel && dataChannel.readyState === 'open') {
       dataChannel.send(JSON.stringify({ type: 'multi_input', pads: padData }));
     }
   } else {
     updateDebug(dbgPad, 'Awaiting Input...', 'warn');
-    if (dbgInput && !dbgInput.innerHTML.includes('Limit Reached / Kicked!')) {
+    if (dbgInput && !dbgInput.innerHTML.includes('Limit Reached / Kicked!'))
       dbgInput.textContent = 'Move sticks or press buttons.';
-    }
   }
 
   requestAnimationFrame(pollGamepad);
