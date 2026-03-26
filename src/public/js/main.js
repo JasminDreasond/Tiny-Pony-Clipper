@@ -248,6 +248,8 @@ const defaultActionMap = {
   btnRT: { name: 'Right Trigger', type: 'button', index: 7 },
   btnSelect: { name: 'Select', type: 'button', index: 8 },
   btnStart: { name: 'Start', type: 'button', index: 9 },
+  btnL3: { name: 'LS Click', type: 'button', index: 10 },
+  btnR3: { name: 'RS Click', type: 'button', index: 11 },
   dUp: { name: 'D-Pad Up', type: 'button', index: 12 },
   dDown: { name: 'D-Pad Down', type: 'button', index: 13 },
   dLeft: { name: 'D-Pad Left', type: 'button', index: 14 },
@@ -268,6 +270,12 @@ const DEFAULT_KEY_BINDS = {
   btnB: 'KeyL',
   btnX: 'KeyJ',
   btnY: 'KeyI',
+  btnLB: 'KeyU',
+  btnRB: 'KeyO',
+  btnLT: 'Digit7',
+  btnRT: 'Digit8',
+  btnL3: 'KeyQ',
+  btnR3: 'KeyE',
   dUp: 'ArrowUp',
   dDown: 'ArrowDown',
   dLeft: 'ArrowLeft',
@@ -278,6 +286,10 @@ const DEFAULT_KEY_BINDS = {
   lsRight: 'KeyD',
   btnStart: 'Enter',
   btnSelect: 'ShiftRight',
+  rsUp: 'Numpad8',
+  rsDown: 'Numpad2',
+  rsLeft: 'Numpad4',
+  rsRight: 'Numpad6',
 };
 
 /** @type {Record<string, string>} */
@@ -622,6 +634,7 @@ window.onload = () => {
   if (cachedBinds) {
     try {
       currentKeyBinds = JSON.parse(cachedBinds);
+      currentKeyBinds = { ...DEFAULT_KEY_BINDS, ...currentKeyBinds };
     } catch (e) {}
   }
 };
