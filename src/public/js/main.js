@@ -50,6 +50,10 @@ const btnImportKbBtn = document.getElementById('btnImportKbBtn');
 const btnImportKbFile = document.getElementById('btnImportKbFile');
 /** @type {HTMLButtonElement} */
 const btnOpenTx = document.getElementById('btnOpenTx');
+/** @type {HTMLButtonElement} */
+const btnCancelKb = document.getElementById('btnCancelKb');
+/** @type {HTMLButtonElement} */
+const btnResetKb = document.getElementById('btnResetKb');
 
 // Debug Elements
 /** @type {HTMLElement} */
@@ -259,7 +263,7 @@ const defaultActionMap = {
 };
 
 /** @type {Record<string, string>} */
-let currentKeyBinds = {
+const DEFAULT_KEY_BINDS = {
   btnA: 'KeyK',
   btnB: 'KeyL',
   btnX: 'KeyJ',
@@ -275,6 +279,11 @@ let currentKeyBinds = {
   btnStart: 'Enter',
   btnSelect: 'ShiftRight',
 };
+
+/** @type {Record<string, string>} */
+let currentKeyBinds = { ...DEFAULT_KEY_BINDS };
+/** @type {Record<string, string>} */
+let backupKeyBinds = {};
 
 /** @type {Set<string>} */
 const pressedKeys = new Set();
@@ -424,6 +433,16 @@ const handleVirtualInput = (code, isDown) => {
 };
 
 window.addEventListener('keydown', (e) => {
+  if (kbModal.style.display === 'flex' && e.key === 'Escape') {
+    if (awaitingBind) {
+      awaitingBind = null;
+      generateKbUI();
+    } else {
+      btnCancelKb.click();
+    }
+    return;
+  }
+
   if (awaitingBind) {
     e.preventDefault();
     currentKeyBinds[awaitingBind] = e.code;
@@ -439,6 +458,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 btnOpenKbConfig.addEventListener('click', () => {
+  backupKeyBinds = { ...currentKeyBinds };
   kbModal.style.display = 'flex';
   generateKbUI();
   drawGamepadCanvas();
@@ -448,6 +468,17 @@ btnCloseKb.addEventListener('click', () => {
   kbModal.style.display = 'none';
   if (animFrameId) cancelAnimationFrame(animFrameId);
   localStorage.setItem('pony_kb_binds', JSON.stringify(currentKeyBinds));
+});
+
+btnCancelKb.addEventListener('click', () => {
+  currentKeyBinds = { ...backupKeyBinds };
+  kbModal.style.display = 'none';
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+});
+
+btnResetKb.addEventListener('click', () => {
+  currentKeyBinds = { ...DEFAULT_KEY_BINDS };
+  generateKbUI();
 });
 
 btnExportKb.addEventListener('click', () => {
@@ -633,7 +664,7 @@ btnToggleDebug.addEventListener('click', toggleDebug);
 
 // F2 keyboard shortcut to toggle
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'F2') {
+  if (e.key === 'F2' && kbModal.style.display !== 'flex') {
     e.preventDefault();
     toggleDebug();
   }

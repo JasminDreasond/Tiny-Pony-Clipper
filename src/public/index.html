@@ -27,6 +27,20 @@
 
     <link rel="icon" href="/img/tray-icon.png" type="image/png" />
     <style>
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #ffffff;;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cba6f7;
+        border-radius: 5px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #b4befe;
+      }
+
       body {
         margin: 0;
         background: radial-gradient(circle at center, #1e1e2e 0%, #11111b 100%);
@@ -250,11 +264,13 @@
         display: flex;
         gap: 10px;
         justify-content: center;
+        flex-wrap: wrap;
       }
       .modal-actions button {
         font-size: 12px;
         padding: 8px;
         flex: 1;
+        min-width: 80px;
       }
 
       #gamepadCanvas {
@@ -483,9 +499,11 @@
       <canvas id="gamepadCanvas" width="300" height="150"></canvas>
       <div class="kb-layout-grid" id="kbMappings"></div>
       <div class="modal-actions">
-        <button id="btnExportKb">Export JSON</button>
-        <button id="btnImportKbBtn">Import JSON</button>
+        <button id="btnExportKb">Export</button>
+        <button id="btnImportKbBtn">Import</button>
         <input type="file" id="btnImportKbFile" accept=".json" style="display: none" />
+        <button id="btnResetKb">Defaults</button>
+        <button id="btnCancelKb">Cancel</button>
         <button id="btnCloseKb">Save & Close</button>
       </div>
     </div>
