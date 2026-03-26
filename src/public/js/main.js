@@ -219,6 +219,7 @@ export const applyServerAnswer = async (answerString) => {
 /** @type {VirtualGamepadConfig} */
 const virtualPad = {
   connected: false,
+  index: 0,
   axes: [0, 0, 0, 0],
   buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
 };
@@ -553,6 +554,7 @@ connectManualBtn.addEventListener('click', async () => {
     console.log('[CLIENT] Connected via manual signaling!');
     loginDiv.style.display = 'none';
     document.body.classList.add('is-playing');
+    btnOpenTx.style.display = 'block';
     if (videoRequested) video.style.display = 'block';
   }
 });
@@ -974,7 +976,7 @@ const pollGamepad = () => {
 
   // Inject Virtual Keyboard Pad
   if (virtualPad.connected) {
-    padData.push({ index: 0, buttons: virtualPad.buttons, axes: virtualPad.axes });
+    padData.push({ index: virtualPad.index, buttons: virtualPad.buttons, axes: virtualPad.axes });
     const activeBtnsCount = virtualPad.buttons.reduce((acc, val) => acc + (val.pressed ? 1 : 0), 0);
     debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>`;
   }
