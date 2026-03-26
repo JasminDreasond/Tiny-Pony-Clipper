@@ -75,6 +75,30 @@ const clientListContainer = document.getElementById('clientList');
 /** @type {HTMLDivElement} */
 const gamepadSlotsInfo = document.getElementById('gamepadSlotsInfo');
 
+/**
+ * @returns {void}
+ */
+const updateStreamUIState = () => {
+  /** @type {boolean} */
+  const isEnabled = streamEnabledInput.checked;
+
+  processOfferBtn.disabled = !isEnabled;
+  clientOfferInput.disabled = !isEnabled;
+  serverAnswerOutput.disabled = !isEnabled;
+
+  if (!isEnabled) {
+    clientListContainer.innerHTML =
+      '<div style="color: #f38ba8; font-style: italic;">Remote Play is disabled. Enable it to connect players.</div>';
+    gamepadSlotsInfo.textContent = 'Available Gamepad Slots: Remote Play Disabled';
+  } else {
+    clientListContainer.innerHTML =
+      '<div style="color: #a6adc8; font-style: italic;">No players connected yet.</div>';
+    gamepadSlotsInfo.textContent = 'Available Gamepad Slots: Waiting for server...';
+  }
+};
+
+streamEnabledInput.addEventListener('change', updateStreamUIState);
+
 electronAPI.onClientListUpdate((event, data) => {
   /** @type {number} */
   const slotsLeft = data.maxGamepads - data.totalGamepads;
@@ -316,6 +340,8 @@ const init = async () => {
     // streamEnabledInput.checked = false;
     streamEnabledInput.disabled = true;
   }
+
+  updateStreamUIState();
 
   document.querySelectorAll('input[type="number"]').forEach(enforceNumberValidation);
 };
