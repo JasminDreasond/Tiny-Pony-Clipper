@@ -15,6 +15,72 @@ let currentWss = null;
 const activeWsClients = new Map();
 
 /**
+ * Maps file extensions to their respective MIME types.
+ * @type {Record<string, string>}
+ */
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+};
+
+/**
+ * Serves a static file with optional content transformations.
+ *
+ * @param {http.ServerResponse} res
+ * { http.ServerResponse } res
+ * @param {string} filePath
+ * { string } filePath
+ * @param {string} contentType
+ * { string } contentType
+ * @param {boolean} isHostRoot
+ * { boolean } isHostRoot
+ * @returns {void}
+ */
+const serveFile = (res, filePath, contentType, isHostRoot = false) => {
+  const encoding =
+    contentType.startsWith('text') || contentType === 'application/javascript' ? 'utf-8' : null;
+
+  fs.readFile(filePath, encoding, (err, data) => {
+    if (err) {
+      if (err.code === 'ENOENT') {
+        const errorPage = path.join(srcFolder, './public/404.html');
+        fs.readFile(errorPage, 'utf-8', (err404, data404) => {
+          res.writeHead(404, { 'Content-Type': 'text/html' });
+          res.end(err404 ? '404 Not Found' : data404);
+        });
+      } else {
+        res.writeHead(500);
+        res.end(`Server Error: ${err.code}`);
+      }
+      return;
+    }
+
+    let output = data;
+
+    // Apply specific replacements based on the user preferences and original logic
+    if (isHostRoot && contentType === 'text/html') {
+      output = data
+        .replace('id="serverHost"', 'id="serverHost" disabled')
+        .replace('id="connectionMethod"', 'id="connectionMethod" style="display: none;"');
+    }
+
+    if (isHostRoot && contentType === 'application/javascript') {
+      output = data.replace(/\(\'pony\_stream\_/g, "('host_pony_stream_");
+    }
+
+    res.writeHead(200, { 'Content-Type': contentType });
+    res.end(output);
+  });
+};
+
+/**
  * Initializes and starts the local HTTP and WebSocket servers for Remote Play.
  * Serves the client UI and handles WebSocket authentication and WebRTC signaling.
  *
@@ -29,69 +95,25 @@ export const startStreamServer = (config, captureWebContents) => {
   }
 
   currentServer = http.createServer((req, res) => {
-    if (req.url === '/' || req.url === '/public') {
-      /** @type {string} */
-      const clientHtmlPath = path.join(srcFolder, './public/index.html');
+    const isHostRoot = req.url === '/';
+    /** @type {string} */
+    let fullPath;
 
-      fs.readFile(clientHtmlPath, 'utf-8', (err, data) => {
-        if (err) {
-          console.error('[STREAM ERROR] Failed to load client UI:', err);
-          res.writeHead(500);
-          res.end('Error loading client UI');
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(
-          req.url === '/'
-            ? data
-                .replace('id="serverHost"', 'id="serverHost" disabled')
-                .replace('id="connectionMethod"', 'id="connectionMethod" style="display: none;"')
-            : data,
-        );
-      });
-    } else if (req.url === '/img/tray-icon.png') {
-      /** @type {string} */
-      const iconPath = path.join(srcFolder, './icons/tray-icon.png');
-
-      fs.readFile(iconPath, (err, data) => {
-        if (err) {
-          console.error('[STREAM ERROR] Failed to load tray icon:', err);
-          res.writeHead(404);
-          res.end('Not found');
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'image/png' });
-        res.end(data);
-      });
-    } else if (req.url === '/js/main.js') {
-      /** @type {string} */
-      const jsPath = path.join(srcFolder, './public/js/main.js');
-
-      fs.readFile(jsPath, 'utf-8', (err, data) => {
-        if (err) {
-          console.error('[STREAM ERROR] Failed to load main.js:', err);
-          res.writeHead(404);
-          res.end('Not found');
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'application/javascript' });
-        res.end(req.url === '/' ? data.replace(/\(\'pony_stream\_/g, "('host_pony_stream_") : data);
-      });
+    // Specific case for the tray icon residing outside the public folder
+    if (req.url === '/img/tray-icon.png') {
+      fullPath = path.join(srcFolder, './icons/tray-icon.png');
     } else {
       /** @type {string} */
-      const htmlFilePath = path.join(srcFolder, './public/404.html');
-
-      fs.readFile(htmlFilePath, (err, data) => {
-        if (err) {
-          console.error('[STREAM ERROR] Failed to load 404 UI:', err);
-          res.writeHead(500);
-          res.end('Error loading 404 page');
-          return;
-        }
-        res.writeHead(404, { 'Content-Type': 'text/html' });
-        res.end(data);
-      });
+      const urlPath = isHostRoot || req.url === '/public' ? '/index.html' : req.url;
+      fullPath = path.join(srcFolder, './public', urlPath);
     }
+
+    /** @type {string} */
+    const ext = path.extname(fullPath).toLowerCase();
+    /** @type {string} */
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    serveFile(res, fullPath, contentType, isHostRoot);
   });
 
   currentWss = new WebSocketServer({ server: currentServer });
@@ -133,7 +155,7 @@ export const startStreamServer = (config, captureWebContents) => {
 
       if (!isAuthenticated || !clientId) return;
 
-      if (data.type === 'offer' || data.type === 'answer' || data.type === 'ice_candidate') {
+      if (['offer', 'answer', 'ice_candidate'].includes(data.type)) {
         data.clientId = clientId;
         captureWebContents.send('webrtc-signal', data);
       }

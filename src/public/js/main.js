@@ -1,3 +1,5 @@
+import { compressToBase64, decompressFromBase64 } from './gzipBase64.js';
+
 /** @type {HTMLVideoElement} */
 const video = document.getElementById('streamView');
 /** @type {HTMLInputElement} */
@@ -572,7 +574,7 @@ generateOfferBtn.addEventListener('click', async () => {
   const offerString = await generateClientOffer(rtcConfig);
 
   // Encodes the offer to Base64 before displaying it on screen
-  myOfferOutput.value = btoa(offerString);
+  myOfferOutput.value = await compressToBase64(offerString);
   updateDebug(dbgWs, 'Manual SDP Ready', 'ok');
 });
 
@@ -585,7 +587,7 @@ connectManualBtn.addEventListener('click', async () => {
     let answerStr = '';
 
     try {
-      answerStr = atob(b64Answer);
+      answerStr = await decompressFromBase64(b64Answer);
       // Checks if it decoded into a valid JSON
       JSON.parse(answerStr);
     } catch (e) {

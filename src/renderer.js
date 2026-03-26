@@ -1,3 +1,5 @@
+import { decompressFromBase64, compressToBase64 } from './public/js/gzipBase64.js';
+
 /** @type {HTMLSelectElement} */
 const monitorSelect = document.getElementById('monitorId');
 
@@ -179,7 +181,7 @@ clientOfferInput.addEventListener('input', () => {
   serverAnswerOutput.value = '';
 });
 
-processOfferBtn.addEventListener('click', () => {
+processOfferBtn.addEventListener('click', async () => {
   /** @type {string} */
   const b64Offer = clientOfferInput.value.trim();
   clientOfferInput.value = '';
@@ -189,7 +191,7 @@ processOfferBtn.addEventListener('click', () => {
     let offerString = '';
 
     try {
-      offerString = atob(b64Offer);
+      offerString = await decompressFromBase64(b64Offer);
       // Quick validation to ensure the decoded result is a valid JSON
       JSON.parse(offerString);
     } catch (e) {
@@ -205,13 +207,13 @@ processOfferBtn.addEventListener('click', () => {
   }
 });
 
-electronAPI.onManualAnswer((event, answerString) => {
+electronAPI.onManualAnswer(async (event, answerString) => {
   clientOfferInput.disabled = false;
   serverAnswerOutput.disabled = false;
   processOfferBtn.disabled = false;
 
   /** @type {string} */
-  const b64Answer = btoa(answerString);
+  const b64Answer = await compressToBase64(answerString);
   serverAnswerOutput.value = b64Answer;
   console.log('[UI] Server answer encoded to Base64 and ready to copy.');
 });
