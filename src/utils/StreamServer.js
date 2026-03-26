@@ -45,7 +45,6 @@ export const startStreamServer = (config, captureWebContents) => {
           req.url === '/'
             ? data
                 .replace('id="serverHost"', 'id="serverHost" disabled')
-                .replace(/\(\'pony_stream\_/g, "('host_pony_stream_")
                 .replace('id="connectionMethod"', 'id="connectionMethod" style="display: none;"')
             : data,
         );
@@ -76,7 +75,7 @@ export const startStreamServer = (config, captureWebContents) => {
           return;
         }
         res.writeHead(200, { 'Content-Type': 'application/javascript' });
-        res.end(data);
+        res.end(req.url === '/' ? data.replace(/\(\'pony_stream\_/g, "('host_pony_stream_") : data);
       });
     } else {
       /** @type {string} */
