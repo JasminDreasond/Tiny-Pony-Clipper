@@ -6,32 +6,51 @@ import { app } from 'electron';
 
 import { compressToBase64, decompressFromBase64 } from './public/js/gzipBase64.js';
 
-/** @type {boolean} */
+/**
+ * Indicates if the current application instance has successfully acquired the single-instance lock.
+ * @type {boolean}
+ */
 export const gotTheLock = app.requestSingleInstanceLock();
 
 /**
- * @param {string[]} args
- * @returns {boolean}
+ * Checks if the provided command line arguments contain any known CLI commands.
+ *
+ * @param {string[]} args - The command line arguments to evaluate.
+ * @returns {boolean} True if a CLI command is present, false otherwise.
  */
 export const isCLICommand = (args) => {
   return args.some((arg) => ['--process-sdp', '--help', '--exit', 'exit'].includes(arg));
 };
 
-/** @type {string} */
+/**
+ * The file path for the Unix domain socket used for IPC communication on Unix-like systems.
+ * @type {string}
+ */
 const SOCKET_PATH = path.join(os.tmpdir(), 'tiny_pony_clipper.sock');
 
-/** @type {string} */
+/**
+ * The platform-specific path for the named pipe or socket used by the CLI server.
+ * @type {string}
+ */
 const PIPE_PATH = process.platform === 'win32' ? '\\\\.\\pipe\\tiny_pony_clipper' : SOCKET_PATH;
 
-/** @type {number} */
+/**
+ * Timestamp of the last time a CLI command was processed, used to enforce rate limits.
+ * @type {number}
+ */
 let lastExecutionTime = 0;
 
-/** @type {number} */
+/**
+ * The minimum allowed time interval (in milliseconds) between CLI command executions.
+ * @type {number}
+ */
 const RATE_LIMIT_MS = 3000;
 
 /**
- * @param {string[]} args
- * @returns {Promise<void>}
+ * Executes the CLI client logic, parsing arguments and sending commands via IPC socket to the main process.
+ *
+ * @param {string[]} args - The command line arguments to process.
+ * @returns {Promise<void>} Resolves when the CLI operation completes.
  */
 export const runCLIClient = (args) => {
   return new Promise((resolve) => {
@@ -121,8 +140,10 @@ export const runCLIClient = (args) => {
 };
 
 /**
- * @param {function(string): Promise<string | null>} processSdpCallback
- * @returns {net.Server}
+ * Starts the local IPC server to listen for and process incoming CLI commands.
+ *
+ * @param {function(string): Promise<string | null>} processSdpCallback - Callback function to handle SDP processing.
+ * @returns {net.Server} The active network server instance.
  */
 export const startCLIServer = (processSdpCallback) => {
   /** @type {net.Server} */
@@ -208,8 +229,10 @@ export const startCLIServer = (processSdpCallback) => {
 };
 
 /**
- * @param {string[]} args
- * @returns {Object}
+ * Parses command line arguments to extract configuration overrides for the application.
+ *
+ * @param {string[]} args - The command line arguments to parse.
+ * @returns {Object} An object containing the overridden configuration values.
  */
 export const parseCLIConfigOverrides = (args) => {
   /** @type {Object} */
