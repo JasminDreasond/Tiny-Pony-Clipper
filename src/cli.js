@@ -27,6 +27,54 @@ const RATE_LIMIT_MS = 3000;
  */
 export const runCLIClient = (args) => {
   return new Promise((resolve) => {
+    if (args.includes('--help')) {
+      /** @type {Object} */
+      const helpOutput = {
+        status: 'success',
+        commands: {
+          '--process-sdp [base64]': 'Processes an SDP offer for P2P connection.',
+          '--exit': 'Closes the application and shuts down the server.',
+          exit: 'Alternative to the --exit command.',
+          '--help': 'Shows this list of commands.',
+          '--force-stream': 'Forces the server to start on initialization.',
+          '--stream-port [port]': 'Sets the WebSocket/HTTP server port.',
+          '--stream-password [password]': 'Sets the stream access password.',
+          '--max-gamepads [number]': 'Sets the maximum limit of gamepads.',
+          '--ice-servers [urls]': 'Overrides the default ICE servers.',
+          '--enable-clipping [true/false]': 'Enables or disables local video clipping.',
+          '--stream-video-enabled [true/false]': 'Enables or disables the video stream.',
+        },
+      };
+      console.log(JSON.stringify(helpOutput, null, 2));
+      resolve();
+      return;
+    }
+
+    if (args.includes('--exit') || args.includes('exit')) {
+      /** @type {net.Socket} */
+      const exitClient = net.createConnection(PIPE_PATH, () => {
+        exitClient.write('CMD_EXIT');
+      });
+
+      exitClient.on('data', (data) => {
+        console.log(data.toString());
+        exitClient.end();
+      });
+
+      exitClient.on('end', () => resolve());
+
+      exitClient.on('error', () => {
+        console.log(
+          JSON.stringify({
+            status: 'error',
+            error: 'Tiny Pony Clipper is not currently running.',
+          }),
+        );
+        resolve();
+      });
+      return;
+    }
+
     /** @type {number} */
     const sdpIndex = args.indexOf('--process-sdp');
 
@@ -73,7 +121,17 @@ export const startCLIServer = (processSdpCallback) => {
   const server = net.createServer((socket) => {
     socket.on('data', async (data) => {
       /** @type {string} */
-      const base64Offer = data.toString().trim();
+      const payloadString = data.toString().trim();
+
+      if (payloadString === 'CMD_EXIT') {
+        socket.write(
+          JSON.stringify({ status: 'success', message: 'Application is shutting down.' }),
+        );
+        socket.end();
+        app.quit();
+        return;
+      }
+
       /** @type {number} */
       const now = Date.now();
       /** @type {number} */
@@ -97,7 +155,7 @@ export const startCLIServer = (processSdpCallback) => {
 
       try {
         /** @type {string} */
-        const offerString = await decompressFromBase64(base64Offer);
+        const offerString = await decompressFromBase64(payloadString);
         JSON.parse(offerString);
 
         /** @type {string | null} */
@@ -172,7 +230,7 @@ export const parseCLIConfigOverrides = (args) => {
     }
   }
 
-  // Força o streamEnabled para true se qualquer argumento relacionado a stream for passado
+  // Force streamEnabled to true if any stream related argument is passed
   if (
     overrides.streamPort !== undefined ||
     overrides.streamPassword !== undefined ||

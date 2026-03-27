@@ -1025,9 +1025,7 @@ if (gotTheLock) {
         const resolve = pendingCliResolves.get(requestId);
         resolve(answerString);
         pendingCliResolves.delete(requestId);
-      }
-
-      if (windowsCache.configWindow && answerString) {
+      } else if (!requestId && windowsCache.configWindow && answerString) {
         windowsCache.configWindow.webContents.send('webrtc-manual-answer', answerString);
       }
     });
