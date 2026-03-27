@@ -1039,11 +1039,14 @@ if (gotTheLock) {
 
     startCLIServer((offerString) => {
       // Security notification triggered every time --process-sdp is used
-      sendNotification({
-        title: 'Security Alert: CLI Access',
-        urgency: 'critical',
-        body: 'A third-party application is requesting a Remote Play P2P connection via CLI.',
-      });
+      sendNotification(
+        {
+          title: 'Security Alert: CLI Access',
+          urgency: 'critical',
+          body: 'A third-party application is requesting a Remote Play P2P connection via CLI.',
+        },
+        saveSound,
+      );
 
       return new Promise((resolve) => {
         /** @type {string} */
