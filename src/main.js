@@ -33,7 +33,13 @@ import {
 } from './utils/VirtualGamepad.js';
 import { startStreamServer, sendSignalToClient, kickWsClient } from './utils/StreamServer.js';
 
-import { gotTheLock, runCLIClient, startCLIServer, parseCLIConfigOverrides } from './cli.js';
+import {
+  gotTheLock,
+  runCLIClient,
+  startCLIServer,
+  parseCLIConfigOverrides,
+  isCLICommand,
+} from './cli.js';
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -47,15 +53,16 @@ const isWaylandEnv = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env
 
 if (!gotTheLock) {
   // If the app is already running, we check if it's a CLI request
-  if (process.argv.includes('--process-sdp')) {
+  if (isCLICommand(process.argv)) {
     runCLIClient(process.argv).then(() => app.quit());
   } else {
     app.quit();
   }
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
-    // The CLI client now handles its own execution through sockets,
-    // so we just restore the UI if the user tries to open the app normally.
+    // Prevents the config window from opening if the execution is just a CLI command
+    if (isCLICommand(commandLine)) return;
+
     if (windowsCache.configWindow) {
       if (windowsCache.configWindow.isMinimized()) windowsCache.configWindow.restore();
       if (!windowsCache.configWindow.isVisible()) windowsCache.configWindow.show();

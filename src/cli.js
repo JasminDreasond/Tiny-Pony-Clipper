@@ -9,6 +9,14 @@ import { compressToBase64, decompressFromBase64 } from './public/js/gzipBase64.j
 /** @type {boolean} */
 export const gotTheLock = app.requestSingleInstanceLock();
 
+/**
+ * @param {string[]} args
+ * @returns {boolean}
+ */
+export const isCLICommand = (args) => {
+  return args.some((arg) => ['--process-sdp', '--help', '--exit', 'exit'].includes(arg));
+};
+
 /** @type {string} */
 const SOCKET_PATH = path.join(os.tmpdir(), 'tiny_pony_clipper.sock');
 
