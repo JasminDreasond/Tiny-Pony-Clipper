@@ -232,6 +232,7 @@ const virtualPad = {
 
 /**
  * @typedef {Object} KeyMapAction
+ * @property {string} icon
  * @property {string} name
  * @property {'button'|'axis'} type
  * @property {number} index
@@ -241,40 +242,168 @@ const virtualPad = {
 /** @type {Record<string, KeyMapAction>} */
 const defaultActionMap = {
   // Buttons - Standardized to non-color versions for consistency
-  btnA: { icon: '\uE004', name: 'A Button', type: 'button', index: 0 },
-  btnB: { icon: '\uE006', name: 'B Button', type: 'button', index: 1 },
-  btnX: { icon: '\uE01E', name: 'X Button', type: 'button', index: 2 },
-  btnY: { icon: '\uE020', name: 'Y Button', type: 'button', index: 3 },
+  btnA: {
+    icon: 'img/kenney_input_xbox_series/xbox_button_a.png',
+    name: 'A Button',
+    type: 'button',
+    index: 0,
+  },
+  btnB: {
+    icon: 'img/kenney_input_xbox_series/xbox_button_b.png',
+    name: 'B Button',
+    type: 'button',
+    index: 1,
+  },
+  btnX: {
+    icon: 'img/kenney_input_xbox_series/xbox_button_x.png',
+    name: 'X Button',
+    type: 'button',
+    index: 2,
+  },
+  btnY: {
+    icon: 'img/kenney_input_xbox_series/xbox_button_y.png',
+    name: 'Y Button',
+    type: 'button',
+    index: 3,
+  },
 
   // Bumpers and Triggers
-  btnLB: { icon: '\uE043', name: 'Left Bumper', type: 'button', index: 4 },
-  btnRB: { icon: '\uE049', name: 'Right Bumper', type: 'button', index: 5 },
-  btnLT: { icon: '\uE047', name: 'Left Trigger', type: 'button', index: 6 },
-  btnRT: { icon: '\uE04D', name: 'Right Trigger', type: 'button', index: 7 },
+  btnLB: {
+    icon: 'img/kenney_input_xbox_series/xbox_lb.png',
+    name: 'Left Bumper',
+    type: 'button',
+    index: 4,
+  },
+  btnRB: {
+    icon: 'img/kenney_input_xbox_series/xbox_rb.png',
+    name: 'Right Bumper',
+    type: 'button',
+    index: 5,
+  },
+  btnLT: {
+    icon: 'img/kenney_input_xbox_series/xbox_lt.png',
+    name: 'Left Trigger',
+    type: 'button',
+    index: 6,
+  },
+  btnRT: {
+    icon: 'img/kenney_input_xbox_series/xbox_rt.png',
+    name: 'Right Trigger',
+    type: 'button',
+    index: 7,
+  },
 
   // System Buttons
-  btnSelect: { icon: '\uE008', name: 'Select', type: 'button', index: 8 },
-  btnStart: { icon: '\uE018', name: 'Start', type: 'button', index: 9 },
-  btnL3: { icon: '\uE045', name: 'LS Click', type: 'button', index: 10 },
-  btnR3: { icon: '\uE04B', name: 'RS Click', type: 'button', index: 11 },
+  btnSelect: {
+    icon: 'img/kenney_input_xbox_series/xbox_button_back.png',
+    name: 'Select',
+    type: 'button',
+    index: 8,
+  },
+  btnStart: {
+    icon: 'img/kenney_input_xbox_series/xbox_button_start.png',
+    name: 'Start',
+    type: 'button',
+    index: 9,
+  },
+  btnL3: {
+    icon: 'img/kenney_input_xbox_series/xbox_ls.png',
+    name: 'LS Click',
+    type: 'button',
+    index: 10,
+  },
+  btnR3: {
+    icon: 'img/kenney_input_xbox_series/xbox_rs.png',
+    name: 'RS Click',
+    type: 'button',
+    index: 11,
+  },
 
   // D-Pad
-  dUp: { icon: '\uE035', name: 'D-Pad Up', type: 'button', index: 12 },
-  dDown: { icon: '\uE024', name: 'D-Pad Down', type: 'button', index: 13 },
-  dLeft: { icon: '\uE028', name: 'D-Pad Left', type: 'button', index: 14 },
-  dRight: { icon: '\uE02B', name: 'D-Pad Right', type: 'button', index: 15 },
+  dUp: {
+    icon: 'img/kenney_input_xbox_series/xbox_dpad_up.png',
+    name: 'D-Pad Up',
+    type: 'button',
+    index: 12,
+  },
+  dDown: {
+    icon: 'img/kenney_input_xbox_series/xbox_dpad_down.png',
+    name: 'D-Pad Down',
+    type: 'button',
+    index: 13,
+  },
+  dLeft: {
+    icon: 'img/kenney_input_xbox_series/xbox_dpad_left.png',
+    name: 'D-Pad Left',
+    type: 'button',
+    index: 14,
+  },
+  dRight: {
+    icon: 'img/kenney_input_xbox_series/xbox_dpad_right.png',
+    name: 'D-Pad Right',
+    type: 'button',
+    index: 15,
+  },
 
   // Left Stick Axes
-  lsUp: { icon: '\uE055', name: 'LS Up', type: 'axis', index: 1, val: -1 },
-  lsDown: { icon: '\uE050', name: 'LS Down', type: 'axis', index: 1, val: 1 },
-  lsLeft: { icon: '\uE052', name: 'LS Left', type: 'axis', index: 0, val: -1 },
-  lsRight: { icon: '\uE054', name: 'LS Right', type: 'axis', index: 0, val: 1 },
+  lsUp: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_l_up.png',
+    name: 'LS Up',
+    type: 'axis',
+    index: 1,
+    val: -1,
+  },
+  lsDown: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_l_down.png',
+    name: 'LS Down',
+    type: 'axis',
+    index: 1,
+    val: 1,
+  },
+  lsLeft: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_l_left.png',
+    name: 'LS Left',
+    type: 'axis',
+    index: 0,
+    val: -1,
+  },
+  lsRight: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_l_right.png',
+    name: 'LS Right',
+    type: 'axis',
+    index: 0,
+    val: 1,
+  },
 
   // Right Stick Axes - All corrected to use RS icons (E05D, name:E058, name:E05A, name:E05C }
-  rsUp: { icon: '\uE05D', name: 'RS Up', type: 'axis', index: 3, val: -1 },
-  rsDown: { icon: '\uE058', name: 'RS Down', type: 'axis', index: 3, val: 1 },
-  rsLeft: { icon: '\uE05A', name: 'RS Left', type: 'axis', index: 2, val: -1 },
-  rsRight: { icon: '\uE05C', name: 'RS Right', type: 'axis', index: 2, val: 1 },
+  rsUp: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_r_up.png',
+    name: 'RS Up',
+    type: 'axis',
+    index: 3,
+    val: -1,
+  },
+  rsDown: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_r_down.png',
+    name: 'RS Down',
+    type: 'axis',
+    index: 3,
+    val: 1,
+  },
+  rsLeft: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_r_left.png',
+    name: 'RS Left',
+    type: 'axis',
+    index: 2,
+    val: -1,
+  },
+  rsRight: {
+    icon: 'img/kenney_input_xbox_series/xbox_stick_r_right.png',
+    name: 'RS Right',
+    type: 'axis',
+    index: 2,
+    val: 1,
+  },
 };
 
 /** @type {Record<string, string>} */
@@ -334,7 +463,7 @@ const generateKbUI = () => {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'kb-map-item';
-    wrapper.innerHTML = `${action.icon ? `<span class='kb-map-icon'>${action.icon}</span> ` : ''}<span>${action.name}</span>`;
+    wrapper.innerHTML = `${action.icon ? `<img class='kb-map-icon' src="${action.icon}" alt="${action.name}" /> ` : ''}<span>${action.name}</span>`;
     wrapper.appendChild(bindBtn);
     kbMappings.appendChild(wrapper);
   });
