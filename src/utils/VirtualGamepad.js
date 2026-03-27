@@ -1,4 +1,5 @@
 import { createRequire } from 'module';
+import { gotTheLock } from '../cli.js';
 import { keyCodes } from './keyCodes.js';
 
 /** @type {NodeJS.Require} */
@@ -229,10 +230,12 @@ export const canAccessUinput = () => {
   return uinput.checkPermissions();
 };
 
-if (!canAccessUinput()) {
-  console.error(
-    '[GAMEPAD] Error: No RW permissions for /dev/uinput. Try running with sudo or check udev rules.',
-  );
-} else {
-  console.log('[GAMEPAD] Permissions OK! Ready to create virtual controllers.');
+if (gotTheLock) {
+  if (!canAccessUinput()) {
+    console.error(
+      '[GAMEPAD] Error: No RW permissions for /dev/uinput. Try running with sudo or check udev rules.',
+    );
+  } else {
+    console.log('[GAMEPAD] Permissions OK! Ready to create virtual controllers.');
+  }
 }

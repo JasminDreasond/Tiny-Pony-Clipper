@@ -33,6 +33,8 @@ import {
 } from './utils/VirtualGamepad.js';
 import { startStreamServer, sendSignalToClient, kickWsClient } from './utils/StreamServer.js';
 
+import { gotTheLock, runCLIClient, startCLIServer, parseCLIConfigOverrides } from './cli.js';
+
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
 ipcMain.on('open-external', (event, url) => shell.openExternal(url));
@@ -43,13 +45,17 @@ app.setAppUserModelId('TinyPonyClipper');
 /** @type {boolean} */
 const isWaylandEnv = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
 
-/** @type {boolean} */
-const gotTheLock = app.requestSingleInstanceLock();
-
 if (!gotTheLock) {
-  app.quit();
+  // If the app is already running, we check if it's a CLI request
+  if (process.argv.includes('--process-sdp')) {
+    runCLIClient(process.argv).then(() => app.quit());
+  } else {
+    app.quit();
+  }
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // The CLI client now handles its own execution through sockets,
+    // so we just restore the UI if the user tries to open the app normally.
     if (windowsCache.configWindow) {
       if (windowsCache.configWindow.isMinimized()) windowsCache.configWindow.restore();
       if (!windowsCache.configWindow.isVisible()) windowsCache.configWindow.show();
@@ -1000,16 +1006,56 @@ if (gotTheLock) {
         windowsCache.captureWindow.webContents.send('webrtc-manual-offer', offerString);
       }
     });
+    /** @type {Map<string, function(string | null): void>} */
+    const pendingCliResolves = new Map();
 
     /**
      * @param {Electron.IpcMainEvent} event
      * @param {string} answerString
      * @returns {void}
      */
-    ipcMain.on('relay-manual-answer', (event, answerString) => {
-      if (windowsCache.configWindow) {
+    ipcMain.on('relay-manual-answer', (event, payload) => {
+      /** @type {string} */
+      const answerString = payload.answerString || payload;
+      /** @type {string | undefined} */
+      const requestId = payload.requestId;
+
+      if (requestId && pendingCliResolves.has(requestId)) {
+        /** @type {function(string | null): void} */
+        const resolve = pendingCliResolves.get(requestId);
+        resolve(answerString);
+        pendingCliResolves.delete(requestId);
+      }
+
+      if (windowsCache.configWindow && answerString) {
         windowsCache.configWindow.webContents.send('webrtc-manual-answer', answerString);
       }
+    });
+
+    startCLIServer((offerString) => {
+      // Security notification triggered every time --process-sdp is used
+      sendNotification({
+        title: 'Security Alert: CLI Access',
+        urgency: 'critical',
+        body: 'A third-party application is requesting a Remote Play P2P connection via CLI.',
+      });
+
+      return new Promise((resolve) => {
+        /** @type {string} */
+        const requestId = `req_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+        pendingCliResolves.set(requestId, resolve);
+
+        if (windowsCache.captureWindow) {
+          // Forwards the offer to capture.js to process ICE candidates
+          windowsCache.captureWindow.webContents.send('webrtc-manual-offer', {
+            offerString,
+            requestId,
+          });
+        } else {
+          resolve(null);
+          pendingCliResolves.delete(requestId);
+        }
+      });
     });
 
     // --- WAYLAND PORTAL HANDLER ---
@@ -1110,7 +1156,15 @@ if (gotTheLock) {
       }
     });
 
-    applyConfigurationAndStart(loadConfig());
+    let finalConfig = loadConfig();
+    const cliOverrides = parseCLIConfigOverrides(process.argv);
+
+    if (Object.keys(cliOverrides).length > 0) {
+      console.log('[SYSTEM] Applying CLI configuration overrides...', cliOverrides);
+      finalConfig = { ...finalConfig, ...cliOverrides };
+    }
+
+    applyConfigurationAndStart(finalConfig);
 
     ipcMain.handle('is-wayland', () => isWaylandEnv);
 

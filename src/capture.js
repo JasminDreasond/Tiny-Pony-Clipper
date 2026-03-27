@@ -226,7 +226,19 @@ export const waitForIceGathering = (peerConnection) => {
   });
 };
 
-electronAPI.onManualOffer(async (event, offerString) => {
+electronAPI.onManualOffer(async (event, payload) => {
+  /** @type {string} */
+  let offerString;
+  /** @type {string | undefined} */
+  let requestId;
+
+  if (typeof payload === 'string') {
+    offerString = payload;
+  } else {
+    offerString = payload.offerString;
+    requestId = payload.requestId;
+  }
+
   /** @type {string} */
   const clientId = `manual_${Date.now()}`;
   /** @type {RTCPeerConnection} */
@@ -246,7 +258,7 @@ electronAPI.onManualOffer(async (event, offerString) => {
 
     /** @type {string} */
     const answerString = JSON.stringify(pc.localDescription);
-    electronAPI.sendManualAnswer(answerString);
+    electronAPI.sendManualAnswer({ answerString, requestId });
 
     electronAPI.log(`[WEBRTC] Manual answer generated and dispatched for [${clientId}].`);
   } catch (error) {
@@ -255,6 +267,10 @@ electronAPI.onManualOffer(async (event, offerString) => {
       error,
     );
     peers.delete(clientId);
+
+    if (requestId) {
+      electronAPI.sendManualAnswer({ answerString: null, requestId });
+    }
   }
 });
 
