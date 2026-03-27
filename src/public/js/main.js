@@ -1279,7 +1279,20 @@ const pollGamepad = () => {
   if (virtualPad.connected) {
     padData.push({ index: virtualPad.index, buttons: virtualPad.buttons, axes: virtualPad.axes });
     const activeBtnsCount = virtualPad.buttons.reduce((acc, val) => acc + (val.pressed ? 1 : 0), 0);
-    debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>`;
+
+    /** @type {number[]} */
+    const axesVals = virtualPad.axes;
+
+    /** @type {string} */
+    const lx = axesVals[0]?.toFixed(2) || '0.00';
+    /** @type {string} */
+    const ly = axesVals[1]?.toFixed(2) || '0.00';
+    /** @type {string} */
+    const rx = axesVals[2]?.toFixed(2) || '0.00';
+    /** @type {string} */
+    const ry = axesVals[3]?.toFixed(2) || '0.00';
+
+    debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br>`;
   }
 
   if (padData.length > 0) {
