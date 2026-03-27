@@ -240,30 +240,41 @@ const virtualPad = {
 
 /** @type {Record<string, KeyMapAction>} */
 const defaultActionMap = {
-  btnA: { name: 'A Button', type: 'button', index: 0 },
-  btnB: { name: 'B Button', type: 'button', index: 1 },
-  btnX: { name: 'X Button', type: 'button', index: 2 },
-  btnY: { name: 'Y Button', type: 'button', index: 3 },
-  btnLB: { name: 'Left Bumper', type: 'button', index: 4 },
-  btnRB: { name: 'Right Bumper', type: 'button', index: 5 },
-  btnLT: { name: 'Left Trigger', type: 'button', index: 6 },
-  btnRT: { name: 'Right Trigger', type: 'button', index: 7 },
-  btnSelect: { name: 'Select', type: 'button', index: 8 },
-  btnStart: { name: 'Start', type: 'button', index: 9 },
-  btnL3: { name: 'LS Click', type: 'button', index: 10 },
-  btnR3: { name: 'RS Click', type: 'button', index: 11 },
-  dUp: { name: 'D-Pad Up', type: 'button', index: 12 },
-  dDown: { name: 'D-Pad Down', type: 'button', index: 13 },
-  dLeft: { name: 'D-Pad Left', type: 'button', index: 14 },
-  dRight: { name: 'D-Pad Right', type: 'button', index: 15 },
-  lsUp: { name: 'LS Up', type: 'axis', index: 1, val: -1 },
-  lsDown: { name: 'LS Down', type: 'axis', index: 1, val: 1 },
-  lsLeft: { name: 'LS Left', type: 'axis', index: 0, val: -1 },
-  lsRight: { name: 'LS Right', type: 'axis', index: 0, val: 1 },
-  rsUp: { name: 'RS Up', type: 'axis', index: 3, val: -1 },
-  rsDown: { name: 'RS Down', type: 'axis', index: 3, val: 1 },
-  rsLeft: { name: 'RS Left', type: 'axis', index: 2, val: -1 },
-  rsRight: { name: 'RS Right', type: 'axis', index: 2, val: 1 },
+  // Buttons - Standardized to non-color versions for consistency
+  btnA: { icon: '\uE004', name: 'A Button', type: 'button', index: 0 },
+  btnB: { icon: '\uE006', name: 'B Button', type: 'button', index: 1 },
+  btnX: { icon: '\uE01E', name: 'X Button', type: 'button', index: 2 },
+  btnY: { icon: '\uE020', name: 'Y Button', type: 'button', index: 3 },
+
+  // Bumpers and Triggers
+  btnLB: { icon: '\uE043', name: 'Left Bumper', type: 'button', index: 4 },
+  btnRB: { icon: '\uE049', name: 'Right Bumper', type: 'button', index: 5 },
+  btnLT: { icon: '\uE047', name: 'Left Trigger', type: 'button', index: 6 },
+  btnRT: { icon: '\uE04D', name: 'Right Trigger', type: 'button', index: 7 },
+
+  // System Buttons
+  btnSelect: { icon: '\uE008', name: 'Select', type: 'button', index: 8 },
+  btnStart: { icon: '\uE018', name: 'Start', type: 'button', index: 9 },
+  btnL3: { icon: '\uE045', name: 'LS Click', type: 'button', index: 10 },
+  btnR3: { icon: '\uE04B', name: 'RS Click', type: 'button', index: 11 },
+
+  // D-Pad
+  dUp: { icon: '\uE035', name: 'D-Pad Up', type: 'button', index: 12 },
+  dDown: { icon: '\uE024', name: 'D-Pad Down', type: 'button', index: 13 },
+  dLeft: { icon: '\uE028', name: 'D-Pad Left', type: 'button', index: 14 },
+  dRight: { icon: '\uE02B', name: 'D-Pad Right', type: 'button', index: 15 },
+
+  // Left Stick Axes
+  lsUp: { icon: '\uE055', name: 'LS Up', type: 'axis', index: 1, val: -1 },
+  lsDown: { icon: '\uE050', name: 'LS Down', type: 'axis', index: 1, val: 1 },
+  lsLeft: { icon: '\uE052', name: 'LS Left', type: 'axis', index: 0, val: -1 },
+  lsRight: { icon: '\uE054', name: 'LS Right', type: 'axis', index: 0, val: 1 },
+
+  // Right Stick Axes - All corrected to use RS icons (E05D, name:E058, name:E05A, name:E05C }
+  rsUp: { icon: '\uE05D', name: 'RS Up', type: 'axis', index: 3, val: -1 },
+  rsDown: { icon: '\uE058', name: 'RS Down', type: 'axis', index: 3, val: 1 },
+  rsLeft: { icon: '\uE05A', name: 'RS Left', type: 'axis', index: 2, val: -1 },
+  rsRight: { icon: '\uE05C', name: 'RS Right', type: 'axis', index: 2, val: 1 },
 };
 
 /** @type {Record<string, string>} */
@@ -323,7 +334,7 @@ const generateKbUI = () => {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'kb-map-item';
-    wrapper.innerHTML = `<span>${action.name}</span>`;
+    wrapper.innerHTML = `${action.icon ? `<span class='kb-map-icon'>${action.icon}</span> ` : ''}<span>${action.name}</span>`;
     wrapper.appendChild(bindBtn);
     kbMappings.appendChild(wrapper);
   });

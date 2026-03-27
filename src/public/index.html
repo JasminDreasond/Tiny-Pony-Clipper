@@ -27,11 +27,41 @@
 
     <link rel="icon" href="/img/tray-icon.png" type="image/png" />
     <style>
+      @font-face {
+        font-family: 'KennyInputXboxSeries';
+        /* Use 'opentype' for .otf and 'truetype' for .ttf */
+        src:
+          url('fonts/kenney_input_xbox_series.otf') format('opentype'),
+          url('fonts/kenney_input_xbox_series.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'KennyInputPlaystationSeries';
+        /* Use 'opentype' for .otf and 'truetype' for .ttf */
+        src:
+          url('fonts/kenney_input_playstation_series.otf') format('opentype'),
+          url('fonts/kenney_input_playstation_series.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      .kb-map-icon {
+        font-size: 12pt;
+        font-family: 'KennyInputXboxSeries', sans-serif;
+        scale: 2.2;
+        text-align: center;
+        padding-left: 3px;
+      }
+
       ::-webkit-scrollbar {
         width: 10px;
       }
       ::-webkit-scrollbar-track {
-        background: #ffffff;
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: #cba6f7;
@@ -231,6 +261,11 @@
       #kbModal h3 {
         margin: 0;
         color: #cba6f7;
+        text-align: center;
+      }
+
+      #kbModal h5 {
+        margin: 0;
         text-align: center;
       }
 
@@ -496,6 +531,7 @@
 
     <div id="kbModal">
       <h3>Keyboard Gamepad Config</h3>
+      <h5>Icons made by Kenney (www.kenney.nl)</h5>
       <canvas id="gamepadCanvas" width="300" height="150"></canvas>
       <div class="kb-layout-grid" id="kbMappings"></div>
       <div class="modal-actions">
