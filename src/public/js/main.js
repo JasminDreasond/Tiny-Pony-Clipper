@@ -475,74 +475,189 @@ const generateKbUI = () => {
 const drawGamepadCanvas = () => {
   if (kbModal.style.display === 'none') return;
 
-  const ctx = gamepadCanvas.getContext('2d');
+  /** @type {HTMLCanvasElement} */
+  const canvas = gamepadCanvas;
+
+  /** @type {CanvasRenderingContext2D} */
+  const ctx = canvas.getContext('2d');
+
   ctx.clearRect(0, 0, 300, 180);
 
-  // Draw Body
-  const drawRect = (x, y, w, h, r, pressed) => {
-    ctx.fillStyle = pressed ? '#cba6f7' : '#45475a';
+  /**
+   *  Paleta Catppuccin
+   * @type {{
+   * bodyBase: string,
+   * bodyTop: string,
+   * btnBase: string,
+   * btnPressed: string,
+   * shadow: string,
+   * glow: string,
+   * bgBase: string
+   * }}
+   */
+  const colors = {
+    bodyBase: '#1e1e2e', // Base mais escura (Mocha)
+    bodyTop: '#313244', // Superfície (Surface 0)
+    btnBase: '#45475a', // Botão (Surface 1)
+    btnPressed: '#cba6f7', // Pressionado (Mauve)
+    shadow: 'rgba(0, 0, 0, 0.4)',
+    glow: 'rgba(203, 166, 247, 0.6)', // Brilho Mauve
+    bgBase: '#181825', // Cavidade (Crust)
+  };
+
+  /**
+   * Funções de estilo reutilizáveis
+   * @param {boolean} pressed
+   * @returns {void}
+   */
+  const applyGlowOrShadow = (pressed) => {
+    ctx.shadowColor = pressed ? colors.glow : colors.shadow;
+    ctx.shadowBlur = pressed ? 12 : 5; // Brilho forte se pressionado
+    ctx.shadowOffsetY = pressed ? 0 : 3; // Profundidade se não pressionado
+    ctx.shadowOffsetX = 0;
+  };
+
+  /**
+   * @returns {void}
+   */
+  const resetShadow = () => {
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+  };
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} w
+   * @param {number} h
+   * @param {number|number[]} r
+   * @param {boolean} pressed
+   * @returns {void}
+   */
+  const drawShapeRect = (x, y, w, h, r, pressed) => {
+    ctx.fillStyle = pressed ? colors.btnPressed : colors.btnBase;
+    applyGlowOrShadow(pressed);
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
     ctx.fill();
+    resetShadow();
   };
 
-  const drawBtn = (x, y, r, pressed) => {
-    ctx.fillStyle = pressed ? '#cba6f7' : '#45475a';
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} r
+   * @param {boolean} pressed
+   * @returns {void}
+   */
+  const drawShapeBtn = (x, y, r, pressed) => {
+    ctx.fillStyle = pressed ? colors.btnPressed : colors.btnBase;
+    applyGlowOrShadow(pressed);
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
+    resetShadow();
+  };
+
+  /**
+   * @param {number} baseX
+   * @param {number} baseY
+   * @param {number} offsetX
+   * @param {number} offsetY
+   * @param {boolean} pressed
+   * @returns {void}
+   */
+  const drawAnalogStick = (baseX, baseY, offsetX, offsetY, pressed) => {
+    // Stick Base Cavity
+    ctx.fillStyle = colors.bgBase;
+    ctx.beginPath();
+    ctx.arc(baseX, baseY, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    /** @type {number} */
+    const stickX = baseX + offsetX * 10;
+
+    /** @type {number} */
+    const stickY = baseY + offsetY * 10;
+
+    // Moving Stick
+    drawShapeBtn(stickX, stickY, 12, pressed);
+
+    // Light Reflection
+    if (!pressed) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath();
+      ctx.arc(stickX - 3, stickY - 3, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   };
 
   // Triggers (LT / RT)
-  drawRect(60, 10, 40, 20, 5, virtualPad.buttons[6].pressed);
-  drawRect(200, 10, 40, 20, 5, virtualPad.buttons[7].pressed);
+  drawShapeRect(50, 10, 45, 25, [10, 10, 0, 0], virtualPad.buttons[6].pressed);
+  drawShapeRect(205, 10, 45, 25, [10, 10, 0, 0], virtualPad.buttons[7].pressed);
 
   // Bumpers (LB / RB)
-  drawRect(50, 35, 60, 15, 5, virtualPad.buttons[4].pressed);
-  drawRect(190, 35, 60, 15, 5, virtualPad.buttons[5].pressed);
+  drawShapeRect(40, 30, 65, 15, 6, virtualPad.buttons[4].pressed);
+  drawShapeRect(195, 30, 65, 15, 6, virtualPad.buttons[5].pressed);
 
-  // Body
-  ctx.fillStyle = '#313244';
+  // Main Body
+  const bodyGrad = ctx.createLinearGradient(0, 40, 0, 150);
+  bodyGrad.addColorStop(0, colors.bodyTop);
+  bodyGrad.addColorStop(1, colors.bodyBase);
+
+  ctx.fillStyle = bodyGrad;
+  ctx.shadowColor = colors.shadow;
+  ctx.shadowBlur = 15;
+  ctx.shadowOffsetY = 5;
   ctx.beginPath();
-  ctx.roundRect(40, 50, 220, 90, 40);
+  ctx.roundRect(30, 40, 240, 110, 45);
   ctx.fill();
+  resetShadow();
 
   // Select / Start
-  drawRect(130, 70, 15, 8, 4, virtualPad.buttons[8].pressed);
-  drawRect(155, 70, 15, 8, 4, virtualPad.buttons[9].pressed);
+  drawShapeRect(130, 75, 14, 8, 4, virtualPad.buttons[8].pressed);
+  drawShapeRect(156, 75, 14, 8, 4, virtualPad.buttons[9].pressed);
 
-  // ABXY (+20 Y Offset)
-  drawBtn(230, 100, 8, virtualPad.buttons[0].pressed); // A
-  drawBtn(250, 80, 8, virtualPad.buttons[1].pressed); // B
-  drawBtn(210, 80, 8, virtualPad.buttons[2].pressed); // X
-  drawBtn(230, 60, 8, virtualPad.buttons[3].pressed); // Y
+  // ABXY (Top Right)
+  /** @type {number} */ const abxyX = 220;
+  /** @type {number} */ const abxyY = 75;
+  drawShapeBtn(abxyX, abxyY + 19, 9, virtualPad.buttons[0].pressed); // A
+  drawShapeBtn(abxyX + 19, abxyY, 9, virtualPad.buttons[1].pressed); // B
+  drawShapeBtn(abxyX - 19, abxyY, 9, virtualPad.buttons[2].pressed); // X
+  drawShapeBtn(abxyX, abxyY - 19, 9, virtualPad.buttons[3].pressed); // Y
 
-  // D-Pad (+20 Y Offset)
-  drawBtn(70, 80, 8, virtualPad.buttons[12].pressed); // Up
-  drawBtn(70, 110, 8, virtualPad.buttons[13].pressed); // Down
-  drawBtn(55, 95, 8, virtualPad.buttons[14].pressed); // Left
-  drawBtn(85, 95, 8, virtualPad.buttons[15].pressed); // Right
-
-  // Sticks (+20 Y Offset)
-  ctx.fillStyle = '#45475a';
-  ctx.beginPath();
-  ctx.arc(110, 100, 15, 0, Math.PI * 2);
-  ctx.fill();
-  drawBtn(
-    110 + virtualPad.axes[0] * 10,
-    100 + virtualPad.axes[1] * 10,
-    8,
+  // Left Analog Stick (Top Left)
+  drawAnalogStick(
+    80,
+    75,
+    virtualPad.axes[0],
+    virtualPad.axes[1],
     virtualPad.buttons[10]?.pressed || virtualPad.axes[0] !== 0 || virtualPad.axes[1] !== 0,
   );
 
-  ctx.fillStyle = '#45475a';
+  // D-Pad Configuration (Bottom Left)
+  /** @type {number} */ const dpX = 110;
+  /** @type {number} */ const dpY = 115;
+
+  // Up, Down, Left, Right
+  drawShapeRect(dpX - 6, dpY - 18, 12, 12, 2, virtualPad.buttons[12].pressed);
+  drawShapeRect(dpX - 6, dpY + 6, 12, 12, 2, virtualPad.buttons[13].pressed);
+  drawShapeRect(dpX - 18, dpY - 6, 12, 12, 2, virtualPad.buttons[14].pressed);
+  drawShapeRect(dpX + 6, dpY - 6, 12, 12, 2, virtualPad.buttons[15].pressed);
+
+  // D-Pad Center Core
+  ctx.fillStyle = colors.btnBase;
   ctx.beginPath();
-  ctx.arc(190, 100, 15, 0, Math.PI * 2);
+  ctx.rect(dpX - 6, dpY - 6, 12, 12);
   ctx.fill();
-  drawBtn(
-    190 + virtualPad.axes[2] * 10,
-    100 + virtualPad.axes[3] * 10,
-    8,
+
+  // Right Analog Stick (Bottom Right)
+  drawAnalogStick(
+    190,
+    115,
+    virtualPad.axes[2],
+    virtualPad.axes[3],
     virtualPad.buttons[11]?.pressed || virtualPad.axes[2] !== 0 || virtualPad.axes[3] !== 0,
   );
 
