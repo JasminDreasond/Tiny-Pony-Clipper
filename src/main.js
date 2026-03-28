@@ -1041,11 +1041,13 @@ if (gotTheLock) {
 
     ipcMain.handle('get-auth-list', () => loadAuthList());
     ipcMain.handle('update-auth', (event, caller, isAllowed) => {
-      setAuth(caller, isAllowed);
+      const authAllowed = setAuth(caller, isAllowed);
+      if (!authAllowed) return false;
       return true;
     });
     ipcMain.handle('delete-auth', (event, caller) => {
-      removeAuth(caller);
+      const authAllowed = removeAuth(caller);
+      if (!authAllowed) return false;
       return true;
     });
 
@@ -1080,7 +1082,8 @@ if (gotTheLock) {
 
         ipcMain.once('auth-response', (event, payload) => {
           if (payload.caller === callerPath) {
-            setAuth(callerPath, payload.allowed);
+            const authAllowed = setAuth(callerPath, payload.allowed);
+            if (!authAllowed) resolve(false);
             resolve(payload.allowed);
             authWin.close();
           }

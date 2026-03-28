@@ -34,6 +34,7 @@ export const loadAuthList = () => {
  * It pipes the JSON data directly from memory to the root process, avoiding temporary files on disk.
  *
  * @param {Record<string, boolean>} list - The updated authentication dictionary.
+ * @returns {boolean}
  * @returns {void}
  */
 export const saveAuthList = (list) => {
@@ -53,11 +54,13 @@ export const saveAuthList = (list) => {
     );
 
     console.log('[AUTH] Auth list securely saved directly from memory as root.');
+    return true;
   } catch (e) {
     console.error(
       '[AUTH ERROR] Failed to save auth list. The user might have canceled the authentication prompt or an error occurred.',
       e,
     );
+    return false;
   }
 };
 
@@ -81,24 +84,24 @@ export const checkAuth = (callerPath) => {
  *
  * @param {string} callerPath - The executable path of the calling application.
  * @param {boolean} isAllowed - The authorization status to set.
- * @returns {void}
+ * @returns {boolean}
  */
 export const setAuth = (callerPath, isAllowed) => {
   /** @type {Record<string, boolean>} */
   const list = loadAuthList();
   list[callerPath] = isAllowed;
-  saveAuthList(list);
+  return saveAuthList(list);
 };
 
 /**
  * Removes an application from the authentication whitelist.
  *
  * @param {string} callerPath - The executable path of the application to remove.
- * @returns {void}
+ * @returns {boolean}
  */
 export const removeAuth = (callerPath) => {
   /** @type {Record<string, boolean>} */
   const list = loadAuthList();
   delete list[callerPath];
-  saveAuthList(list);
+  return saveAuthList(list);
 };
