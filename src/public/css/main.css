@@ -1,3 +1,8 @@
+:root {
+  --card-bg: rgba(30, 30, 46, 0.7);
+  --accent-gradient: linear-gradient(135deg, #cba6f7 0%, #89b4fa 100%);
+}
+
 /* --- Fonts --- */
 @font-face {
   font-family: 'KennyInputXboxSeries';
@@ -114,19 +119,76 @@ body {
   animation: fadeOut 0.3s ease forwards;
 }
 
+.modal-base::after,
+#welcomeScreen::after,
+#login::after,
+#debugPanel::after,
+#disconnectToast::after,
+#clientIdHud::after {
+  background: var(--accent-gradient);
+  content: '';
+}
+
+.modal-base,
+#welcomeScreen,
+#login,
+#debugPanel,
+#disconnectToast,
+#clientIdHud {
+  background: var(--card-bg);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+}
+
 .modal-base {
   display: none;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(30, 30, 46, 0.95);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 24px;
   flex-direction: column;
   gap: 16px;
   opacity: 0;
+}
+
+.modal-base.alert {
+  border: 2px solid #cba6f7;
+  z-index: 9999;
+  width: 350px;
+  max-width: 90vw;
+  text-align: center;
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(203, 166, 247, 0.2);
+}
+
+.modal-base.keyboard {
+  border: 2px solid #cba6f7;
+  z-index: 1000;
+  width: 480px;
+  max-width: 90vw;
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(203, 166, 247, 0.2);
+}
+
+.modal-base.auth {
+  border: 2px solid #f38ba8;
+  z-index: 2000;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(243, 139, 168, 0.2);
+}
+
+.modal-base.api {
+  border: 2px solid #cba6f7;
+  z-index: 1500;
+  width: 480px;
+  max-width: 90vw;
 }
 
 .modal-enter {
@@ -187,7 +249,6 @@ body {
   gap: 16px;
   z-index: 20;
   position: absolute;
-  background: rgba(30, 30, 46, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding: 40px 30px;
@@ -296,7 +357,6 @@ body {
   z-index: 10;
   position: absolute;
   /* Glassmorphism with Neon glow */
-  background: rgba(30, 30, 46, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding: 28px;
@@ -543,7 +603,6 @@ button:disabled {
   position: absolute;
   top: 15px;
   left: 15px;
-  background: rgba(24, 24, 37, 0.85);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(203, 166, 247, 0.3);
   padding: 18px;
@@ -645,7 +704,6 @@ body.is-playing:not(.gamepad-only-mode) .hud-buttons:hover {
   top: 15px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(30, 30, 46, 0.85);
   backdrop-filter: blur(8px);
   color: #cba6f7;
   padding: 8px 20px;
