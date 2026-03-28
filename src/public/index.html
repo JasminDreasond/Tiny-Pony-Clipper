@@ -83,6 +83,7 @@
         margin: 0;
         /* Animated Retro Gradient */
         background: linear-gradient(-45deg, #1e1e2e, #11111b, #313244, #2a1f3d);
+        background-color: #1e1e2e;
         background-size: 400% 400%;
         animation: gradientShift 15s ease infinite;
         display: flex;
@@ -92,6 +93,7 @@
         color: white;
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         overflow: hidden;
+        transition: background-color 1s ease;
       }
 
       @keyframes gradientShift {
@@ -630,8 +632,11 @@
 
       body.gamepad-only-mode.is-playing {
         /* Stop the background animation to avoid distractions */
-        animation: none;
-        background-position: 0% 50%; /* Locks the gradient in a stable, dark tone */
+        animation: gradientShift 15s ease;
+        background-color: #0f0c1d;
+        background-image:
+          radial-gradient(circle at 20% 20%, rgba(137, 180, 250, 0.1) 0%, transparent 40%),
+          radial-gradient(circle at 80% 80%, rgba(203, 166, 247, 0.1) 0%, transparent 40%);
       }
 
       body.gamepad-only-mode.is-playing #streamView {
