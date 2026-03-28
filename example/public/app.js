@@ -9,10 +9,43 @@ const btnSend = document.getElementById('btnSend');
 /** @type {HTMLElement} */
 const iframeContainer = document.getElementById('iframeContainer');
 
+// Modal Elements
+/** @type {HTMLElement} */
+const modal = document.getElementById('responseModal');
+/** @type {HTMLElement} */
+const responseOutput = document.getElementById('responseOutput');
+/** @type {HTMLButtonElement} */
+const btnCloseModal = document.getElementById('btnCloseModal');
+/** @type {HTMLButtonElement} */
+const btnClearModal = document.getElementById('btnClearModal');
+
 /** @type {HTMLIFrameElement|null} */
 let currentIframe = null;
 /** @type {string} */
 let lastTargetUrl = '';
+
+/**
+ * @param {Object} data
+ */
+const showResponseModal = (data) => {
+  responseOutput.textContent = JSON.stringify(data, null, 2);
+  modal.classList.add('active');
+};
+
+/**
+ * @returns {void}
+ */
+const closeModal = () => {
+  modal.classList.remove('active');
+};
+
+btnCloseModal.addEventListener('click', closeModal);
+btnClearModal.addEventListener('click', closeModal);
+
+// Close on escape key
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
 
 /**
  * @param {string} baseUrl
@@ -72,6 +105,7 @@ const handleApiResponse = (event) => {
   // We check the origin and the message type to ensure it's the correct response
   if (event.origin === currentTargetUrl && data?.type === 'tiny_pony_api_response') {
     console.log(`[TEST APP] API Response`, data);
+    showResponseModal(data); // New visual feedback
   }
 };
 
