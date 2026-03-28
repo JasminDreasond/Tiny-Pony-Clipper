@@ -17,12 +17,40 @@ const loadApiIframe = (baseUrl) => {
   return new Promise((resolve) => {
     /** @type {HTMLIFrameElement} */
     const iframe = document.createElement('iframe');
-    iframe.src = `${baseUrl}/api.html`;
+    /** @type {string} */
+    const apiPath = `${baseUrl}/api.html`;
 
+    iframe.src = apiPath;
     iframe.onload = () => resolve(iframe);
 
     iframeContainer.innerHTML = '';
     iframeContainer.appendChild(iframe);
+  });
+};
+
+/**
+ * @param {string} expectedOrigin
+ * @returns {Promise<void>}
+ */
+const waitForApiReady = (expectedOrigin) => {
+  return new Promise((resolve) => {
+    /**
+     * @param {MessageEvent} event
+     * @returns {void}
+     */
+    const messageHandler = (event) => {
+      /** @type {string} */
+      const origin = event.origin;
+      /** @type {Object} */
+      const data = event.data;
+
+      if (origin === expectedOrigin && data?.type === 'tiny_pony_api_ready') {
+        window.removeEventListener('message', messageHandler);
+        resolve();
+      }
+    };
+
+    window.addEventListener('message', messageHandler);
   });
 };
 
@@ -36,8 +64,14 @@ btnSend.addEventListener('click', async () => {
 
   console.log(`[TEST APP] Loading iframe from ${targetUrl}...`);
 
-  /** @type {HTMLIFrameElement} */
-  const apiIframe = await loadApiIframe(targetUrl);
+  /** @type {Promise<HTMLIFrameElement>} */
+  const iframeLoadPromise = loadApiIframe(targetUrl);
+  /** @type {Promise<void>} */
+  const apiReadyPromise = waitForApiReady(targetUrl);
+
+  // We wait for both: the iframe DOM load and the ready signal
+  /** @type {[HTMLIFrameElement, void]} */
+  const [apiIframe] = await Promise.all([iframeLoadPromise, apiReadyPromise]);
 
   /** @type {Object} */
   const payload = {
@@ -46,7 +80,7 @@ btnSend.addEventListener('click', async () => {
     pass: pass,
   };
 
-  console.log('[TEST APP] Sending message to iframe:', payload);
+  console.log('[TEST APP] API is ready. Sending message:', payload);
 
   if (apiIframe.contentWindow) {
     apiIframe.contentWindow.postMessage(payload, targetUrl);
