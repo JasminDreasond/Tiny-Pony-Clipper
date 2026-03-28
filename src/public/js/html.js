@@ -75,6 +75,16 @@ export const dbgPad = document.getElementById('dbgPad');
 /** @type {HTMLElement} */
 export const dbgInput = document.getElementById('dbgInput');
 
+// Manual SDP Elements
+/** @type {HTMLButtonElement} */
+export const generateOfferBtn = document.getElementById('generateOfferBtn');
+/** @type {HTMLTextAreaElement} */
+export const myOfferOutput = document.getElementById('myOfferOutput');
+/** @type {HTMLButtonElement} */
+export const connectManualBtn = document.getElementById('connectManualBtn');
+/** @type {HTMLTextAreaElement} */
+export const serverAnswerInput = document.getElementById('serverAnswerInput');
+
 // --- API BRIDGE & SERVICE WORKER LOGIC ---
 
 /** @type {HTMLElement} */

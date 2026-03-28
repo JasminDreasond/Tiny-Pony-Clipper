@@ -10,6 +10,9 @@ import {
   apiAuthOriginText,
   btnApiDeny,
   btnApiAllow,
+  btnConnect,
+  connectManualBtn,
+  serverAnswerInput,
 } from './html.js';
 
 // --- API BRIDGE & SERVICE WORKER LOGIC ---
@@ -84,18 +87,23 @@ const renderApiOrigins = () => {
 
 /**
  * @param {Object} payload
+ * @param {string} [payload.action]
+ * @param {string} [payload.host]
+ * @param {string} [payload.pass]
+ * @param {string} [payload.answer]
  * @returns {Promise<void>}
  */
 const executeApiPayload = async (payload) => {
-  console.log('[API PAYLOAD]', payload);
+  console.log('[API PAYLOAD RECEIVED]', payload);
+
   if (payload.action === 'connect_ip') {
-    serverInput.value = payload.host;
-    passInput.value = payload.pass;
+    serverInput.value = payload.host || '';
+    passInput.value = payload.pass || '';
     connMethodSelect.value = 'ip';
     connMethodSelect.dispatchEvent(new Event('change'));
-    initConnection();
+    btnConnect.click();
   } else if (payload.action === 'connect_sdp') {
-    serverAnswerInput.value = payload.answer;
+    serverAnswerInput.value = payload.answer || '';
     connMethodSelect.value = 'sdp';
     connMethodSelect.dispatchEvent(new Event('change'));
     connectManualBtn.click();
@@ -131,14 +139,14 @@ btnCloseApiManager.addEventListener('click', () => {
 // Service Worker Registration and Message Handling
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(() => {
-    console.log('[SW] Service Worker Registered for API Bridge');
+    console.log('[SW] Service Worker Registered for Main App');
   });
 
   navigator.serviceWorker.addEventListener('message', (event) => {
     /** @type {Object} */
     const data = event.data;
 
-    if (data.type === 'api_request') {
+    if (data && data.type === 'api_request') {
       /** @type {string} */
       const originStatus = apiOrigins[data.origin];
 

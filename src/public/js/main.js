@@ -41,6 +41,12 @@ import {
   dbgDc,
   dbgPad,
   dbgInput,
+
+  // Manual SDP Elements
+  generateOfferBtn,
+  myOfferOutput,
+  connectManualBtn,
+  serverAnswerInput,
 } from './html.js';
 
 import './pageApi.js';
@@ -773,19 +779,6 @@ window.addEventListener('message', (e) => {
 // --- MAIN APPLICATION RESTORE ---
 
 // --- DOM Event Listeners for Manual SDP ---
-
-/** @type {HTMLButtonElement} */
-const generateOfferBtn = document.getElementById('generateOfferBtn');
-
-/** @type {HTMLTextAreaElement} */
-const myOfferOutput = document.getElementById('myOfferOutput');
-
-/** @type {HTMLButtonElement} */
-const connectManualBtn = document.getElementById('connectManualBtn');
-
-/** @type {HTMLTextAreaElement} */
-const serverAnswerInput = document.getElementById('serverAnswerInput');
-
 generateOfferBtn.addEventListener('click', async () => {
   checkMediaPreferences();
   myOfferOutput.value = 'Gathering ICE candidates...';
