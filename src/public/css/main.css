@@ -152,13 +152,16 @@ body {
   flex-direction: column;
   gap: 16px;
   opacity: 0;
+  max-height: 95vh;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .modal-base.alert {
   border: 2px solid #cba6f7;
   z-index: 9999;
-  width: 350px;
-  max-width: 90vw;
+  width: 400px;
+  max-width: 95vw;
   text-align: center;
   box-shadow:
     0 25px 60px rgba(0, 0, 0, 0.8),
@@ -168,8 +171,8 @@ body {
 .modal-base.keyboard {
   border: 2px solid #cba6f7;
   z-index: 1000;
-  width: 480px;
-  max-width: 90vw;
+  width: 540px;
+  max-width: 95vw;
   box-shadow:
     0 25px 60px rgba(0, 0, 0, 0.8),
     0 0 30px rgba(203, 166, 247, 0.2);
@@ -178,8 +181,8 @@ body {
 .modal-base.auth {
   border: 2px solid #f38ba8;
   z-index: 2000;
-  width: 400px;
-  max-width: 90vw;
+  width: 460px;
+  max-width: 95vw;
   box-shadow:
     0 25px 60px rgba(0, 0, 0, 0.8),
     0 0 30px rgba(243, 139, 168, 0.2);
@@ -188,8 +191,8 @@ body {
 .modal-base.api {
   border: 2px solid #cba6f7;
   z-index: 1500;
-  width: 480px;
-  max-width: 90vw;
+  width: 540px;
+  max-width: 95vw;
 }
 
 .modal-enter {
@@ -259,7 +262,9 @@ body {
     0 15px 35px rgba(0, 0, 0, 0.6),
     0 0 20px rgba(203, 166, 247, 0.1);
   width: 100%;
-  max-width: 500px;
+  max-width: 560px;
+  max-height: 95vh;
+  overflow-y: auto;
   box-sizing: border-box;
   animation: panelFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   text-align: center;
@@ -367,7 +372,9 @@ body {
     0 15px 35px rgba(0, 0, 0, 0.6),
     0 0 20px rgba(203, 166, 247, 0.1);
   width: 100%;
-  max-width: 360px;
+  max-width: 420px;
+  max-height: 95vh;
+  overflow-y: auto;
   box-sizing: border-box;
   /* Entrance and idle floating animation */
   animation: panelFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
