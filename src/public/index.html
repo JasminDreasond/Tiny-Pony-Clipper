@@ -218,9 +218,119 @@
         }
       }
 
+      /* --- Welcome Screen --- */
+      #welcomeScreen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        z-index: 20;
+        position: absolute;
+        background: rgba(30, 30, 46, 0.75);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        padding: 40px 30px;
+        border-radius: 16px;
+        border: 1px solid rgba(203, 166, 247, 0.3);
+        box-shadow:
+          0 15px 35px rgba(0, 0, 0, 0.6),
+          0 0 20px rgba(203, 166, 247, 0.1);
+        width: 100%;
+        max-width: 500px;
+        box-sizing: border-box;
+        animation: panelFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        text-align: center;
+      }
+
+      .welcome-logo {
+        width: 100%;
+        max-width: 150px;
+        height: auto;
+        filter: drop-shadow(0 0 15px rgba(203, 166, 247, 0.4));
+        animation: floatLogo 3s ease-in-out infinite;
+        margin-bottom: 5px;
+      }
+
+      @keyframes floatLogo {
+        0% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+        100% {
+          transform: translateY(0px);
+        }
+      }
+
+      #welcomeScreen h2 {
+        margin: 0;
+        background: linear-gradient(90deg, #cba6f7, #f5c2e7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 1.8rem;
+        font-weight: 900;
+        letter-spacing: 1px;
+      }
+
+      .playtime-tracker {
+        font-size: 12px;
+        color: #a6e3a1;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: -12px;
+        margin-bottom: 8px;
+        text-shadow: 0 0 8px rgba(166, 227, 161, 0.4);
+      }
+
+      #welcomeScreen p {
+        color: #bac2de;
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 0 0 15px 0;
+      }
+
+      #btnStartApp {
+        width: 100%;
+        font-size: 16px;
+        padding: 16px;
+        text-transform: uppercase;
+        font-weight: 900;
+        letter-spacing: 2px;
+        border: none;
+        cursor: pointer;
+        background: linear-gradient(135deg, #a6e3a1, #94e2d5);
+        color: #11111b;
+        border-radius: 12px;
+        transition: transform 0.2s;
+        animation: pulseBtn 2s infinite;
+      }
+
+      #btnStartApp:hover {
+        transform: scale(1.05);
+      }
+
+      #btnStartApp:active {
+        transform: scale(0.95);
+      }
+
+      @keyframes pulseBtn {
+        0% {
+          box-shadow: 0 0 0 0 rgba(166, 227, 161, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 15px rgba(166, 227, 161, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(166, 227, 161, 0);
+        }
+      }
+
       /* --- Login Panel --- */
       #login {
-        display: flex;
+        display: none;
         flex-direction: column;
         gap: 14px;
         z-index: 10;
@@ -856,6 +966,26 @@
         style="color: #cdd6f4; font-size: 14px; margin: 0; word-wrap: break-word"
       ></p>
       <button id="btnCustomAlertOk" style="margin-top: 10px; width: 100%">OK</button>
+    </div>
+
+    <div id="welcomeScreen">
+      <img src="/icon/512.png" alt="Tiny Pony Logo" class="welcome-logo" />
+      <h2>Insert Pony 🪙</h2>
+      <div id="playtimeDisplay" class="playtime-tracker">Loading...</div>
+      <p>
+        <strong>Ready to join the party?</strong>
+        <br />
+        Grab your favorite soft snacks, plug in your controller, and let's jump straight into the
+        action! This is a 100% P2P connection focused. Just you, your friends, and pure fun!
+      </p>
+      <button id="btnStartApp">PRESS START</button>
+
+      <p style="margin-top: 10px; margin-bottom: 0px; opacity: 0.8">
+        <small>
+          This website does not collect any data. Please be cautious regarding the P2P connections
+          you choose to use.
+        </small>
+      </p>
     </div>
 
     <div id="login">

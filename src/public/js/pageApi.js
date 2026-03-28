@@ -264,6 +264,12 @@ btnCloseApiManager.addEventListener('click', () => {
   closeModal(apiManagerModal);
 });
 
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && apiManagerModal.classList.contains('modal-enter')) {
+    closeModal(apiManagerModal);
+  }
+});
+
 // Service Worker Registration and Message Handling
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(() => {

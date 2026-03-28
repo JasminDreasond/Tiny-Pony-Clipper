@@ -50,6 +50,7 @@ import {
 } from './html.js';
 import { showAlert, openModal, closeModal } from './Modal.js';
 import { resolveApiConnection, setAuthenticating } from './pageApi.js';
+import { startPlayTimer, stopPlayTimer, bypassWelcome } from './Welcome.js';
 
 /** @type {NodeJS.Timeout | null} */
 let notificationTimer = null;
@@ -71,6 +72,7 @@ const showDisconnectNotification = (message) => {
 };
 
 connMethodSelect.addEventListener('change', () => {
+  bypassWelcome(); // Auto-skip if API invokes a change here
   if (connMethodSelect.value === 'ip') {
     ipSection.classList.remove('section-hidden');
     sdpSection.classList.add('section-hidden');
@@ -159,6 +161,7 @@ const checkMediaPreferences = () => {
  * @returns {Promise<string>} The stringified local session description (SDP).
  */
 export const generateClientOffer = async (config) => {
+  bypassWelcome();
   pc = new RTCPeerConnection(config);
   setupWebRTCEvents();
 
@@ -735,6 +738,7 @@ btnExportKb.addEventListener('click', () => {
 btnImportKbBtn.addEventListener('click', () => btnImportKbFile.click());
 
 btnImportKbFile.addEventListener('change', (e) => {
+  /** @type {File} */
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -780,6 +784,7 @@ window.addEventListener('message', (e) => {
 
 // --- DOM Event Listeners for Manual SDP ---
 generateOfferBtn.addEventListener('click', async () => {
+  bypassWelcome(); // Auto-skip just in case
   checkMediaPreferences();
   myOfferOutput.value = 'Gathering ICE candidates...';
 
@@ -795,6 +800,7 @@ generateOfferBtn.addEventListener('click', async () => {
 });
 
 connectManualBtn.addEventListener('click', async () => {
+  bypassWelcome(); // Auto-skip when triggered by API or user
   setAuthenticating(true); // Locking connections coming from the API
 
   /** @type {string} */
@@ -822,6 +828,7 @@ connectManualBtn.addEventListener('click', async () => {
       console.log('[CLIENT] Connected via manual signaling!');
       loginDiv.style.display = 'none';
       document.body.classList.add('is-playing');
+      startPlayTimer();
       btnOpenTx.style.display = 'block';
       if (videoRequested) video.style.display = 'block';
 
@@ -938,6 +945,7 @@ window.addEventListener('gamepaddisconnected', (event) => {
  * @returns {void}
  */
 const initConnection = () => {
+  bypassWelcome(); // Auto-skip if API fired the button directly
   // Uses the current browser port for the WebSocket
   setAuthenticating(true); // Locking API
 
@@ -984,6 +992,7 @@ const initConnection = () => {
     updateDebug(dbgWs, 'Disconnected', 'error');
     btnConnect.disabled = false;
     btnConnect.textContent = 'Connect & Play';
+    stopPlayTimer();
 
     if (isConnecting) {
       setAuthenticating(false);
@@ -994,6 +1003,7 @@ const initConnection = () => {
 
   ws.onerror = () => {
     updateDebug(dbgWs, 'Error', 'error');
+    stopPlayTimer();
     if (isConnecting) {
       setAuthenticating(false);
       resolveApiConnection(false, 'WebSocket connection error');
@@ -1019,6 +1029,7 @@ const initConnection = () => {
       updateDebug(dbgWs, 'Connected', 'ok');
       loginDiv.style.display = 'none';
       document.body.classList.add('is-playing');
+      startPlayTimer();
       btnOpenTx.style.display = 'block'; // Show Transmitter button on auth
 
       // Makes the STUN server flexible by reading from config
@@ -1147,8 +1158,10 @@ const setupWebRTCEvents = () => {
       s === 'disconnected' || s === 'failed' ? 'error' : s === 'connected' ? 'ok' : 'warn',
     );
 
-    if (s === 'disconnected' || s === 'failed')
+    if (s === 'disconnected' || s === 'failed') {
       showDisconnectNotification('Lost connection to host.');
+      stopPlayTimer();
+    }
   };
 
   pc.oniceconnectionstatechange = () => {
