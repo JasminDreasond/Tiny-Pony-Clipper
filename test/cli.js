@@ -23,8 +23,8 @@ const processWebRTCStep = (appPath, base64Data) => {
       const response = JSON.parse(stdout.trim());
 
       if (response.status === 'success') {
-        console.log("Success! Here is the Server Answer (Base64):", response.data);
-      // You can now send this answer back to your client
+        console.log('Success! Here is the Server Answer (Base64):', response.data);
+        // You can now send this answer back to your client
       } else {
         console.error('CLI Error:', response.error);
       }
