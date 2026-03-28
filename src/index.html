@@ -6,6 +6,9 @@
     <title>Tiny Pony Clipper Settings</title>
     <style>
       :root {
+        --bg-gradient:
+          radial-gradient(circle at 20% 20%, rgba(255, 200, 250, 0.1) 0%, transparent 40%),
+          radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 40%);
         --bg-color: #ffffff;
         --text-color: #333333;
         --input-bg: #f5f5f5;
@@ -17,6 +20,9 @@
 
       @media (prefers-color-scheme: dark) {
         :root {
+          --bg-gradient:
+            radial-gradient(circle at 20% 20%, rgba(137, 180, 250, 0.1) 0%, transparent 40%),
+            radial-gradient(circle at 80% 80%, rgba(203, 166, 247, 0.1) 0%, transparent 40%);
           --bg-color: #1e1e2e;
           --text-color: #e0e0e0;
           --input-bg: #2a2a35;
@@ -41,9 +47,15 @@
         background: var(--scroll-thumb-hover);
       }
 
+      ::selection {
+        background-color: #805ea8;
+        color: #fff;
+      }
+
       body {
         font-family: sans-serif;
         background-color: var(--bg-color);
+        background-image: var(--bg-gradient);
         color: var(--text-color);
         margin: 0;
         padding: 20px;
@@ -220,7 +232,6 @@
       }
 
       .stream-title {
-        color: #cba6f7;
         margin-top: 0;
         margin-bottom: 15px;
       }
@@ -244,11 +255,98 @@
 
       .about-content {
         line-height: 1.6;
-        color: #bac2de;
       }
 
-      .about-content strong {
-        color: #cdd6f4;
+      .panel-style .status-item {
+        font-weight: bold; 
+        font-size: 13px;
+      }
+
+      .panel-style .user-index {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      .panel-style .user-id {
+        font-size: 12px;
+      }
+
+      .panel-style .user-gamepads {
+        font-size: 12px;
+        color: #537550;
+        margin-top: 4px;
+      }
+
+      .panel-style .user-ping {
+        font-size: 12px;
+        margin-top: 2px;
+      }
+
+      .panel-style .user-join {
+        font-size: 11px;
+        margin-top: 4px;
+      }
+
+      .panel-style .latency-1 {
+        color : #6a9165;
+      }
+
+      .panel-style .latency-2 {
+        color : #997056;
+      }
+
+      .panel-style .latency-3 {
+        color : #9d576b;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .panel-style > div {
+          background: rgba(30, 30, 46, 0.5);
+        }
+
+        .panel-style .user-index {
+          color: #cba6f7;
+        }
+
+        .panel-style .user-id {
+          color: #bac2de;
+        }
+
+        .panel-style .user-gamepads {
+          color: #a6e3a1;
+        }
+
+        .panel-style .user-join {
+          color: #6c7086;
+        }
+
+        .panel-style .latency-1 {
+          color : #a6e3a1;
+        }
+
+        .panel-style .latency-2 {
+          color : #fab387;
+        }
+
+        .panel-style .latency-3 {
+          color : #f38ba8;
+        }
+
+        .muted-text {
+          color: #a6adc8 !important;
+        }
+
+        .stream-title {
+          color: #cba6f7;
+        }
+
+        .about-content {
+          color: #bac2de;
+        }
+
+        .about-content strong {
+          color: #cdd6f4;
+        }
       }
     </style>
   </head>
@@ -456,8 +554,8 @@
             >
               Available Gamepad Slots: Waiting for server...
             </div>
-            <div id="clientList" style="display: flex; flex-direction: column; gap: 10px">
-              <div style="color: #a6adc8; font-style: italic">No players connected yet.</div>
+            <div id="clientList" class="panel-style" style="display: flex; flex-direction: column; gap: 10px">
+              <div style="font-style: italic">No players connected yet.</div>
             </div>
           </div>
         </div>
@@ -465,13 +563,13 @@
 
       <div id="tab-permissions" class="tab-content">
         <h2>App Permissions (Firewall)</h2>
-        <p style="font-size: 13px; color: #bac2de">
+        <p style="font-size: 13px">
           Manage which third-party applications are allowed to execute CLI commands to control Tiny
           Pony Clipper.
         </p>
 
         <div
-          id="authListContainer"
+          id="authListContainer" class="panel-style"
           style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px"
         ></div>
       </div>

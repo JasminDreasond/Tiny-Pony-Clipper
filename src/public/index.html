@@ -78,6 +78,11 @@
         background: linear-gradient(180deg, #b4befe, #89b4fa);
       }
 
+      ::selection {
+        background-color: #805ea8;
+        color: #fff;
+      }
+
       /* --- Global Layout & Animated Retro Background --- */
       body {
         margin: 0;
@@ -93,7 +98,9 @@
         color: white;
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         overflow: hidden;
-        transition: background-color 1s ease, background-image 2s ease;
+        transition:
+          background-color 1s ease,
+          background-image 2s ease;
       }
 
       @keyframes gradientShift {

@@ -97,7 +97,7 @@ const renderAuthList = async () => {
 
   if (keys.length === 0) {
     authListContainer.innerHTML =
-      '<div style="color: #a6adc8; font-style: italic;">No applications have requested permissions yet.</div>';
+      '<div class="muted-text" style="font-style: italic;">No applications have requested permissions yet.</div>';
     return;
   }
 
@@ -108,12 +108,12 @@ const renderAuthList = async () => {
     /** @type {HTMLDivElement} */
     const card = document.createElement('div');
     card.style.cssText =
-      'background: rgba(30,30,46,0.5); border: 1px solid #45475a; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 10px;';
+      'border: 1px solid; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 10px;';
 
     card.innerHTML = `
-      <div style="font-family: monospace; font-size: 12px; color: #cdd6f4; word-break: break-all;">${callerPath}</div>
+      <div class="muted-text" style="font-family: monospace; font-size: 12px; word-break: break-all;">${callerPath}</div>
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-weight: bold; font-size: 13px; color: ${isAllowed ? '#a6e3a1' : '#f38ba8'}">
+        <span class="status-item ${isAllowed ? 'latency-1' : 'latency-3'}">
           Status: ${isAllowed ? 'Allowed' : 'Denied'}
         </span>
         <div style="display: flex; gap: 10px;">
@@ -176,7 +176,7 @@ const updateStreamUIState = () => {
     gamepadSlotsInfo.textContent = 'Available Gamepad Slots: Remote Play Disabled';
   } else {
     clientListContainer.innerHTML =
-      '<div style="color: #a6adc8; font-style: italic;">No players connected yet.</div>';
+      '<div class="muted-text" style="font-style: italic;">No players connected yet.</div>';
     gamepadSlotsInfo.textContent = 'Available Gamepad Slots: Waiting for server...';
   }
 };
@@ -190,7 +190,7 @@ electronAPI.onClientListUpdate((event, data) => {
 
   if (data.clients.length === 0) {
     clientListContainer.innerHTML =
-      '<div style="color: #a6adc8; font-style: italic;">No players connected yet.</div>';
+      '<div class="muted-text" style="font-style: italic;">No players connected yet.</div>';
     return;
   }
 
@@ -199,24 +199,24 @@ electronAPI.onClientListUpdate((event, data) => {
     /** @type {HTMLDivElement} */
     const card = document.createElement('div');
     card.style.cssText =
-      'background: rgba(30,30,46,0.5); border: 1px solid #45475a; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;';
+      'border: 1px solid #45475a; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;';
 
     /** @type {string} */
     const dateStr = new Date(client.time).toLocaleTimeString();
 
     /** @type {string} */
     const pingColor =
-      client.latency < 80 ? '#a6e3a1' : client.latency < 150 ? '#fab387' : '#f38ba8';
+      client.latency < 80 ? 'latency-1' : client.latency < 150 ? 'latency-2' : 'latency-3';
     /** @type {string} */
     const pingText = client.latency !== undefined ? `${client.latency} ms` : 'Measuring...';
 
     card.innerHTML = `
       <div>
-        <div style="color: #cba6f7; font-weight: bold; margin-bottom: 4px;">Player ${index + 1} (${client.type})</div>
-        <div style="font-size: 12px; color: #bac2de;">ID: ${client.id}</div>
-        <div style="font-size: 12px; color: #a6e3a1; margin-top: 4px;">🎮 Gamepads Active: ${client.gamepads}</div>
-        <div style="font-size: 12px; color: ${pingColor}; margin-top: 2px;">📶 Latency: ${pingText}</div>
-        <div style="font-size: 11px; color: #6c7086; margin-top: 4px;">Joined at: ${dateStr}</div>
+        <div class="user-index">Player ${index + 1} (${client.type})</div>
+        <div class="user-id">ID: ${client.id}</div>
+        <div class="user-gamepads">🎮 Gamepads Active: ${client.gamepads}</div>
+        <div class="user-ping ${pingColor}">📶 Latency: ${pingText}</div>
+        <div class="user-join">Joined at: ${dateStr}</div>
       </div>
       <button class="kick-btn" data-id="${client.id}" style="width: auto; background: #f38ba8; color: #11111b; padding: 8px 16px;">Kick</button>
     `;
