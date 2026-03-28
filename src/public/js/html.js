@@ -74,3 +74,23 @@ export const dbgDc = document.getElementById('dbgDc');
 export const dbgPad = document.getElementById('dbgPad');
 /** @type {HTMLElement} */
 export const dbgInput = document.getElementById('dbgInput');
+
+// --- API BRIDGE & SERVICE WORKER LOGIC ---
+
+/** @type {HTMLElement} */
+export const btnManageApiOrigins = document.getElementById('btnManageApiOrigins');
+/** @type {HTMLElement} */
+export const apiManagerModal = document.getElementById('apiManagerModal');
+/** @type {HTMLElement} */
+export const apiOriginList = document.getElementById('apiOriginList');
+/** @type {HTMLElement} */
+export const btnCloseApiManager = document.getElementById('btnCloseApiManager');
+
+/** @type {HTMLElement} */
+export const apiAuthModal = document.getElementById('apiAuthModal');
+/** @type {HTMLElement} */
+export const apiAuthOriginText = document.getElementById('apiAuthOriginText');
+/** @type {HTMLElement} */
+export const btnApiDeny = document.getElementById('btnApiDeny');
+/** @type {HTMLElement} */
+export const btnApiAllow = document.getElementById('btnApiAllow');

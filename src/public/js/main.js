@@ -43,6 +43,8 @@ import {
   dbgInput,
 } from './html.js';
 
+import './pageApi.js';
+
 /** @type {NodeJS.Timeout | null} */
 let notificationTimer = null;
 

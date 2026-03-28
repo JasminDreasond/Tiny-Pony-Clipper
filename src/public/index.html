@@ -630,6 +630,7 @@
 
     <div class="hud-buttons">
       <button id="btnOpenTx" class="hud-btn" style="display: none">Open Transmitter</button>
+      <button id="btnManageApiOrigins" class="hud-btn">Manage API Origins</button>
       <button id="btnToggleDebug" class="hud-btn">Hide Debug (F2)</button>
     </div>
 
@@ -684,6 +685,80 @@
         <button id="btnResetKb">Defaults</button>
         <button id="btnCancelKb">Cancel</button>
         <button id="btnCloseKb">Save & Close</button>
+      </div>
+    </div>
+
+    <div
+      id="apiAuthModal"
+      style="
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(30, 30, 46, 0.95);
+        backdrop-filter: blur(10px);
+        border: 2px solid #f38ba8;
+        border-radius: 16px;
+        padding: 24px;
+        z-index: 2000;
+        width: 400px;
+        box-shadow:
+          0 25px 60px rgba(0, 0, 0, 0.8),
+          0 0 30px rgba(243, 139, 168, 0.2);
+        flex-direction: column;
+        gap: 16px;
+      "
+    >
+      <h3 style="margin: 0; color: #f38ba8; text-align: center">API Access Request</h3>
+      <p style="text-align: center; color: #cdd6f4; font-size: 14px; margin: 0">
+        An external application is trying to connect to your client.
+      </p>
+      <div
+        style="
+          background: rgba(17, 17, 27, 0.8);
+          padding: 12px;
+          border-radius: 8px;
+          text-align: center;
+          font-family: monospace;
+          color: #fab387;
+          word-break: break-all;
+        "
+        id="apiAuthOriginText"
+      ></div>
+      <div class="modal-actions" style="margin-top: 10px">
+        <button id="btnApiDeny" style="background: #f38ba8; color: #11111b">Deny & Block</button>
+        <button id="btnApiAllow" style="background: #a6e3a1; color: #11111b">Allow</button>
+      </div>
+    </div>
+
+    <div
+      id="apiManagerModal"
+      style="
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(30, 30, 46, 0.95);
+        backdrop-filter: blur(10px);
+        border: 2px solid #cba6f7;
+        border-radius: 16px;
+        padding: 24px;
+        z-index: 1500;
+        width: 480px;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+        flex-direction: column;
+        gap: 16px;
+      "
+    >
+      <h3 style="margin: 0; color: #cba6f7; text-align: center">API Permissions</h3>
+      <div
+        id="apiOriginList"
+        style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto"
+      ></div>
+      <div class="modal-actions">
+        <button id="btnCloseApiManager">Close</button>
       </div>
     </div>
 
