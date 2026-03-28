@@ -10,6 +10,25 @@ const initApiBridge = async () => {
     console.error('[API Bridge] Service Worker error:', error);
   }
 
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    /** @type {Object} */
+    const data = event.data;
+
+    if (data && data.type === 'api_response') {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          {
+            type: 'tiny_pony_api_response',
+            requestId: data.requestId,
+            status: data.status,
+            message: data.message,
+          },
+          data.origin,
+        );
+      }
+    }
+  });
+
   window.addEventListener('message', async (event) => {
     if (!event.data || typeof event.data !== 'object' || !event.data.action) return;
 

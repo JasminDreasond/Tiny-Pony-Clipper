@@ -26,5 +26,14 @@ self.addEventListener('message', async (event) => {
         payload: data.payload,
       });
     }
+  } else if (data && data.type === 'api_response') {
+    /** @type {Client[]} */
+    const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+    windowClients.forEach((client) => {
+      if (client.url.includes('api.html')) {
+        client.postMessage(data);
+      }
+    });
   }
 });

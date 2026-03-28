@@ -62,6 +62,17 @@ btnSend.addEventListener('click', async () => {
   /** @type {string} */
   const pass = hostPassInput.value;
 
+  window.addEventListener('message', (event) => {
+    /** @type {string} */
+    const origin = event.origin;
+    /** @type {Object} */
+    const data = event.data;
+
+    if (origin === targetUrl && data?.type === 'tiny_pony_api_response') {
+      console.log(data.status, data.message);
+    }
+  });
+
   console.log(`[TEST APP] Loading iframe from ${targetUrl}...`);
 
   /** @type {Promise<HTMLIFrameElement>} */
@@ -76,6 +87,7 @@ btnSend.addEventListener('click', async () => {
   /** @type {Object} */
   const payload = {
     action: 'connect_ip',
+    requestId: String(Math.random()),
     host: host,
     pass: pass,
   };

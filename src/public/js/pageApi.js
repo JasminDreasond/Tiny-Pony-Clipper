@@ -86,11 +86,31 @@ const renderApiOrigins = () => {
 };
 
 /**
+ * @param {string} requestId
+ * @param {string} origin
+ * @param {'success' | 'error'} status
+ * @param {string} message
+ * @returns {void}
+ */
+const sendApiResponse = (requestId, origin, status, message) => {
+  if (navigator.serviceWorker.controller && requestId) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'api_response',
+      requestId,
+      origin,
+      status,
+      message,
+    });
+  }
+};
+
+/**
  * @param {Object} payload
  * @param {string} [payload.action]
  * @param {string} [payload.host]
  * @param {string} [payload.pass]
  * @param {string} [payload.answer]
+ * @param {string} [payload.requestId]
  * @returns {Promise<void>}
  */
 const executeApiPayload = async (payload) => {
@@ -114,6 +134,12 @@ btnApiAllow.addEventListener('click', () => {
   if (pendingApiRequest) {
     saveApiOrigin(pendingApiRequest.origin, 'allowed');
     executeApiPayload(pendingApiRequest.payload);
+
+    /** @type {string|undefined} */
+    const reqId = pendingApiRequest.payload.requestId;
+    if (reqId)
+      sendApiResponse(reqId, pendingApiRequest.origin, 'success', 'Request allowed by user');
+
     pendingApiRequest = null;
   }
   apiAuthModal.style.display = 'none';
@@ -122,6 +148,11 @@ btnApiAllow.addEventListener('click', () => {
 btnApiDeny.addEventListener('click', () => {
   if (pendingApiRequest) {
     saveApiOrigin(pendingApiRequest.origin, 'blocked');
+
+    /** @type {string|undefined} */
+    const reqId = pendingApiRequest.payload.requestId;
+    if (reqId) sendApiResponse(reqId, pendingApiRequest.origin, 'error', 'Request denied by user');
+
     pendingApiRequest = null;
   }
   apiAuthModal.style.display = 'none';
@@ -149,11 +180,15 @@ if ('serviceWorker' in navigator) {
     if (data && data.type === 'api_request') {
       /** @type {string} */
       const originStatus = apiOrigins[data.origin];
+      /** @type {string|undefined} */
+      const reqId = data.payload.requestId;
 
       if (originStatus === 'allowed') {
         executeApiPayload(data.payload);
+        if (reqId) sendApiResponse(reqId, data.origin, 'success', 'Origin automatically allowed');
       } else if (originStatus === 'blocked') {
         console.warn(`[API] Blocked request from: ${data.origin}`);
+        if (reqId) sendApiResponse(reqId, data.origin, 'error', 'Origin is blocked');
       } else {
         pendingApiRequest = data;
         apiAuthOriginText.textContent = data.origin;
