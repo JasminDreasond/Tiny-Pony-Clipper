@@ -41,6 +41,8 @@ import {
   isCLICommand,
 } from './cli.js';
 
+import { checkAuth, setAuth, loadAuthList, removeAuth } from './utils/AuthManager.js';
+
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
 ipcMain.on('open-external', (event, url) => shell.openExternal(url));
@@ -1037,34 +1039,98 @@ if (gotTheLock) {
       }
     });
 
-    startCLIServer((offerString) => {
-      // Security notification triggered every time --process-sdp is used
-      sendNotification(
-        {
-          title: 'Security Alert: CLI Access',
-          urgency: 'critical',
-          body: 'A third-party application is requesting a Remote Play P2P connection via CLI.',
-        },
-        saveSound,
-      );
-
-      return new Promise((resolve) => {
-        /** @type {string} */
-        const requestId = `req_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-        pendingCliResolves.set(requestId, resolve);
-
-        if (windowsCache.captureWindow) {
-          // Forwards the offer to capture.js to process ICE candidates
-          windowsCache.captureWindow.webContents.send('webrtc-manual-offer', {
-            offerString,
-            requestId,
-          });
-        } else {
-          resolve(null);
-          pendingCliResolves.delete(requestId);
-        }
-      });
+    ipcMain.handle('get-auth-list', () => loadAuthList());
+    ipcMain.handle('update-auth', (event, caller, isAllowed) => {
+      setAuth(caller, isAllowed);
+      return true;
     });
+    ipcMain.handle('delete-auth', (event, caller) => {
+      removeAuth(caller);
+      return true;
+    });
+
+    /**
+     * Prompts the user to authorize an unknown third-party application.
+     *
+     * @param {string} callerPath
+     * @returns {Promise<boolean>}
+     */
+    const promptUserForAuth = (callerPath) => {
+      return new Promise((resolve) => {
+        /** @type {Electron.CrossProcessExports.BrowserWindow} */
+        const authWin = new BrowserWindow({
+          width: 450,
+          height: 380,
+          alwaysOnTop: true,
+          resizable: false,
+          autoHideMenuBar: true,
+          icon: appIconPath,
+          webPreferences: {
+            preload: path.join(srcFolder, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+          },
+        });
+
+        authWin.loadFile(path.join(srcFolder, 'auth.html'));
+
+        authWin.webContents.once('did-finish-load', () => {
+          authWin.webContents.send('auth-request', callerPath);
+        });
+
+        ipcMain.once('auth-response', (event, payload) => {
+          if (payload.caller === callerPath) {
+            setAuth(callerPath, payload.allowed);
+            resolve(payload.allowed);
+            authWin.close();
+          }
+        });
+
+        authWin.on('closed', () => {
+          resolve(false); // Defaul deny if user closes window
+        });
+      });
+    };
+
+    startCLIServer(
+      (offerString) => {
+        // Security notification triggered every time --process-sdp is used
+        sendNotification(
+          {
+            title: 'CLI Access Requested',
+            urgency: 'critical',
+            body: 'An authorized third-party application is establishing a Remote Play connection.',
+          },
+          saveSound,
+        );
+
+        return new Promise((resolve) => {
+          /** @type {string} */
+          const requestId = `req_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+          pendingCliResolves.set(requestId, resolve);
+
+          if (windowsCache.captureWindow) {
+            // Forwards the offer to capture.js to process ICE candidates
+            windowsCache.captureWindow.webContents.send('webrtc-manual-offer', {
+              offerString,
+              requestId,
+            });
+          } else {
+            resolve(null);
+            pendingCliResolves.delete(requestId);
+          }
+        });
+      },
+      async (callerApp) => {
+        /** @type {boolean | null} */
+        const status = checkAuth(callerApp);
+        if (status === true) return true;
+        if (status === false) return false;
+
+        // If null, it's an unknown application, prompt the user!
+        return await promptUserForAuth(callerApp);
+      },
+    );
 
     // --- WAYLAND PORTAL HANDLER ---
     session.defaultSession.setDisplayMediaRequestHandler(

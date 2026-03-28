@@ -77,6 +77,85 @@ const clientListContainer = document.getElementById('clientList');
 /** @type {HTMLDivElement} */
 const gamepadSlotsInfo = document.getElementById('gamepadSlotsInfo');
 
+/** @type {HTMLDivElement} */
+const authListContainer = document.getElementById('authListContainer');
+
+/**
+ * Renders the firewall/permissions list dynamically based on saved configurations.
+ *
+ * @returns {Promise<void>}
+ */
+const renderAuthList = async () => {
+  if (!authListContainer) return;
+
+  /** @type {Object} */
+  const authList = await electronAPI.getAuthList();
+  authListContainer.innerHTML = '';
+
+  /** @type {string[]} */
+  const keys = Object.keys(authList);
+
+  if (keys.length === 0) {
+    authListContainer.innerHTML =
+      '<div style="color: #a6adc8; font-style: italic;">No applications have requested permissions yet.</div>';
+    return;
+  }
+
+  keys.forEach((callerPath) => {
+    /** @type {boolean} */
+    const isAllowed = authList[callerPath];
+
+    /** @type {HTMLDivElement} */
+    const card = document.createElement('div');
+    card.style.cssText =
+      'background: rgba(30,30,46,0.5); border: 1px solid #45475a; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 10px;';
+
+    card.innerHTML = `
+      <div style="font-family: monospace; font-size: 12px; color: #cdd6f4; word-break: break-all;">${callerPath}</div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: bold; font-size: 13px; color: ${isAllowed ? '#a6e3a1' : '#f38ba8'}">
+          Status: ${isAllowed ? 'Allowed' : 'Denied'}
+        </span>
+        <div style="display: flex; gap: 10px;">
+          <button class="toggle-auth-btn" data-caller="${callerPath}" data-allowed="${isAllowed}" style="width: auto; padding: 6px 12px; background: ${isAllowed ? '#f38ba8' : '#a6e3a1'}; color: #11111b; font-size: 12px;">
+            ${isAllowed ? 'Block' : 'Allow'}
+          </button>
+          <button class="delete-auth-btn" data-caller="${callerPath}" style="width: auto; padding: 6px 12px; background: #45475a; color: #cdd6f4; font-size: 12px;">Remove</button>
+        </div>
+      </div>
+    `;
+    authListContainer.appendChild(card);
+  });
+
+  document.querySelectorAll('.toggle-auth-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      /** @type {string} */
+      const caller = e.target.getAttribute('data-caller');
+      /** @type {boolean} */
+      const currentlyAllowed = e.target.getAttribute('data-allowed') === 'true';
+      await electronAPI.updateAuth(caller, !currentlyAllowed);
+      renderAuthList();
+    });
+  });
+
+  document.querySelectorAll('.delete-auth-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      /** @type {string} */
+      const caller = e.target.getAttribute('data-caller');
+      if (confirm('Remove this application from the firewall list?')) {
+        await electronAPI.deleteAuth(caller);
+        renderAuthList();
+      }
+    });
+  });
+};
+
+// Also add a listener so the list updates when the tab is clicked
+document.querySelector('[data-target="tab-permissions"]').addEventListener('click', renderAuthList);
+
+// Inside your init() function, add:
+renderAuthList();
+
 /**
  * Updates the user interface state for the streaming section based on whether the stream is enabled.
  * Toggles the disabled state of manual SDP inputs and updates the connected players status message.

@@ -23,6 +23,22 @@ export const isCLICommand = (args) => {
 };
 
 /**
+ * Retrieves the executable path of the parent process that spawned the CLI.
+ *
+ * @returns {string} The path to the caller executable or a fallback identifier.
+ */
+export const getCallerExecutable = () => {
+  try {
+    if (process.platform === 'linux') {
+      return fs.readlinkSync(`/proc/${process.ppid}/exe`);
+    }
+    return `Process ID: ${process.ppid}`;
+  } catch (e) {
+    return 'Unknown Application';
+  }
+};
+
+/**
  * The file path for the Unix domain socket used for IPC communication on Unix-like systems.
  * @type {string}
  */
@@ -77,46 +93,32 @@ export const runCLIClient = (args) => {
       return;
     }
 
+    /** @type {string} */
+    const callerApp = getCallerExecutable();
+    /** @type {string | null} */
+    let commandToSend = null;
+
     if (args.includes('--exit') || args.includes('exit')) {
-      /** @type {net.Socket} */
-      const exitClient = net.createConnection(PIPE_PATH, () => {
-        exitClient.write('CMD_EXIT');
-      });
-
-      exitClient.on('data', (data) => {
-        console.log(data.toString());
-        exitClient.end();
-      });
-
-      exitClient.on('end', () => resolve());
-
-      exitClient.on('error', () => {
-        console.log(
-          JSON.stringify({
-            status: 'error',
-            error: 'Tiny Pony Clipper is not currently running.',
-          }),
-        );
-        resolve();
-      });
-      return;
+      commandToSend = 'CMD_EXIT';
+    } else {
+      /** @type {number} */
+      const sdpIndex = args.indexOf('--process-sdp');
+      if (sdpIndex !== -1 && sdpIndex !== args.length - 1) {
+        commandToSend = args[sdpIndex + 1];
+      }
     }
 
-    /** @type {number} */
-    const sdpIndex = args.indexOf('--process-sdp');
-
-    if (sdpIndex === -1 || sdpIndex === args.length - 1) {
-      console.log(JSON.stringify({ status: 'error', error: 'Invalid sdp code!' }));
+    if (!commandToSend) {
+      console.log(
+        JSON.stringify({ status: 'error', error: 'Invalid command or missing arguments!' }),
+      );
       resolve();
       return;
     }
 
-    /** @type {string} */
-    const base64Offer = args[sdpIndex + 1];
-
     /** @type {net.Socket} */
     const client = net.createConnection(PIPE_PATH, () => {
-      client.write(base64Offer);
+      client.write(JSON.stringify({ cmd: commandToSend, caller: callerApp }));
     });
 
     client.on('data', (data) => {
@@ -143,14 +145,36 @@ export const runCLIClient = (args) => {
  * Starts the local IPC server to listen for and process incoming CLI commands.
  *
  * @param {function(string): Promise<string | null>} processSdpCallback - Callback function to handle SDP processing.
+ * @param {function(string): Promise<boolean>} authCallback
  * @returns {net.Server} The active network server instance.
  */
-export const startCLIServer = (processSdpCallback) => {
+export const startCLIServer = (processSdpCallback, authCallback) => {
   /** @type {net.Server} */
   const server = net.createServer((socket) => {
     socket.on('data', async (data) => {
       /** @type {string} */
-      const payloadString = data.toString().trim();
+      let payloadString;
+      /** @type {string} */
+      let callerApp;
+
+      try {
+        /** @type {Object} */
+        const parsed = JSON.parse(data.toString().trim());
+        payloadString = parsed.cmd;
+        callerApp = parsed.caller || 'Unknown Application';
+      } catch (e) {
+        socket.write(JSON.stringify({ status: 'error', error: 'Malformed JSON payload from CLI' }));
+        socket.end();
+        return;
+      }
+
+      /** @type {boolean} */
+      const isAuthorized = await authCallback(callerApp);
+      if (!isAuthorized) {
+        socket.write(JSON.stringify({ status: 'error', error: 'Permission denied by user' }));
+        socket.end();
+        return;
+      }
 
       if (payloadString === 'CMD_EXIT') {
         socket.write(
@@ -238,9 +262,7 @@ export const parseCLIConfigOverrides = (args) => {
   /** @type {Object} */
   const overrides = {};
 
-  if (args.includes('--force-stream')) {
-    overrides.streamEnabled = true;
-  }
+  if (args.includes('--force-stream')) overrides.streamEnabled = true;
 
   for (let i = 0; i < args.length; i++) {
     /** @type {string} */
@@ -253,12 +275,9 @@ export const parseCLIConfigOverrides = (args) => {
     if (arg === '--max-gamepads' && nextArg) overrides.maxGamepads = parseInt(nextArg, 10);
     if (arg === '--ice-servers' && nextArg) overrides.iceServers = nextArg;
 
-    if (arg === '--enable-clipping' && nextArg) {
-      overrides.enableClipping = nextArg === 'true';
-    }
-    if (arg === '--stream-video-enabled' && nextArg) {
+    if (arg === '--enable-clipping' && nextArg) overrides.enableClipping = nextArg === 'true';
+    if (arg === '--stream-video-enabled' && nextArg)
       overrides.streamVideoEnabled = nextArg === 'true';
-    }
   }
 
   // Force streamEnabled to true if any stream related argument is passed

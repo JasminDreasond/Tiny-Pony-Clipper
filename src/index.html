@@ -256,6 +256,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-target="tab-clipping">Clipping Settings</button>
       <button class="tab-btn" data-target="tab-remote">Remote Play</button>
+      <button class="tab-btn" data-target="tab-permissions">Permissions</button>
       <button class="tab-btn" data-target="tab-about">About</button>
     </div>
 
@@ -460,6 +461,19 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div id="tab-permissions" class="tab-content">
+        <h2>App Permissions (Firewall)</h2>
+        <p style="font-size: 13px; color: #bac2de">
+          Manage which third-party applications are allowed to execute CLI commands to control Tiny
+          Pony Clipper.
+        </p>
+
+        <div
+          id="authListContainer"
+          style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px"
+        ></div>
       </div>
 
       <div id="tab-about" class="tab-content">

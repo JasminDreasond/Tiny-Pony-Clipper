@@ -32,6 +32,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onForceCloseWebrtc: (callback) => ipcRenderer.on('force-close-webrtc', callback),
   onCaptureCommand: (callback) =>
     ipcRenderer.on('capture-command', (event, data) => callback(data)),
+  // Auth & Permissions APIs
+  getAuthList: () => ipcRenderer.invoke('get-auth-list'),
+  updateAuth: (caller, isAllowed) => ipcRenderer.invoke('update-auth', caller, isAllowed),
+  deleteAuth: (caller) => ipcRenderer.invoke('delete-auth', caller),
+  onAuthRequest: (callback) => ipcRenderer.on('auth-request', (event, caller) => callback(caller)),
+  sendAuthResponse: (data) => ipcRenderer.send('auth-response', data),
 });
 
 /**
