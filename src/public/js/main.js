@@ -49,8 +49,7 @@ import {
   serverAnswerInput,
 } from './html.js';
 import { showAlert, openModal, closeModal } from './Modal.js';
-
-import './pageApi.js';
+import { resolveApiConnection, setAuthenticating } from './pageApi.js';
 
 /** @type {NodeJS.Timeout | null} */
 let notificationTimer = null;
@@ -459,7 +458,7 @@ const drawGamepadCanvas = () => {
   ctx.clearRect(0, 0, 300, 180);
 
   /**
-   * Paleta Catppuccin
+   * Catppuccin Palette
    * @type {{
    * bodyBase: string,
    * bodyTop: string,
@@ -471,24 +470,24 @@ const drawGamepadCanvas = () => {
    * }}
    */
   const colors = {
-    bodyBase: '#1e1e2e', // Base mais escura (Mocha)
-    bodyTop: '#313244', // Superfície (Surface 0)
-    btnBase: '#45475a', // Botão (Surface 1)
-    btnPressed: '#cba6f7', // Pressionado (Mauve)
+    bodyBase: '#1e1e2e', // Darker Base (Mocha)
+    bodyTop: '#313244', // Surface (Surface 0)
+    btnBase: '#45475a', // Button (Surface 1)
+    btnPressed: '#cba6f7', // Pressed (Mauve)
     shadow: 'rgba(0, 0, 0, 0.4)',
-    glow: 'rgba(203, 166, 247, 0.6)', // Brilho Mauve
-    bgBase: '#181825', // Cavidade (Crust)
+    glow: 'rgba(203, 166, 247, 0.6)', // Mauve Brightness
+    bgBase: '#181825', // Cavity (Crust)
   };
 
   /**
-   * Funções de estilo reutilizáveis
+   * Reusable style functions
    * @param {boolean} pressed
    * @returns {void}
    */
   const applyGlowOrShadow = (pressed) => {
     ctx.shadowColor = pressed ? colors.glow : colors.shadow;
-    ctx.shadowBlur = pressed ? 12 : 5; // Brilho forte se pressionado
-    ctx.shadowOffsetY = pressed ? 0 : 3; // Profundidade se não pressionado
+    ctx.shadowBlur = pressed ? 12 : 5; // Bright glow if pressed
+    ctx.shadowOffsetY = pressed ? 0 : 3; // Depth if not pressed
     ctx.shadowOffsetX = 0;
   };
 
@@ -796,6 +795,8 @@ generateOfferBtn.addEventListener('click', async () => {
 });
 
 connectManualBtn.addEventListener('click', async () => {
+  setAuthenticating(true); // Locking connections coming from the API
+
   /** @type {string} */
   const b64Answer = serverAnswerInput.value.trim();
 
@@ -808,18 +809,31 @@ connectManualBtn.addEventListener('click', async () => {
       // Checks if it decoded into a valid JSON
       JSON.parse(answerStr);
     } catch (e) {
+      setAuthenticating(false);
+      resolveApiConnection(false, 'Invalid Base64 format');
       showAlert(
         'Invalid Base64 format! Please ensure you copied the exact code the server gave you.',
       );
       return;
     }
 
-    await applyServerAnswer(answerStr);
-    console.log('[CLIENT] Connected via manual signaling!');
-    loginDiv.style.display = 'none';
-    document.body.classList.add('is-playing');
-    btnOpenTx.style.display = 'block';
-    if (videoRequested) video.style.display = 'block';
+    try {
+      await applyServerAnswer(answerStr);
+      console.log('[CLIENT] Connected via manual signaling!');
+      loginDiv.style.display = 'none';
+      document.body.classList.add('is-playing');
+      btnOpenTx.style.display = 'block';
+      if (videoRequested) video.style.display = 'block';
+
+      setAuthenticating(false);
+      resolveApiConnection(true);
+    } catch (error) {
+      setAuthenticating(false);
+      resolveApiConnection(false, 'Failed to apply SDP answer');
+    }
+  } else {
+    setAuthenticating(false);
+    resolveApiConnection(false, 'Empty SDP answer');
   }
 });
 
@@ -925,6 +939,11 @@ window.addEventListener('gamepaddisconnected', (event) => {
  */
 const initConnection = () => {
   // Uses the current browser port for the WebSocket
+  setAuthenticating(true); // Locking API
+
+  /** @type {boolean} */
+  let isConnecting = true;
+
   checkMediaPreferences();
   localStorage.setItem('pony_stream_stun', stunInput.value.trim());
 
@@ -932,6 +951,8 @@ const initConnection = () => {
   let host = !serverInput.disabled ? serverInput.value.trim() : `ws://${window.location.host}`;
 
   if (!host) {
+    setAuthenticating(false);
+    resolveApiConnection(false, 'Missing server IP');
     showAlert('Please provide a server IP or address.');
     return;
   }
@@ -944,7 +965,9 @@ const initConnection = () => {
   try {
     ws = new WebSocket(host);
   } catch (err) {
+    setAuthenticating(false);
     updateDebug(dbgWs, 'Invalid URL', 'error');
+    resolveApiConnection(false, 'Invalid server address format');
     showAlert('Invalid server address format.');
     btnConnect.disabled = false;
     btnConnect.textContent = 'Connect & Play';
@@ -961,15 +984,30 @@ const initConnection = () => {
     updateDebug(dbgWs, 'Disconnected', 'error');
     btnConnect.disabled = false;
     btnConnect.textContent = 'Connect & Play';
+
+    if (isConnecting) {
+      setAuthenticating(false);
+      resolveApiConnection(false, 'Server disconnected before authentication');
+      isConnecting = false;
+    }
   };
 
-  ws.onerror = () => updateDebug(dbgWs, 'Error', 'error');
+  ws.onerror = () => {
+    updateDebug(dbgWs, 'Error', 'error');
+    if (isConnecting) {
+      setAuthenticating(false);
+      resolveApiConnection(false, 'WebSocket connection error');
+      isConnecting = false;
+    }
+  };
 
   ws.onmessage = async (event) => {
     /** @type {Object} */
     const data = JSON.parse(event.data);
 
     if (data.type === 'auth_success') {
+      isConnecting = false;
+
       if (data.clientId) {
         clientIdHud.style.display = 'block';
         document.getElementById('myClientId').textContent = data.clientId;
@@ -995,9 +1033,17 @@ const initConnection = () => {
       if (videoRequested) video.style.display = 'block';
 
       setupIPWebRTC();
+
+      setAuthenticating(false);
+      resolveApiConnection(true);
     } else if (data.type === 'auth_error') {
+      isConnecting = false;
+      setAuthenticating(false);
       updateDebug(dbgWs, 'Auth Failed', 'error');
+
+      resolveApiConnection(false, 'Wrong password');
       showAlert('Wrong password!');
+
       btnConnect.disabled = false;
       btnConnect.textContent = 'Connect & Play';
       ws.close();

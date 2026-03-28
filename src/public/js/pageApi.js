@@ -27,6 +27,22 @@ let apiOrigins = JSON.parse(localStorage.getItem('pony_api_origins') || '{}');
 let pendingApiRequest = null;
 
 /**
+ * @type {{ reqId: string, origin: string } | null}
+ */
+export let activeApiConnection = null;
+
+/** @type {boolean} */
+export let isAuthenticating = false;
+
+/**
+ * @param {boolean} state
+ * @returns {void}
+ */
+export const setAuthenticating = (state) => {
+  isAuthenticating = state;
+};
+
+/**
  * @param {string} origin
  * @param {'allowed' | 'blocked'} status
  * @returns {void}
@@ -111,6 +127,40 @@ const sendApiResponse = (requestId, origin, status, code, message) => {
 };
 
 /**
+ * @param {boolean} success
+ * @param {string} [errorMsg]
+ * @returns {void}
+ */
+export const resolveApiConnection = (success, errorMsg = '') => {
+  if (!activeApiConnection) return;
+
+  /** @type {string} */
+  const reqId = activeApiConnection.reqId;
+  /** @type {string} */
+  const origin = activeApiConnection.origin;
+
+  if (success) {
+    sendApiResponse(
+      reqId,
+      origin,
+      'success',
+      'SUCCESS_CONNECTED',
+      'Login successful and connected',
+    );
+  } else {
+    sendApiResponse(
+      reqId,
+      origin,
+      'error',
+      'ERR_CONNECTION_FAILED',
+      errorMsg || 'Connection failed',
+    );
+  }
+
+  activeApiConnection = null;
+};
+
+/**
  * @param {any} val
  * @param {number} maxLen
  * @returns {string}
@@ -171,13 +221,7 @@ btnApiAllow.addEventListener('click', () => {
 
     if (reqId) {
       if (isValid) {
-        sendApiResponse(
-          reqId,
-          pendingApiRequest.origin,
-          'success',
-          'SUCCESS_ALLOWED',
-          'Request allowed by user',
-        );
+        activeApiConnection = { reqId, origin: pendingApiRequest.origin };
       } else {
         sendApiResponse(
           reqId,
@@ -249,6 +293,21 @@ if ('serviceWorker' in navigator) {
         return; // For the stream here to not open permission modals
       }
 
+      // Universal blocker of shelled requests
+      if (isAuthenticating || activeApiConnection || pendingApiRequest) {
+        console.warn(`[API] Ignoring request of ${data.origin} - Busy client.`);
+        if (reqId) {
+          sendApiResponse(
+            reqId,
+            data.origin,
+            'error',
+            'ERR_BUSY',
+            'The client is currently busy processing another request or authenticating. Please wait.',
+          );
+        }
+        return;
+      }
+
       /** @type {string} */
       const originStatus = apiOrigins[data.origin];
 
@@ -256,14 +315,7 @@ if ('serviceWorker' in navigator) {
         /** @type {boolean} */
         const isValid = executeApiPayload(data.payload);
         if (reqId) {
-          if (isValid)
-            sendApiResponse(
-              reqId,
-              data.origin,
-              'success',
-              'SUCCESS_AUTO',
-              'Origin automatically allowed',
-            );
+          if (isValid) activeApiConnection = { reqId, origin: data.origin };
           else
             sendApiResponse(reqId, data.origin, 'error', 'ERR_INVALID', 'Invalid payload format');
         }
@@ -278,18 +330,6 @@ if ('serviceWorker' in navigator) {
             'Origin is permanently blocked',
           );
       } else {
-        if (pendingApiRequest) {
-          if (reqId)
-            sendApiResponse(
-              reqId,
-              data.origin,
-              'error',
-              'ERR_BUSY',
-              'Client is currently busy with another request',
-            );
-          return;
-        }
-
         apiAuthOriginText.textContent = data.origin;
         openModal(apiAuthModal);
 
