@@ -5,10 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Security Alert</title>
     <style>
+      :root {
+        --bg-gradient:
+          radial-gradient(circle at 20% 20%, rgba(255, 200, 250, 0.1) 0%, transparent 40%),
+          radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+        --bg-color: #ffffff;
+        --text-color: #333333;
+        --input-bg: #f5f5f5;
+        --border-color: #cccccc;
+        --scroll-thumb: #cba6f7;
+        --scroll-thumb-hover: #b4befe;
+        --muted-text: #666666;
+        --warning-title: #df8e1d;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-gradient:
+            radial-gradient(circle at 20% 20%, rgba(137, 180, 250, 0.1) 0%, transparent 40%),
+            radial-gradient(circle at 80% 80%, rgba(203, 166, 247, 0.1) 0%, transparent 40%);
+          --bg-color: #1e1e2e;
+          --text-color: #e0e0e0;
+          --input-bg: #2a2a35;
+          --border-color: #444455;
+          --scroll-thumb: #6c539a;
+          --scroll-thumb-hover: #cba6f7;
+          --muted-text: #bac2de;
+          --warning-title: #f9e2af;
+        }
+      }
+
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-color);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--scroll-thumb);
+        border-radius: 5px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--scroll-thumb-hover);
+      }
+
+      ::selection {
+        background-color: #805ea8;
+        color: #fff;
+      }
+
       body {
         font-family: sans-serif;
-        background-color: #1e1e2e;
-        color: #cdd6f4;
+        background-color: var(--bg-color);
+        background-image: var(--bg-gradient);
+        color: var(--text-color);
         margin: 0;
         padding: 20px;
         display: flex;
@@ -19,13 +69,21 @@
         box-sizing: border-box;
         text-align: center;
       }
+
       .warning-icon {
         font-size: 40px;
         margin-bottom: 10px;
       }
+
+      h2 {
+        margin: 0;
+        color: var(--warning-title);
+      }
+
       .app-path {
-        background-color: #11111b;
+        background-color: var(--input-bg);
         color: #f38ba8;
+        border: 1px solid var(--border-color);
         padding: 10px;
         border-radius: 6px;
         font-family: monospace;
@@ -34,12 +92,20 @@
         width: 100%;
         box-sizing: border-box;
       }
+
+      .muted-desc {
+        font-size: 13px;
+        color: var(--muted-text);
+        margin-top: 0;
+      }
+
       .btn-container {
         display: flex;
         gap: 15px;
         width: 100%;
         margin-top: 10px;
       }
+
       button {
         flex: 1;
         padding: 12px;
@@ -48,11 +114,22 @@
         cursor: pointer;
         font-weight: bold;
         font-size: 14px;
+        transition: opacity 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
       }
+
+      button:hover {
+        opacity: 0.85;
+      }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
       .btn-allow {
         background-color: #a6e3a1;
         color: #11111b;
       }
+
       .btn-deny {
         background-color: #f38ba8;
         color: #11111b;
@@ -61,14 +138,12 @@
   </head>
   <body>
     <div class="warning-icon">⚠️</div>
-    <h2 style="margin: 0; color: #f9e2af">Permission Required</h2>
+    <h2>Permission Required</h2>
     <p>A third-party application is trying to execute a CLI command in Tiny Pony Clipper.</p>
 
     <div class="app-path" id="appName">Loading path...</div>
 
-    <p style="font-size: 12px; color: #bac2de">
-      Do you want to allow this application to control the CLI?
-    </p>
+    <p class="muted-desc">Do you want to allow this application to control the CLI?</p>
 
     <div class="btn-container">
       <button class="btn-deny" id="btnDeny">Deny</button>
