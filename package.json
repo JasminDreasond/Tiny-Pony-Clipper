@@ -36,7 +36,7 @@
   ],
   "scripts": {
     "start": "yarn build:npx && electron .",
-    "fix:prettier": "prettier --write ./src/* && prettier --write ./test/* && prettier --write ./web-builder.js",
+    "fix:prettier": "prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js",
     "build": "yarn build:web && yarn build:linux",
     "build:web": "node ./web-builder.js",
     "build:npx": "npx node-gyp configure build",

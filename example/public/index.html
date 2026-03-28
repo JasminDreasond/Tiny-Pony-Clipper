@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Third-Party Test App</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #2a1f3d;
+        color: white;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+      }
+      .card {
+        background: #313244;
+        padding: 24px;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      h2 {
+        margin-top: 0;
+        color: #cba6f7;
+      }
+      label {
+        font-size: 13px;
+        color: #bac2de;
+      }
+      input {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        margin-bottom: 15px;
+        box-sizing: border-box;
+        background: #1e1e2e;
+        color: white;
+        border: 1px solid #45475a;
+        border-radius: 6px;
+      }
+      button {
+        background: #cba6f7;
+        color: #11111b;
+        border: none;
+        padding: 12px;
+        cursor: pointer;
+        border-radius: 6px;
+        font-weight: bold;
+        width: 100%;
+        margin-top: 10px;
+      }
+      button:hover {
+        background: #d2b3f8;
+      }
+      iframe {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Launch Tiny Pony</h2>
+
+      <label>Target Client URL (Where Tiny Pony is running):</label>
+      <input type="text" id="targetUrl" value="http://localhost:8080" />
+
+      <label>Server IP to Connect:</label>
+      <input type="text" id="hostIp" value="192.168.1.100:8080" />
+
+      <label>Server Password:</label>
+      <input type="password" id="hostPass" value="mypassword" />
+
+      <button id="btnSend">Send API Request via iframe</button>
+    </div>
+
+    <div id="iframeContainer"></div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
