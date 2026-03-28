@@ -48,6 +48,7 @@ import {
   connectManualBtn,
   serverAnswerInput,
 } from './html.js';
+import { showAlert } from './Modal.js';
 
 import './pageApi.js';
 
@@ -743,7 +744,7 @@ btnImportKbFile.addEventListener('change', (e) => {
       currentKeyBinds = JSON.parse(evt.target.result);
       generateKbUI();
     } catch (err) {
-      alert('Invalid JSON format!');
+      showAlert('Invalid JSON format!');
     }
   };
   reader.readAsText(file);
@@ -807,7 +808,9 @@ connectManualBtn.addEventListener('click', async () => {
       // Checks if it decoded into a valid JSON
       JSON.parse(answerStr);
     } catch (e) {
-      alert('Invalid Base64 format! Please ensure you copied the exact code the server gave you.');
+      showAlert(
+        'Invalid Base64 format! Please ensure you copied the exact code the server gave you.',
+      );
       return;
     }
 
@@ -929,7 +932,7 @@ const initConnection = () => {
   let host = !serverInput.disabled ? serverInput.value.trim() : `ws://${window.location.host}`;
 
   if (!host) {
-    alert('Please provide a server IP or address.');
+    showAlert('Please provide a server IP or address.');
     return;
   }
   if (!host.startsWith('ws://') && !host.startsWith('wss://')) host = `ws://${host}`;
@@ -942,7 +945,7 @@ const initConnection = () => {
     ws = new WebSocket(host);
   } catch (err) {
     updateDebug(dbgWs, 'Invalid URL', 'error');
-    alert('Invalid server address format.');
+    showAlert('Invalid server address format.');
     btnConnect.disabled = false;
     btnConnect.textContent = 'Connect & Play';
     return;
@@ -994,7 +997,7 @@ const initConnection = () => {
       setupIPWebRTC();
     } else if (data.type === 'auth_error') {
       updateDebug(dbgWs, 'Auth Failed', 'error');
-      alert('Wrong password!');
+      showAlert('Wrong password!');
       btnConnect.disabled = false;
       btnConnect.textContent = 'Connect & Play';
       ws.close();

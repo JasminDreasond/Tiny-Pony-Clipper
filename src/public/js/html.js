@@ -104,3 +104,11 @@ export const apiAuthOriginText = document.getElementById('apiAuthOriginText');
 export const btnApiDeny = document.getElementById('btnApiDeny');
 /** @type {HTMLElement} */
 export const btnApiAllow = document.getElementById('btnApiAllow');
+
+// Custom Alert Elements
+/** @type {HTMLElement} */
+export const customAlertModal = document.getElementById('customAlertModal');
+/** @type {HTMLElement} */
+export const customAlertText = document.getElementById('customAlertText');
+/** @type {HTMLButtonElement} */
+export const btnCustomAlertOk = document.getElementById('btnCustomAlertOk');

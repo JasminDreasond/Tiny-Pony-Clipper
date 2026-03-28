@@ -851,6 +851,38 @@
 
     <video id="streamView" autoplay playsinline muted></video>
 
+    <div
+      id="customAlertModal"
+      style="
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(30, 30, 46, 0.95);
+        backdrop-filter: blur(10px);
+        border: 2px solid #cba6f7;
+        border-radius: 16px;
+        padding: 24px;
+        z-index: 9999;
+        width: 350px;
+        max-width: 90vw;
+        box-shadow:
+          0 25px 60px rgba(0, 0, 0, 0.8),
+          0 0 30px rgba(203, 166, 247, 0.2);
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      "
+    >
+      <h3 style="margin: 0; color: #cba6f7">Alert</h3>
+      <p
+        id="customAlertText"
+        style="color: #cdd6f4; font-size: 14px; margin: 0; word-wrap: break-word"
+      ></p>
+      <button id="btnCustomAlertOk" style="margin-top: 10px; width: 100%">OK</button>
+    </div>
+
     <script src="/js/main.js" type="module"></script>
   </body>
 </html>
