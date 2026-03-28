@@ -22,7 +22,7 @@ import { openModal, closeModal } from './Modal.js';
 let apiOrigins = JSON.parse(localStorage.getItem('pony_api_origins') || '{}');
 
 /**
- * @type {{ origin: string, payload: Object, timer: number } | null}
+ * @type {{ origin: string, payload: Object, timer: NodeJS.Timeout } | null}
  */
 let pendingApiRequest = null;
 
@@ -38,6 +38,9 @@ export let isAuthenticating = false;
 let lastApiRequestTime = 0;
 /** @type {number} */
 const RATE_LIMIT_MS = 1500;
+
+/** @type {Set<string>} */
+const processedRequests = new Set();
 
 /** @type {(() => Promise<string>) | null} */
 export let onGenerateOffer = null;
@@ -354,6 +357,24 @@ if ('serviceWorker' in navigator) {
     if (data && data.type === 'api_request') {
       /** @type {string|undefined} */
       const reqId = data.payload.requestId;
+
+      if (reqId) {
+        if (processedRequests.has(reqId)) {
+          console.warn(`[API] Duplicate request blocked: ${reqId}`);
+          sendApiResponse(
+            reqId,
+            data.origin,
+            'error',
+            'ERR_DUPLICATE_REQUEST',
+            'This requestId is already in use.',
+          );
+          return;
+        }
+
+        processedRequests.add(reqId);
+        setTimeout(() => processedRequests.delete(reqId), 600000);
+      }
+
       /** @type {number} */
       const now = Date.now();
 

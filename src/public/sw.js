@@ -26,6 +26,21 @@ self.addEventListener('message', async (event) => {
         origin: data.origin,
         payload: data.payload,
       });
+    } else {
+      /** @type {Client[]} */
+      const apiClients = windowClients.filter((c) => c.url.includes('api.html'));
+
+      apiClients.forEach((client) => {
+        client.postMessage({
+          type: 'api_response',
+          requestId: data.payload.requestId,
+          origin: data.origin,
+          status: 'error',
+          code: 'ERR_NO_CLIENT',
+          message: 'No active application window found. The user must open the app first.',
+          data: null,
+        });
+      });
     }
   } else if (data.type === 'api_response') {
     /** @type {Client[]} */
