@@ -231,10 +231,26 @@ if ('serviceWorker' in navigator) {
     const data = event.data;
 
     if (data && data.type === 'api_request') {
-      /** @type {string} */
-      const originStatus = apiOrigins[data.origin];
       /** @type {string|undefined} */
       const reqId = data.payload.requestId;
+
+      // BLINK: Intercept and reject if the player is already busy with an active stream!
+      if (document.body.classList.contains('is-playing')) {
+        console.warn(`[API] Ignoring request of ${data.origin} - The player is in a room.`);
+        if (reqId) {
+          sendApiResponse(
+            reqId,
+            data.origin,
+            'error',
+            'ERR_BUSY',
+            'The player is currently busy playing a game.',
+          );
+        }
+        return; // For the stream here to not open permission modals
+      }
+
+      /** @type {string} */
+      const originStatus = apiOrigins[data.origin];
 
       if (originStatus === 'allowed') {
         /** @type {boolean} */

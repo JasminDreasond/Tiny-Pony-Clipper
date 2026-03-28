@@ -492,6 +492,15 @@
         z-index: 101;
         display: flex;
         gap: 10px;
+        transition: opacity 0.3s ease;
+      }
+
+      body.is-playing:not(.gamepad-only-mode) .hud-buttons {
+        opacity: 0.15;
+      }
+
+      body.is-playing:not(.gamepad-only-mode) .hud-buttons:hover {
+        opacity: 1;
       }
 
       .hud-btn {
