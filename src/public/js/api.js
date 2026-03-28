@@ -8,6 +8,7 @@ const initApiBridge = async () => {
     await navigator.serviceWorker.register('/sw.js');
   } catch (error) {
     console.error('[API Bridge] Service Worker error:', error);
+    return;
   }
 
   navigator.serviceWorker.addEventListener('message', (event) => {
@@ -21,6 +22,7 @@ const initApiBridge = async () => {
             type: 'tiny_pony_api_response',
             requestId: data.requestId,
             status: data.status,
+            code: data.code,
             message: data.message,
           },
           data.origin,
@@ -30,7 +32,12 @@ const initApiBridge = async () => {
   });
 
   window.addEventListener('message', async (event) => {
+    if (event.source !== window.parent) return;
     if (!event.data || typeof event.data !== 'object' || !event.data.action) return;
+
+    /** @type {string} */
+    const origin = event.origin;
+    if (!origin || origin === 'null') return;
 
     try {
       /** @type {ServiceWorkerRegistration} */
@@ -39,7 +46,7 @@ const initApiBridge = async () => {
       if (reg && reg.active) {
         reg.active.postMessage({
           type: 'api_relay',
-          origin: event.origin,
+          origin: origin,
           payload: event.data,
         });
       }

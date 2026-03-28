@@ -69,7 +69,7 @@ btnSend.addEventListener('click', async () => {
     const data = event.data;
 
     if (origin === targetUrl && data?.type === 'tiny_pony_api_response') {
-      console.log(data.status, data.message);
+      console.log(`[TEST APP] API Response`, data);
     }
   });
 

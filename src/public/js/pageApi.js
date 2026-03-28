@@ -20,7 +20,9 @@ import {
 /** @type {Record<string, string>} */
 let apiOrigins = JSON.parse(localStorage.getItem('pony_api_origins') || '{}');
 
-/** @type {{ origin: string, payload: Object } | null} */
+/**
+ * @type {{ origin: string, payload: Object, timer: number } | null}
+ */
 let pendingApiRequest = null;
 
 /**
@@ -78,8 +80,9 @@ const renderApiOrigins = () => {
       <button style="width: auto; padding: 6px 10px; margin: 0; font-size: 12px; background: #45475a; color: #cdd6f4;">Remove</button>
     `;
 
+    /** @type {HTMLButtonElement|null} */
     const btn = row.querySelector('button');
-    btn.onclick = () => removeApiOrigin(origin);
+    if (btn) btn.onclick = () => removeApiOrigin(origin);
 
     apiOriginList.appendChild(row);
   });
@@ -89,19 +92,31 @@ const renderApiOrigins = () => {
  * @param {string} requestId
  * @param {string} origin
  * @param {'success' | 'error'} status
+ * @param {string} code
  * @param {string} message
  * @returns {void}
  */
-const sendApiResponse = (requestId, origin, status, message) => {
+const sendApiResponse = (requestId, origin, status, code, message) => {
   if (navigator.serviceWorker.controller && requestId) {
     navigator.serviceWorker.controller.postMessage({
       type: 'api_response',
       requestId,
       origin,
       status,
+      code,
       message,
     });
   }
+};
+
+/**
+ * @param {any} val
+ * @param {number} maxLen
+ * @returns {string}
+ */
+const sanitizeInput = (val, maxLen) => {
+  if (typeof val !== 'string') return '';
+  return val.substring(0, maxLen).trim();
 };
 
 /**
@@ -111,38 +126,69 @@ const sendApiResponse = (requestId, origin, status, message) => {
  * @param {string} [payload.pass]
  * @param {string} [payload.answer]
  * @param {string} [payload.requestId]
- * @returns {Promise<void>}
+ * @returns {boolean}
  */
-const executeApiPayload = async (payload) => {
+const executeApiPayload = (payload) => {
   console.log('[API PAYLOAD RECEIVED]', payload);
 
   if (payload.action === 'connect_ip') {
-    serverInput.value = payload.host || '';
-    passInput.value = payload.pass || '';
+    serverInput.value = sanitizeInput(payload.host, 150);
+    passInput.value = sanitizeInput(payload.pass, 100);
     connMethodSelect.value = 'ip';
     connMethodSelect.dispatchEvent(new Event('change'));
     btnConnect.click();
+    return true;
   } else if (payload.action === 'connect_sdp') {
-    serverAnswerInput.value = payload.answer || '';
+    serverAnswerInput.value = sanitizeInput(payload.answer, 8000);
     connMethodSelect.value = 'sdp';
     connMethodSelect.dispatchEvent(new Event('change'));
     connectManualBtn.click();
+    return true;
   }
+  return false;
+};
+
+/**
+ * @returns {void}
+ */
+const clearPendingRequest = () => {
+  if (pendingApiRequest && pendingApiRequest.timer) {
+    clearTimeout(pendingApiRequest.timer);
+  }
+  pendingApiRequest = null;
+  apiAuthModal.style.display = 'none';
 };
 
 btnApiAllow.addEventListener('click', () => {
   if (pendingApiRequest) {
     saveApiOrigin(pendingApiRequest.origin, 'allowed');
-    executeApiPayload(pendingApiRequest.payload);
+    /** @type {boolean} */
+    const isValid = executeApiPayload(pendingApiRequest.payload);
 
     /** @type {string|undefined} */
     const reqId = pendingApiRequest.payload.requestId;
-    if (reqId)
-      sendApiResponse(reqId, pendingApiRequest.origin, 'success', 'Request allowed by user');
 
-    pendingApiRequest = null;
+    if (reqId) {
+      if (isValid) {
+        sendApiResponse(
+          reqId,
+          pendingApiRequest.origin,
+          'success',
+          'SUCCESS_ALLOWED',
+          'Request allowed by user',
+        );
+      } else {
+        sendApiResponse(
+          reqId,
+          pendingApiRequest.origin,
+          'error',
+          'ERR_INVALID',
+          'Invalid payload format',
+        );
+      }
+    }
+    clearPendingRequest();
   }
-  apiAuthModal.style.display = 'none';
 });
 
 btnApiDeny.addEventListener('click', () => {
@@ -151,11 +197,17 @@ btnApiDeny.addEventListener('click', () => {
 
     /** @type {string|undefined} */
     const reqId = pendingApiRequest.payload.requestId;
-    if (reqId) sendApiResponse(reqId, pendingApiRequest.origin, 'error', 'Request denied by user');
+    if (reqId)
+      sendApiResponse(
+        reqId,
+        pendingApiRequest.origin,
+        'error',
+        'ERR_DENIED',
+        'Request denied by user',
+      );
 
-    pendingApiRequest = null;
+    clearPendingRequest();
   }
-  apiAuthModal.style.display = 'none';
 });
 
 btnManageApiOrigins.addEventListener('click', () => {
@@ -184,15 +236,62 @@ if ('serviceWorker' in navigator) {
       const reqId = data.payload.requestId;
 
       if (originStatus === 'allowed') {
-        executeApiPayload(data.payload);
-        if (reqId) sendApiResponse(reqId, data.origin, 'success', 'Origin automatically allowed');
+        /** @type {boolean} */
+        const isValid = executeApiPayload(data.payload);
+        if (reqId) {
+          if (isValid)
+            sendApiResponse(
+              reqId,
+              data.origin,
+              'success',
+              'SUCCESS_AUTO',
+              'Origin automatically allowed',
+            );
+          else
+            sendApiResponse(reqId, data.origin, 'error', 'ERR_INVALID', 'Invalid payload format');
+        }
       } else if (originStatus === 'blocked') {
         console.warn(`[API] Blocked request from: ${data.origin}`);
-        if (reqId) sendApiResponse(reqId, data.origin, 'error', 'Origin is blocked');
+        if (reqId)
+          sendApiResponse(
+            reqId,
+            data.origin,
+            'error',
+            'ERR_BLOCKED',
+            'Origin is permanently blocked',
+          );
       } else {
-        pendingApiRequest = data;
+        if (pendingApiRequest) {
+          if (reqId)
+            sendApiResponse(
+              reqId,
+              data.origin,
+              'error',
+              'ERR_BUSY',
+              'Client is currently busy with another request',
+            );
+          return;
+        }
+
         apiAuthOriginText.textContent = data.origin;
         apiAuthModal.style.display = 'flex';
+
+        pendingApiRequest = {
+          origin: data.origin,
+          payload: data.payload,
+          timer: setTimeout(() => {
+            if (pendingApiRequest && pendingApiRequest.payload.requestId === reqId) {
+              sendApiResponse(
+                reqId,
+                data.origin,
+                'error',
+                'ERR_TIMEOUT',
+                'User did not respond in time',
+              );
+              clearPendingRequest();
+            }
+          }, 30000),
+        };
       }
     }
   });

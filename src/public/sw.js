@@ -9,8 +9,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', async (event) => {
   /** @type {Object} */
   const data = event.data;
+  if (!data || !data.type) return;
 
-  if (data && data.type === 'api_relay') {
+  if (data.type === 'api_relay') {
     /** @type {Client[]} */
     const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
 
@@ -26,7 +27,7 @@ self.addEventListener('message', async (event) => {
         payload: data.payload,
       });
     }
-  } else if (data && data.type === 'api_response') {
+  } else if (data.type === 'api_response') {
     /** @type {Client[]} */
     const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
 
