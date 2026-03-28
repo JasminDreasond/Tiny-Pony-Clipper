@@ -93,7 +93,7 @@
         color: white;
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         overflow: hidden;
-        transition: background-color 1s ease;
+        transition: background-color 1s ease, background-image 2s ease;
       }
 
       @keyframes gradientShift {
@@ -632,8 +632,8 @@
 
       body.gamepad-only-mode.is-playing {
         /* Stop the background animation to avoid distractions */
-        animation: gradientShift 15s ease;
-        background-color: #0f0c1d;
+        animation: none;
+        background-position: 0%;
         background-image:
           radial-gradient(circle at 20% 20%, rgba(137, 180, 250, 0.1) 0%, transparent 40%),
           radial-gradient(circle at 80% 80%, rgba(203, 166, 247, 0.1) 0%, transparent 40%);
