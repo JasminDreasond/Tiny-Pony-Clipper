@@ -1,3 +1,5 @@
+import { loginDiv } from './html.js';
+
 /** @type {HTMLElement | null} */
 const welcomeScreen = document.getElementById('welcomeScreen');
 /** @type {HTMLElement | null} */
