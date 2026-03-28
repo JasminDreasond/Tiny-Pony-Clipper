@@ -48,7 +48,7 @@ import {
   connectManualBtn,
   serverAnswerInput,
 } from './html.js';
-import { showAlert } from './Modal.js';
+import { showAlert, openModal, closeModal } from './Modal.js';
 
 import './pageApi.js';
 
@@ -350,7 +350,7 @@ const defaultActionMap = {
     val: 1,
   },
 
-  // Right Stick Axes - All corrected to use RS icons (E05D, name:E058, name:E05A, name:E05C }
+  // Right Stick Axes
   rsUp: {
     icon: 'img/kenney_input_xbox_series/xbox_stick_r_up.png',
     name: 'RS Up',
@@ -448,7 +448,7 @@ const generateKbUI = () => {
  * @returns {void}
  */
 const drawGamepadCanvas = () => {
-  if (kbModal.style.display === 'none') return;
+  if (!kbModal.classList.contains('modal-enter')) return;
 
   /** @type {HTMLCanvasElement} */
   const canvas = gamepadCanvas;
@@ -459,7 +459,7 @@ const drawGamepadCanvas = () => {
   ctx.clearRect(0, 0, 300, 180);
 
   /**
-   *  Paleta Catppuccin
+   * Paleta Catppuccin
    * @type {{
    * bodyBase: string,
    * bodyTop: string,
@@ -677,7 +677,7 @@ const handleVirtualInput = (code, isDown) => {
 };
 
 window.addEventListener('keydown', (e) => {
-  if (kbModal.style.display === 'flex' && e.key === 'Escape') {
+  if (kbModal.classList.contains('modal-enter') && e.key === 'Escape') {
     if (awaitingBind) {
       awaitingBind = null;
       generateKbUI();
@@ -703,20 +703,20 @@ window.addEventListener('keyup', (e) => {
 
 btnOpenKbConfig.addEventListener('click', () => {
   backupKeyBinds = { ...currentKeyBinds };
-  kbModal.style.display = 'flex';
+  openModal(kbModal);
   generateKbUI();
   drawGamepadCanvas();
 });
 
 btnCloseKb.addEventListener('click', () => {
-  kbModal.style.display = 'none';
+  closeModal(kbModal);
   if (animFrameId) cancelAnimationFrame(animFrameId);
   localStorage.setItem('pony_kb_binds', JSON.stringify(currentKeyBinds));
 });
 
 btnCancelKb.addEventListener('click', () => {
   currentKeyBinds = { ...backupKeyBinds };
-  kbModal.style.display = 'none';
+  closeModal(kbModal);
   if (animFrameId) cancelAnimationFrame(animFrameId);
 });
 
@@ -898,7 +898,7 @@ btnToggleDebug.addEventListener('click', toggleDebug);
 
 // F2 keyboard shortcut to toggle
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'F2' && kbModal.style.display !== 'flex') {
+  if (e.key === 'F2' && !kbModal.classList.contains('modal-enter')) {
     e.preventDefault();
     toggleDebug();
   }

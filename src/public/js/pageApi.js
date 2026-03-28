@@ -14,6 +14,7 @@ import {
   connectManualBtn,
   serverAnswerInput,
 } from './html.js';
+import { openModal, closeModal } from './Modal.js';
 
 // --- API BRIDGE & SERVICE WORKER LOGIC ---
 
@@ -156,7 +157,7 @@ const clearPendingRequest = () => {
     clearTimeout(pendingApiRequest.timer);
   }
   pendingApiRequest = null;
-  apiAuthModal.style.display = 'none';
+  closeModal(apiAuthModal);
 };
 
 btnApiAllow.addEventListener('click', () => {
@@ -212,11 +213,11 @@ btnApiDeny.addEventListener('click', () => {
 
 btnManageApiOrigins.addEventListener('click', () => {
   renderApiOrigins();
-  apiManagerModal.style.display = 'flex';
+  openModal(apiManagerModal);
 });
 
 btnCloseApiManager.addEventListener('click', () => {
-  apiManagerModal.style.display = 'none';
+  closeModal(apiManagerModal);
 });
 
 // Service Worker Registration and Message Handling
@@ -274,7 +275,7 @@ if ('serviceWorker' in navigator) {
         }
 
         apiAuthOriginText.textContent = data.origin;
-        apiAuthModal.style.display = 'flex';
+        openModal(apiAuthModal);
 
         pendingApiRequest = {
           origin: data.origin,

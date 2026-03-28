@@ -121,7 +121,95 @@
         display: none !important;
       }
 
-      /* --- Login Panel & Animations --- */
+      /* --- Modals Base & Overlay Animations --- */
+      #modalOverlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(17, 17, 27, 0.8);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 900;
+        opacity: 0;
+      }
+
+      .overlay-enter {
+        display: block !important;
+        animation: fadeIn 0.3s ease forwards;
+      }
+
+      .overlay-exit {
+        animation: fadeOut 0.3s ease forwards;
+      }
+
+      .modal-base {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(30, 30, 46, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 24px;
+        flex-direction: column;
+        gap: 16px;
+        opacity: 0;
+      }
+
+      .modal-enter {
+        display: flex !important;
+        animation: modalEntrance 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      .modal-exit {
+        animation: modalExit 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+        }
+        to {
+          opacity: 0;
+        }
+      }
+
+      @keyframes modalEntrance {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -45%) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+
+      @keyframes modalExit {
+        from {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: translate(-50%, -55%) scale(0.95);
+        }
+      }
+
+      /* --- Login Panel --- */
       #login {
         display: flex;
         flex-direction: column;
@@ -300,40 +388,7 @@
         color: #11111b;
       }
 
-      /* --- Modal CSS --- */
-      #kbModal {
-        display: none;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(30, 30, 46, 0.95);
-        backdrop-filter: blur(10px);
-        border: 2px solid #cba6f7;
-        border-radius: 16px;
-        padding: 24px;
-        z-index: 1000;
-        width: 480px;
-        max-width: 90vw;
-        box-shadow:
-          0 25px 60px rgba(0, 0, 0, 0.8),
-          0 0 30px rgba(203, 166, 247, 0.2);
-        flex-direction: column;
-        gap: 16px;
-        animation: modalEntrance 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      }
-
-      @keyframes modalEntrance {
-        from {
-          opacity: 0;
-          transform: translate(-50%, -45%) scale(0.95);
-        }
-        to {
-          opacity: 1;
-          transform: translate(-50%, -50%) scale(1);
-        }
-      }
-
+      /* --- KB Modal Specifics --- */
       #kbModal h3 {
         margin: 0;
         color: #cba6f7;
@@ -489,12 +544,14 @@
         color: #fab387;
         text-shadow: 0 0 5px rgba(250, 179, 135, 0.4);
       }
+
       #dbgInput {
         margin-top: 10px;
         font-size: 12px;
         color: #bac2de;
         line-height: 1.6;
       }
+
       #clientIdHud {
         position: absolute;
         top: 15px;
@@ -620,6 +677,8 @@
     </style>
   </head>
   <body>
+    <div id="modalOverlay"></div>
+
     <div id="disconnectToast">Connection Lost</div>
 
     <div id="clientIdHud" style="display: none">
@@ -673,7 +732,19 @@
       </div>
     </div>
 
-    <div id="kbModal">
+    <div
+      id="kbModal"
+      class="modal-base"
+      style="
+        border: 2px solid #cba6f7;
+        z-index: 1000;
+        width: 480px;
+        max-width: 90vw;
+        box-shadow:
+          0 25px 60px rgba(0, 0, 0, 0.8),
+          0 0 30px rgba(203, 166, 247, 0.2);
+      "
+    >
       <h3>Keyboard Gamepad Config</h3>
       <h5>Icons made by Kenney (www.kenney.nl)</h5>
       <canvas id="gamepadCanvas" width="300" height="160"></canvas>
@@ -690,24 +761,15 @@
 
     <div
       id="apiAuthModal"
+      class="modal-base"
       style="
-        display: none;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(30, 30, 46, 0.95);
-        backdrop-filter: blur(10px);
         border: 2px solid #f38ba8;
-        border-radius: 16px;
-        padding: 24px;
         z-index: 2000;
         width: 400px;
+        max-width: 90vw;
         box-shadow:
           0 25px 60px rgba(0, 0, 0, 0.8),
           0 0 30px rgba(243, 139, 168, 0.2);
-        flex-direction: column;
-        gap: 16px;
       "
     >
       <h3 style="margin: 0; color: #f38ba8; text-align: center">API Access Request</h3>
@@ -715,6 +777,7 @@
         An external application is trying to connect to your client.
       </p>
       <div
+        id="apiAuthOriginText"
         style="
           background: rgba(17, 17, 27, 0.8);
           padding: 12px;
@@ -724,7 +787,6 @@
           color: #fab387;
           word-break: break-all;
         "
-        id="apiAuthOriginText"
       ></div>
       <div class="modal-actions" style="margin-top: 10px">
         <button id="btnApiDeny" style="background: #f38ba8; color: #11111b">Deny & Block</button>
@@ -734,22 +796,13 @@
 
     <div
       id="apiManagerModal"
+      class="modal-base"
       style="
-        display: none;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(30, 30, 46, 0.95);
-        backdrop-filter: blur(10px);
         border: 2px solid #cba6f7;
-        border-radius: 16px;
-        padding: 24px;
         z-index: 1500;
         width: 480px;
+        max-width: 90vw;
         box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
-        flex-direction: column;
-        gap: 16px;
       "
     >
       <h3 style="margin: 0; color: #cba6f7; text-align: center">API Permissions</h3>
@@ -762,24 +815,44 @@
       </div>
     </div>
 
+    <div
+      id="customAlertModal"
+      class="modal-base"
+      style="
+        border: 2px solid #cba6f7;
+        z-index: 9999;
+        width: 350px;
+        max-width: 90vw;
+        box-shadow:
+          0 25px 60px rgba(0, 0, 0, 0.8),
+          0 0 30px rgba(203, 166, 247, 0.2);
+        text-align: center;
+      "
+    >
+      <h3 style="margin: 0; color: #cba6f7">Alert</h3>
+      <p
+        id="customAlertText"
+        style="color: #cdd6f4; font-size: 14px; margin: 0; word-wrap: break-word"
+      ></p>
+      <button id="btnCustomAlertOk" style="margin-top: 10px; width: 100%">OK</button>
+    </div>
+
     <div id="login">
       <h2>Tiny Pony Stream</h2>
-
       <select id="connectionMethod">
         <option value="ip">Connect via IP Address</option>
         <option value="sdp">Manual SDP Signaling</option>
       </select>
-
       <div class="options-row">
-        <label class="checkbox-container">
-          <input type="checkbox" id="wantsVideo" checked /> Enable Video
-        </label>
-        <label class="checkbox-container">
-          <input type="checkbox" id="useKbPad" /> Emulate Gamepad
-        </label>
-        <label class="checkbox-container">
-          <input type="checkbox" id="wantsAudio" checked /> Enable Audio
-        </label>
+        <label class="checkbox-container"
+          ><input type="checkbox" id="wantsVideo" checked /> Enable Video</label
+        >
+        <label class="checkbox-container"
+          ><input type="checkbox" id="useKbPad" /> Emulate Gamepad</label
+        >
+        <label class="checkbox-container"
+          ><input type="checkbox" id="wantsAudio" checked /> Enable Audio</label
+        >
         <button id="btnOpenKbConfig" class="config-btn">Configure Keyboard Layout</button>
       </div>
 
@@ -850,39 +923,6 @@
     </div>
 
     <video id="streamView" autoplay playsinline muted></video>
-
-    <div
-      id="customAlertModal"
-      style="
-        display: none;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(30, 30, 46, 0.95);
-        backdrop-filter: blur(10px);
-        border: 2px solid #cba6f7;
-        border-radius: 16px;
-        padding: 24px;
-        z-index: 9999;
-        width: 350px;
-        max-width: 90vw;
-        box-shadow:
-          0 25px 60px rgba(0, 0, 0, 0.8),
-          0 0 30px rgba(203, 166, 247, 0.2);
-        flex-direction: column;
-        gap: 16px;
-        text-align: center;
-      "
-    >
-      <h3 style="margin: 0; color: #cba6f7">Alert</h3>
-      <p
-        id="customAlertText"
-        style="color: #cdd6f4; font-size: 14px; margin: 0; word-wrap: break-word"
-      ></p>
-      <button id="btnCustomAlertOk" style="margin-top: 10px; width: 100%">OK</button>
-    </div>
-
     <script src="/js/main.js" type="module"></script>
   </body>
 </html>

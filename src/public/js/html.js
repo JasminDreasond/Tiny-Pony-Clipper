@@ -105,7 +105,9 @@ export const btnApiDeny = document.getElementById('btnApiDeny');
 /** @type {HTMLElement} */
 export const btnApiAllow = document.getElementById('btnApiAllow');
 
-// Custom Alert Elements
+// Custom Alert Elements & Overlay
+/** @type {HTMLElement} */
+export const modalOverlay = document.getElementById('modalOverlay');
 /** @type {HTMLElement} */
 export const customAlertModal = document.getElementById('customAlertModal');
 /** @type {HTMLElement} */
