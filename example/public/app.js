@@ -9,6 +9,11 @@ const btnSend = document.getElementById('btnSend');
 /** @type {HTMLElement} */
 const iframeContainer = document.getElementById('iframeContainer');
 
+/** @type {HTMLIFrameElement|null} */
+let currentIframe = null;
+/** @type {string} */
+let lastTargetUrl = '';
+
 /**
  * @param {string} baseUrl
  * @returns {Promise<HTMLIFrameElement>}
@@ -54,6 +59,25 @@ const waitForApiReady = (expectedOrigin) => {
   });
 };
 
+/**
+ * @param {MessageEvent} event
+ * @returns {void}
+ */
+const handleApiResponse = (event) => {
+  /** @type {Object} */
+  const data = event.data;
+  /** @type {string} */
+  const currentTargetUrl = targetUrlInput.value.replace(/\/$/, '');
+
+  // We check the origin and the message type to ensure it's the correct response
+  if (event.origin === currentTargetUrl && data?.type === 'tiny_pony_api_response') {
+    console.log(`[TEST APP] API Response`, data);
+  }
+};
+
+// We register the response listener only once here
+window.addEventListener('message', handleApiResponse);
+
 btnSend.addEventListener('click', async () => {
   /** @type {string} */
   const targetUrl = targetUrlInput.value.replace(/\/$/, '');
@@ -62,27 +86,23 @@ btnSend.addEventListener('click', async () => {
   /** @type {string} */
   const pass = hostPassInput.value;
 
-  window.addEventListener('message', (event) => {
-    /** @type {string} */
-    const origin = event.origin;
-    /** @type {Object} */
-    const data = event.data;
+  // Check if we need to reload the iframe
+  if (targetUrl !== lastTargetUrl || !currentIframe) {
+    console.log(`[TEST APP] Target changed or missing. Loading iframe from ${targetUrl}...`);
 
-    if (origin === targetUrl && data?.type === 'tiny_pony_api_response') {
-      console.log(`[TEST APP] API Response`, data);
-    }
-  });
+    /** @type {Promise<HTMLIFrameElement>} */
+    const iframeLoadPromise = loadApiIframe(targetUrl);
+    /** @type {Promise<void>} */
+    const apiReadyPromise = waitForApiReady(targetUrl);
 
-  console.log(`[TEST APP] Loading iframe from ${targetUrl}...`);
+    /** @type {[HTMLIFrameElement, void]} */
+    const [newIframe] = await Promise.all([iframeLoadPromise, apiReadyPromise]);
 
-  /** @type {Promise<HTMLIFrameElement>} */
-  const iframeLoadPromise = loadApiIframe(targetUrl);
-  /** @type {Promise<void>} */
-  const apiReadyPromise = waitForApiReady(targetUrl);
-
-  // We wait for both: the iframe DOM load and the ready signal
-  /** @type {[HTMLIFrameElement, void]} */
-  const [apiIframe] = await Promise.all([iframeLoadPromise, apiReadyPromise]);
+    currentIframe = newIframe;
+    lastTargetUrl = targetUrl;
+  } else {
+    console.log(`[TEST APP] Reusing existing iframe for ${targetUrl}`);
+  }
 
   /** @type {Object} */
   const payload = {
@@ -92,9 +112,9 @@ btnSend.addEventListener('click', async () => {
     pass: pass,
   };
 
-  console.log('[TEST APP] API is ready. Sending message:', payload);
+  console.log('[TEST APP] Sending message:', payload);
 
-  if (apiIframe.contentWindow) {
-    apiIframe.contentWindow.postMessage(payload, targetUrl);
+  if (currentIframe && currentIframe.contentWindow) {
+    currentIframe.contentWindow.postMessage(payload, targetUrl);
   }
 });
