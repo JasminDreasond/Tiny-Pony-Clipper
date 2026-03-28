@@ -1,81 +1,47 @@
 import { compressToBase64, decompressFromBase64 } from './gzipBase64.js';
 
-/** @type {HTMLVideoElement} */
-const video = document.getElementById('streamView');
-/** @type {HTMLInputElement} */
-const serverInput = document.getElementById('serverHost');
-/** @type {HTMLInputElement} */
-const passInput = document.getElementById('pass');
-/** @type {HTMLButtonElement} */
-const btnConnect = document.getElementById('btnConnect');
-/** @type {HTMLElement} */
-const loginDiv = document.getElementById('login');
-/** @type {HTMLButtonElement} */
-const btnToggleDebug = document.getElementById('btnToggleDebug');
-/** @type {HTMLElement} */
-const debugPanel = document.getElementById('debugPanel');
-/** @type {HTMLInputElement} */
-const wantsAudioInput = document.getElementById('wantsAudio');
-/** @type {HTMLInputElement} */
-const wantsVideoInput = document.getElementById('wantsVideo');
-/** @type {HTMLInputElement} */
-const stunInput = document.getElementById('stunServer');
-/** @type {HTMLSelectElement} */
-const connMethodSelect = document.getElementById('connectionMethod');
-/** @type {HTMLElement} */
-const ipSection = document.getElementById('ipSection');
-/** @type {HTMLElement} */
-const sdpSection = document.getElementById('manualClientSection');
-/** @type {HTMLElement} */
-const clientIdHud = document.getElementById('clientIdHud');
-/** @type {HTMLElement} */
-const dbgPing = document.getElementById('dbgPing');
+import {
+  video,
+  serverInput,
+  passInput,
+  btnConnect,
+  loginDiv,
+  btnToggleDebug,
+  debugPanel,
+  wantsAudioInput,
+  wantsVideoInput,
+  stunInput,
+  connMethodSelect,
+  ipSection,
+  sdpSection,
+  clientIdHud,
+  dbgPing,
 
-// Keyboard Gamepad UI
-/** @type {HTMLInputElement} */
-const useKbPadInput = document.getElementById('useKbPad');
-/** @type {HTMLButtonElement} */
-const btnOpenKbConfig = document.getElementById('btnOpenKbConfig');
-/** @type {HTMLElement} */
-const kbModal = document.getElementById('kbModal');
-/** @type {HTMLCanvasElement} */
-const gamepadCanvas = document.getElementById('gamepadCanvas');
-/** @type {HTMLElement} */
-const kbMappings = document.getElementById('kbMappings');
-/** @type {HTMLButtonElement} */
-const btnCloseKb = document.getElementById('btnCloseKb');
-/** @type {HTMLButtonElement} */
-const btnExportKb = document.getElementById('btnExportKb');
-/** @type {HTMLButtonElement} */
-const btnImportKbBtn = document.getElementById('btnImportKbBtn');
-/** @type {HTMLInputElement} */
-const btnImportKbFile = document.getElementById('btnImportKbFile');
-/** @type {HTMLButtonElement} */
-const btnOpenTx = document.getElementById('btnOpenTx');
-/** @type {HTMLButtonElement} */
-const btnCancelKb = document.getElementById('btnCancelKb');
-/** @type {HTMLButtonElement} */
-const btnResetKb = document.getElementById('btnResetKb');
+  // Keyboard Gamepad UI
+  useKbPadInput,
+  btnOpenKbConfig,
+  kbModal,
+  gamepadCanvas,
+  kbMappings,
+  btnCloseKb,
+  btnExportKb,
+  btnImportKbBtn,
+  btnImportKbFile,
+  btnOpenTx,
+  btnCancelKb,
+  btnResetKb,
 
-// Debug Elements
-/** @type {HTMLElement} */
-const dbgWs = document.getElementById('dbgWs');
-/** @type {HTMLElement} */
-const dbgRtcConn = document.getElementById('dbgRtcConn');
-/** @type {HTMLElement} */
-const dbgRtcIce = document.getElementById('dbgRtcIce');
-/** @type {HTMLElement} */
-const dbgVidTrack = document.getElementById('dbgVidTrack');
-/** @type {HTMLElement} */
-const dbgVidPlay = document.getElementById('dbgVidPlay');
-/** @type {HTMLElement} */
-const dbgVidRes = document.getElementById('dbgVidRes');
-/** @type {HTMLElement} */
-const dbgDc = document.getElementById('dbgDc');
-/** @type {HTMLElement} */
-const dbgPad = document.getElementById('dbgPad');
-/** @type {HTMLElement} */
-const dbgInput = document.getElementById('dbgInput');
+  // Debug Elements
+  dbgWs,
+  dbgRtcConn,
+  dbgRtcIce,
+  dbgVidTrack,
+  dbgVidPlay,
+  dbgVidRes,
+  dbgDc,
+  dbgPad,
+  dbgInput,
+} from './html.js';
 
 /** @type {NodeJS.Timeout | null} */
 let notificationTimer = null;
