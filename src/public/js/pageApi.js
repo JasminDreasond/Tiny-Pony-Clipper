@@ -39,6 +39,17 @@ let lastApiRequestTime = 0;
 /** @type {number} */
 const RATE_LIMIT_MS = 1500;
 
+/** @type {(() => Promise<string>) | null} */
+export let onGenerateOffer = null;
+
+/**
+ * @param {() => Promise<string>} cb
+ * @returns {void}
+ */
+export const setGenerateOfferCallback = (cb) => {
+  onGenerateOffer = cb;
+};
+
 /**
  * @param {boolean} state
  * @returns {void}
@@ -116,9 +127,10 @@ const renderApiOrigins = () => {
  * @param {'success' | 'error'} status
  * @param {string} code
  * @param {string} message
+ * @param {any} [data]
  * @returns {void}
  */
-const sendApiResponse = (requestId, origin, status, code, message) => {
+const sendApiResponse = (requestId, origin, status, code, message, data = null) => {
   if (navigator.serviceWorker.controller && requestId) {
     navigator.serviceWorker.controller.postMessage({
       type: 'api_response',
@@ -127,6 +139,7 @@ const sendApiResponse = (requestId, origin, status, code, message) => {
       status,
       code,
       message,
+      data,
     });
   }
 };
@@ -203,9 +216,9 @@ const sanitizePassword = (pass) => {
  * @param {string} [payload.pass]
  * @param {string} [payload.answer]
  * @param {string} [payload.requestId]
- * @returns {{ valid: boolean, error?: string }}
+ * @returns {Promise<{ valid: boolean, error?: string, data?: any }>}
  */
-const executeApiPayload = (payload) => {
+const executeApiPayload = async (payload) => {
   console.log('[API PAYLOAD RECEIVED]', payload);
 
   if (payload.action === 'connect_ip') {
@@ -225,6 +238,17 @@ const executeApiPayload = (payload) => {
     connMethodSelect.dispatchEvent(new Event('change'));
     connectManualBtn.click();
     return { valid: true };
+  } else if (payload.action === 'generate_offer') {
+    if (onGenerateOffer) {
+      try {
+        /** @type {string} */
+        const base64Offer = await onGenerateOffer();
+        return { valid: true, data: { offer: base64Offer } };
+      } catch (err) {
+        return { valid: false, error: 'Failed to generate WebRTC offer' };
+      }
+    }
+    return { valid: false, error: 'Offer generator is not initialized' };
   }
 
   return { valid: false, error: 'Unknown action' };
@@ -241,22 +265,38 @@ const clearPendingRequest = () => {
   closeModal(apiAuthModal);
 };
 
-btnApiAllow.addEventListener('click', () => {
+btnApiAllow.addEventListener('click', async () => {
   if (pendingApiRequest) {
     saveApiOrigin(pendingApiRequest.origin, 'allowed');
 
-    /** @type {{ valid: boolean, error?: string }} */
-    const result = executeApiPayload(pendingApiRequest.payload);
+    /** @type {Object} */
+    const payload = pendingApiRequest.payload;
+    /** @type {string} */
+    const origin = pendingApiRequest.origin;
     /** @type {string|undefined} */
-    const reqId = pendingApiRequest.payload.requestId;
+    const reqId = payload.requestId;
+
+    /** @type {{ valid: boolean, error?: string, data?: any }} */
+    const result = await executeApiPayload(payload);
 
     if (reqId) {
       if (result.valid) {
-        activeApiConnection = { reqId, origin: pendingApiRequest.origin };
+        if (payload.action === 'generate_offer') {
+          sendApiResponse(
+            reqId,
+            origin,
+            'success',
+            'SUCCESS_OFFER_GENERATED',
+            'Offer generated successfully',
+            result.data,
+          );
+        } else {
+          activeApiConnection = { reqId, origin };
+        }
       } else {
         sendApiResponse(
           reqId,
-          pendingApiRequest.origin,
+          origin,
           'error',
           'ERR_INVALID_PAYLOAD',
           result.error || 'Invalid payload',
@@ -307,7 +347,7 @@ if ('serviceWorker' in navigator) {
     console.log('[SW] Service Worker Registered for Main App');
   });
 
-  navigator.serviceWorker.addEventListener('message', (event) => {
+  navigator.serviceWorker.addEventListener('message', async (event) => {
     /** @type {Object} */
     const data = event.data;
 
@@ -363,12 +403,24 @@ if ('serviceWorker' in navigator) {
       const originStatus = apiOrigins[data.origin];
 
       if (originStatus === 'allowed') {
-        /** @type {{ valid: boolean, error?: string }} */
-        const result = executeApiPayload(data.payload);
+        /** @type {{ valid: boolean, error?: string, data?: any }} */
+        const result = await executeApiPayload(data.payload);
 
         if (reqId) {
-          if (result.valid) activeApiConnection = { reqId, origin: data.origin };
-          else
+          if (result.valid) {
+            if (data.payload.action === 'generate_offer') {
+              sendApiResponse(
+                reqId,
+                data.origin,
+                'success',
+                'SUCCESS_OFFER_GENERATED',
+                'Offer generated successfully',
+                result.data,
+              );
+            } else {
+              activeApiConnection = { reqId, origin: data.origin };
+            }
+          } else {
             sendApiResponse(
               reqId,
               data.origin,
@@ -376,6 +428,7 @@ if ('serviceWorker' in navigator) {
               'ERR_INVALID_PAYLOAD',
               result.error || 'Invalid payload format',
             );
+          }
         }
       } else if (originStatus === 'blocked') {
         console.warn(`[API] Blocked request from: ${data.origin}`);

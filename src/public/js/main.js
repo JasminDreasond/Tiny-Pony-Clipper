@@ -49,11 +49,33 @@ import {
   serverAnswerInput,
 } from './html.js';
 import { showAlert, openModal, closeModal } from './Modal.js';
-import { resolveApiConnection, setAuthenticating } from './pageApi.js';
+import { resolveApiConnection, setAuthenticating, setGenerateOfferCallback } from './pageApi.js';
 import { startPlayTimer, stopPlayTimer, bypassWelcome } from './Welcome.js';
 
 /** @type {NodeJS.Timeout | null} */
 let notificationTimer = null;
+
+setGenerateOfferCallback(async () => {
+  bypassWelcome();
+  checkMediaPreferences();
+
+  // Shows in the client's visual interface that something external is using SDP
+  myOfferOutput.value = 'Gathering ICE candidates (API Request)...';
+
+  /** @type {RTCConfiguration} */
+  const rtcConfig = { iceServers: [{ urls: iceServerUrls }] };
+
+  /** @type {string} */
+  const offerString = await generateClientOffer(rtcConfig);
+
+  /** @type {string} */
+  const b64Offer = await compressToBase64(offerString);
+
+  myOfferOutput.value = b64Offer;
+  updateDebug(dbgWs, 'API SDP Ready', 'ok');
+
+  return b64Offer;
+});
 
 /**
  * Displays a temporary toast notification on the screen to inform the user of disconnections.

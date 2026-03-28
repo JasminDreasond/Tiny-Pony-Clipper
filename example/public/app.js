@@ -5,7 +5,16 @@ const hostIpInput = document.getElementById('hostIp');
 /** @type {HTMLInputElement} */
 const hostPassInput = document.getElementById('hostPass');
 /** @type {HTMLButtonElement} */
-const btnSend = document.getElementById('btnSend');
+const btnSendIp = document.getElementById('btnSendIp');
+
+// SDP Elements
+/** @type {HTMLButtonElement} */
+const btnGenerateOffer = document.getElementById('btnGenerateOffer');
+/** @type {HTMLTextAreaElement} */
+const sdpAnswerInput = document.getElementById('sdpAnswer');
+/** @type {HTMLButtonElement} */
+const btnConnectSdp = document.getElementById('btnConnectSdp');
+
 /** @type {HTMLElement} */
 const iframeContainer = document.getElementById('iframeContainer');
 
@@ -105,24 +114,24 @@ const handleApiResponse = (event) => {
   // We check the origin and the message type to ensure it's the correct response
   if (event.origin === currentTargetUrl && data?.type === 'tiny_pony_api_response') {
     console.log(`[TEST APP] API Response`, data);
-    showResponseModal(data); // New visual feedback
+    showResponseModal(data);
   }
 };
 
 // We register the response listener only once here
 window.addEventListener('message', handleApiResponse);
 
-btnSend.addEventListener('click', async () => {
+/**
+ * Core function to ensure the API iframe is ready before sending a payload.
+ * @returns {Promise<void>}
+ */
+const ensureIframeReady = async () => {
   /** @type {string} */
   const targetUrl = targetUrlInput.value.replace(/\/$/, '');
-  /** @type {string} */
-  const host = hostIpInput.value;
-  /** @type {string} */
-  const pass = hostPassInput.value;
 
   // Check if we need to reload the iframe
   if (targetUrl !== lastTargetUrl || !currentIframe) {
-    console.log(`[TEST APP] Target changed or missing. Loading iframe from ${targetUrl}...`);
+    console.log(`[TEST APP] Loading API iframe from ${targetUrl}...`);
 
     /** @type {Promise<HTMLIFrameElement>} */
     const iframeLoadPromise = loadApiIframe(targetUrl);
@@ -134,21 +143,57 @@ btnSend.addEventListener('click', async () => {
 
     currentIframe = newIframe;
     lastTargetUrl = targetUrl;
-  } else {
-    console.log(`[TEST APP] Reusing existing iframe for ${targetUrl}`);
   }
+};
+
+/**
+ * @param {Object} payload
+ * @returns {void}
+ */
+const sendPayload = (payload) => {
+  console.log('[TEST APP] Sending message:', payload);
+  if (currentIframe && currentIframe.contentWindow) {
+    currentIframe.contentWindow.postMessage(payload, lastTargetUrl);
+  }
+};
+
+// --- BUTTON LISTENERS ---
+
+btnSendIp.addEventListener('click', async () => {
+  await ensureIframeReady();
 
   /** @type {Object} */
   const payload = {
     action: 'connect_ip',
     requestId: String(Math.random()),
-    host: host,
-    pass: pass,
+    host: hostIpInput.value,
+    pass: hostPassInput.value,
   };
 
-  console.log('[TEST APP] Sending message:', payload);
+  sendPayload(payload);
+});
 
-  if (currentIframe && currentIframe.contentWindow) {
-    currentIframe.contentWindow.postMessage(payload, targetUrl);
-  }
+btnGenerateOffer.addEventListener('click', async () => {
+  await ensureIframeReady();
+
+  /** @type {Object} */
+  const payload = {
+    action: 'generate_offer',
+    requestId: String(Math.random()),
+  };
+
+  sendPayload(payload);
+});
+
+btnConnectSdp.addEventListener('click', async () => {
+  await ensureIframeReady();
+
+  /** @type {Object} */
+  const payload = {
+    action: 'connect_sdp',
+    requestId: String(Math.random()),
+    answer: sdpAnswerInput.value,
+  };
+
+  sendPayload(payload);
 });
