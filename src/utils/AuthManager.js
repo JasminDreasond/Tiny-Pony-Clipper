@@ -46,7 +46,7 @@ export const saveAuthList = (list) => {
 
     // Elevates privileges and pipes the JSON string directly into the file via stdin
     execSync(
-      `pkexec sh -c "cat > '${authPath}' && chown root:root '${authPath}' && chmod 644 '${authPath}'"`,
+      `pkexec /bin/bash -c "cat > '${authPath}' && chown root:root '${authPath}' && chmod 644 '${authPath}'"`,
       {
         input: jsonString,
         encoding: 'utf-8',
