@@ -1,4 +1,20 @@
 /**
+ * @param {string} originUrl
+ * @returns {boolean}
+ */
+const isOriginSecure = (originUrl) => {
+  try {
+    /** @type {URL} */
+    const url = new URL(originUrl);
+    return (
+      url.protocol === 'https:' || url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+    );
+  } catch (e) {
+    return false;
+  }
+};
+
+/**
  * @returns {Promise<void>}
  */
 const initApiBridge = async () => {
@@ -33,11 +49,29 @@ const initApiBridge = async () => {
 
   window.addEventListener('message', async (event) => {
     if (event.source !== window.parent) return;
-    if (!event.data || typeof event.data !== 'object' || !event.data.action) return;
+
+    /** @type {Object} */
+    const payload = event.data;
+    if (!payload || typeof payload !== 'object' || !payload.action || !payload.requestId) return;
 
     /** @type {string} */
     const origin = event.origin;
     if (!origin || origin === 'null') return;
+
+    if (!isOriginSecure(origin)) {
+      console.warn('[API Bridge] Rejected insecure origin:', origin);
+      window.parent.postMessage(
+        {
+          type: 'tiny_pony_api_response',
+          requestId: payload.requestId,
+          status: 'error',
+          code: 'ERR_INSECURE_ORIGIN',
+          message: 'Only HTTPS or localhost origins are allowed.',
+        },
+        origin,
+      );
+      return;
+    }
 
     try {
       /** @type {ServiceWorkerRegistration} */
@@ -47,7 +81,7 @@ const initApiBridge = async () => {
         reg.active.postMessage({
           type: 'api_relay',
           origin: origin,
-          payload: event.data,
+          payload: payload,
         });
       }
     } catch (err) {

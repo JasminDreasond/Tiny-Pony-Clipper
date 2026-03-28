@@ -34,6 +34,11 @@ export let activeApiConnection = null;
 /** @type {boolean} */
 export let isAuthenticating = false;
 
+/** @type {number} */
+let lastApiRequestTime = 0;
+/** @type {number} */
+const RATE_LIMIT_MS = 1500;
+
 /**
  * @param {boolean} state
  * @returns {void}
@@ -161,13 +166,34 @@ export const resolveApiConnection = (success, errorMsg = '') => {
 };
 
 /**
- * @param {any} val
- * @param {number} maxLen
+ * @param {any} host
+ * @returns {boolean}
+ */
+const isValidHost = (host) => {
+  if (typeof host !== 'string' || host.length > 255 || host.length < 3) return false;
+  /** @type {RegExp} */
+  const hostRegex = /^(?:wss?:\/\/)?(?:[a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(?::\d{1,5})?(?:\/.*)?$/;
+  return hostRegex.test(host);
+};
+
+/**
+ * @param {any} b64
+ * @returns {boolean}
+ */
+const isValidBase64 = (b64) => {
+  if (typeof b64 !== 'string' || b64.length > 15000 || b64.length < 10) return false;
+  /** @type {RegExp} */
+  const base64Regex = /^[A-Za-z0-9+/=]+$/;
+  return base64Regex.test(b64.trim());
+};
+
+/**
+ * @param {any} pass
  * @returns {string}
  */
-const sanitizeInput = (val, maxLen) => {
-  if (typeof val !== 'string') return '';
-  return val.substring(0, maxLen).trim();
+const sanitizePassword = (pass) => {
+  if (typeof pass !== 'string') return '';
+  return pass.substring(0, 100).trim();
 };
 
 /**
@@ -177,26 +203,31 @@ const sanitizeInput = (val, maxLen) => {
  * @param {string} [payload.pass]
  * @param {string} [payload.answer]
  * @param {string} [payload.requestId]
- * @returns {boolean}
+ * @returns {{ valid: boolean, error?: string }}
  */
 const executeApiPayload = (payload) => {
   console.log('[API PAYLOAD RECEIVED]', payload);
 
   if (payload.action === 'connect_ip') {
-    serverInput.value = sanitizeInput(payload.host, 150);
-    passInput.value = sanitizeInput(payload.pass, 100);
+    if (!isValidHost(payload.host)) return { valid: false, error: 'Invalid host format' };
+
+    serverInput.value = payload.host.trim();
+    passInput.value = sanitizePassword(payload.pass);
     connMethodSelect.value = 'ip';
     connMethodSelect.dispatchEvent(new Event('change'));
     btnConnect.click();
-    return true;
+    return { valid: true };
   } else if (payload.action === 'connect_sdp') {
-    serverAnswerInput.value = sanitizeInput(payload.answer, 8000);
+    if (!isValidBase64(payload.answer)) return { valid: false, error: 'Invalid SDP Base64 format' };
+
+    serverAnswerInput.value = payload.answer.trim();
     connMethodSelect.value = 'sdp';
     connMethodSelect.dispatchEvent(new Event('change'));
     connectManualBtn.click();
-    return true;
+    return { valid: true };
   }
-  return false;
+
+  return { valid: false, error: 'Unknown action' };
 };
 
 /**
@@ -213,22 +244,22 @@ const clearPendingRequest = () => {
 btnApiAllow.addEventListener('click', () => {
   if (pendingApiRequest) {
     saveApiOrigin(pendingApiRequest.origin, 'allowed');
-    /** @type {boolean} */
-    const isValid = executeApiPayload(pendingApiRequest.payload);
 
+    /** @type {{ valid: boolean, error?: string }} */
+    const result = executeApiPayload(pendingApiRequest.payload);
     /** @type {string|undefined} */
     const reqId = pendingApiRequest.payload.requestId;
 
     if (reqId) {
-      if (isValid) {
+      if (result.valid) {
         activeApiConnection = { reqId, origin: pendingApiRequest.origin };
       } else {
         sendApiResponse(
           reqId,
           pendingApiRequest.origin,
           'error',
-          'ERR_INVALID',
-          'Invalid payload format',
+          'ERR_INVALID_PAYLOAD',
+          result.error || 'Invalid payload',
         );
       }
     }
@@ -283,11 +314,27 @@ if ('serviceWorker' in navigator) {
     if (data && data.type === 'api_request') {
       /** @type {string|undefined} */
       const reqId = data.payload.requestId;
+      /** @type {number} */
+      const now = Date.now();
+
+      if (now - lastApiRequestTime < RATE_LIMIT_MS) {
+        console.warn(`[API] Rate limit hit from: ${data.origin}`);
+        if (reqId)
+          sendApiResponse(
+            reqId,
+            data.origin,
+            'error',
+            'ERR_RATE_LIMIT',
+            'Too many requests. Please slow down.',
+          );
+        return;
+      }
+      lastApiRequestTime = now;
 
       // BLINK: Intercept and reject if the player is already busy with an active stream!
       if (document.body.classList.contains('is-playing')) {
         console.warn(`[API] Ignoring request of ${data.origin} - The player is in a room.`);
-        if (reqId) {
+        if (reqId)
           sendApiResponse(
             reqId,
             data.origin,
@@ -295,22 +342,20 @@ if ('serviceWorker' in navigator) {
             'ERR_BUSY',
             'The player is currently busy playing a game.',
           );
-        }
         return; // For the stream here to not open permission modals
       }
 
       // Universal blocker of shelled requests
       if (isAuthenticating || activeApiConnection || pendingApiRequest) {
         console.warn(`[API] Ignoring request of ${data.origin} - Busy client.`);
-        if (reqId) {
+        if (reqId)
           sendApiResponse(
             reqId,
             data.origin,
             'error',
             'ERR_BUSY',
-            'The client is currently busy processing another request or authenticating. Please wait.',
+            'The client is currently busy processing another request.',
           );
-        }
         return;
       }
 
@@ -318,12 +363,19 @@ if ('serviceWorker' in navigator) {
       const originStatus = apiOrigins[data.origin];
 
       if (originStatus === 'allowed') {
-        /** @type {boolean} */
-        const isValid = executeApiPayload(data.payload);
+        /** @type {{ valid: boolean, error?: string }} */
+        const result = executeApiPayload(data.payload);
+
         if (reqId) {
-          if (isValid) activeApiConnection = { reqId, origin: data.origin };
+          if (result.valid) activeApiConnection = { reqId, origin: data.origin };
           else
-            sendApiResponse(reqId, data.origin, 'error', 'ERR_INVALID', 'Invalid payload format');
+            sendApiResponse(
+              reqId,
+              data.origin,
+              'error',
+              'ERR_INVALID_PAYLOAD',
+              result.error || 'Invalid payload format',
+            );
         }
       } else if (originStatus === 'blocked') {
         console.warn(`[API] Blocked request from: ${data.origin}`);
