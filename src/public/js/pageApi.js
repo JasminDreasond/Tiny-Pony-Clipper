@@ -252,6 +252,10 @@ const executeApiPayload = async (payload) => {
       }
     }
     return { valid: false, error: 'Offer generator is not initialized' };
+  } else if (payload.action === 'check_session_status') {
+    /** @type {boolean} */
+    const isPlaying = document.body.classList.contains('is-playing');
+    return { valid: true, data: { isPlaying } };
   }
 
   return { valid: false, error: 'Unknown action' };
@@ -291,6 +295,15 @@ btnApiAllow.addEventListener('click', async () => {
             'success',
             'SUCCESS_OFFER_GENERATED',
             'Offer generated successfully',
+            result.data,
+          );
+        } else if (payload.action === 'check_session_status') {
+          sendApiResponse(
+            reqId,
+            origin,
+            'success',
+            'SUCCESS_STATUS_CHECKED',
+            'Status retrieved successfully',
             result.data,
           );
         } else {
@@ -392,22 +405,48 @@ if ('serviceWorker' in navigator) {
       }
       lastApiRequestTime = now;
 
-      // BLINK: Intercept and reject if the player is already busy with an active stream!
-      if (document.body.classList.contains('is-playing')) {
-        console.warn(`[API] Ignoring request of ${data.origin} - The player is in a room.`);
+      /** @type {boolean} */
+      const isPing = data.payload.action === 'ping';
+
+      // Ping is silent and bypasses permission modals and busy states
+      if (isPing) {
         if (reqId)
           sendApiResponse(
             reqId,
             data.origin,
-            'error',
-            'ERR_BUSY',
-            'The player is currently busy playing a game.',
+            'success',
+            'SUCCESS_CLIENT_ALIVE',
+            'The client is open and ready.',
+            { alive: true },
           );
-        return; // For the stream here to not open permission modals
+        return;
+      }
+
+      /** @type {string} */
+      const originStatus = apiOrigins[data.origin];
+      /** @type {boolean} */
+      const isStatusCheck = data.payload.action === 'check_session_status';
+
+      // BLINK: Intercept and reject if the player is already busy with an active stream!
+      if (document.body.classList.contains('is-playing')) {
+        if (isStatusCheck && originStatus === 'allowed') {
+          // Allows you to check invisibly if the site is already reliable
+        } else {
+          console.warn(`[API] Ignoring request of ${data.origin} - The player is in a room.`);
+          if (reqId)
+            sendApiResponse(
+              reqId,
+              data.origin,
+              'error',
+              'ERR_BUSY',
+              'The player is currently busy playing a game.',
+            );
+          return;
+        }
       }
 
       // Universal blocker of shelled requests
-      if (isAuthenticating || activeApiConnection || pendingApiRequest) {
+      if (!isStatusCheck && (isAuthenticating || activeApiConnection || pendingApiRequest)) {
         console.warn(`[API] Ignoring request of ${data.origin} - Busy client.`);
         if (reqId)
           sendApiResponse(
@@ -419,9 +458,6 @@ if ('serviceWorker' in navigator) {
           );
         return;
       }
-
-      /** @type {string} */
-      const originStatus = apiOrigins[data.origin];
 
       if (originStatus === 'allowed') {
         /** @type {{ valid: boolean, error?: string, data?: any }} */
@@ -436,6 +472,15 @@ if ('serviceWorker' in navigator) {
                 'success',
                 'SUCCESS_OFFER_GENERATED',
                 'Offer generated successfully',
+                result.data,
+              );
+            } else if (data.payload.action === 'check_session_status') {
+              sendApiResponse(
+                reqId,
+                data.origin,
+                'success',
+                'SUCCESS_STATUS_CHECKED',
+                'Status retrieved successfully',
                 result.data,
               );
             } else {

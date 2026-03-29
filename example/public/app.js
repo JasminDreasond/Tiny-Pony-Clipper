@@ -7,6 +7,12 @@ const hostPassInput = document.getElementById('hostPass');
 /** @type {HTMLButtonElement} */
 const btnSendIp = document.getElementById('btnSendIp');
 
+/** @type {HTMLButtonElement} */
+const btnCheckStatus = document.getElementById('btnCheckStatus');
+
+/** @type {HTMLButtonElement} */
+const btnPingClient = document.getElementById('btnPingClient');
+
 // SDP Elements
 /** @type {HTMLButtonElement} */
 const btnGenerateOffer = document.getElementById('btnGenerateOffer');
@@ -178,5 +184,21 @@ btnConnectSdp.addEventListener('click', async () => {
     action: 'connect_sdp',
     requestId: String(Math.random()),
     answer: sdpAnswerInput.value,
+  });
+});
+
+btnCheckStatus.addEventListener('click', async () => {
+  await ensureIframeReady();
+  sendPayload({
+    action: 'check_session_status',
+    requestId: String(Math.random()),
+  });
+});
+
+btnPingClient.addEventListener('click', async () => {
+  await ensureIframeReady();
+  sendPayload({
+    action: 'ping',
+    requestId: String(Math.random()),
   });
 });
