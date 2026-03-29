@@ -1,5 +1,7 @@
 # 🐴 Tiny Pony Stream - API Integration Guide
 
+*The Web API is fully implemented and available since version 1.1.5.*
+
 Welcome to the Tiny Pony Stream API documentation! This guide explains how third-party websites can programmatically send connection requests to the Tiny Pony Stream client using our secure API Bridge.
 
 To ensure user privacy and security, direct communication with the main client (`index.html`) is isolated. Instead, we use a hidden iframe (`api.html`) that acts as a secure messenger between your website and the user's local stream client.
