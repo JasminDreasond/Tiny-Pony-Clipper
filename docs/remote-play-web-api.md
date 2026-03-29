@@ -74,8 +74,8 @@ const connectViaIP = () => {
     pass: 'secret_password'         // The room password
   };
 
-  // Use '*' or the specific target origin for security
-  iframe.contentWindow.postMessage(payload, '*'); 
+  // Specific target origin for security
+  iframe.contentWindow.postMessage(payload, 'your-stream-client-domain.com'); 
 };
 ```
 
@@ -92,7 +92,7 @@ const connectViaSDP = (base64Answer) => {
     answer: base64Answer // The Base64 encoded WebRTC answer
   };
 
-  iframe.contentWindow.postMessage(payload, '*');
+  iframe.contentWindow.postMessage(payload, 'your-stream-client-domain.com');
 };
 ```
 
@@ -110,7 +110,7 @@ const requestOffer = () => {
     requestId: 'req_' + Date.now()
   };
 
-  iframe.contentWindow.postMessage(payload, '*');
+  iframe.contentWindow.postMessage(payload, 'your-stream-client-domain.com');
 };
 ```
 
