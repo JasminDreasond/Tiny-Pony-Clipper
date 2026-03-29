@@ -110,7 +110,7 @@ const initApiBridge = async () => {
   });
 
   if (window.parent && window.parent !== window) {
-    window.parent.postMessage({ type: 'tiny_pony_iframe_loaded' }, '*');
+    window.parent.postMessage({ type: 'tiny_pony_api_ready' }, '*');
   }
 };
 

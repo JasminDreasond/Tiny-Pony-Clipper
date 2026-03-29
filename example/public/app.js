@@ -80,7 +80,7 @@ const loadApiIframe = (baseUrl) => {
      * @returns {void}
      */
     const loadHandler = (event) => {
-      if (event.origin === baseUrl && event.data?.type === 'tiny_pony_iframe_loaded') {
+      if (event.origin === baseUrl && event.data?.type === 'tiny_pony_api_ready') {
         window.removeEventListener('message', loadHandler);
         resolve(iframe);
       }
