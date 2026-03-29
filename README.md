@@ -65,7 +65,7 @@ If you want to contribute, modify the code, or compile it yourself, follow these
 ### 1- Clone the repository
 
 ```bash
-git clone [https://github.com/JasminDreasond/Tiny-Pony-Clipper.git](https://github.com/JasminDreasond/Tiny-Pony-Clipper.git)
+git clone https://github.com/JasminDreasond/Tiny-Pony-Clipper.git
 cd Tiny-Pony-Clipper
 ```
 
