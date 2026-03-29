@@ -12,7 +12,7 @@ The communication flows like this:
 1. **Your Website** embeds `api.html` inside a hidden `iframe`.
 2. **Your Website** sends a `postMessage` to the `iframe`.
 3. The **API Bridge (`api.html`)** validates the origin and relays the message via a **Service Worker**.
-4. The **Main Client (`index.html`)** receives the request, asks the user for permission (if it's their first time), and executes the connection.
+4. The **Main Client (`index.html`)** receives the request, asks the user for permission (if it's their first time), and executes the action.
 5. A response is routed back to **Your Website** with the result.
 
 ---
@@ -21,7 +21,8 @@ The communication flows like this:
 
 Before you begin, please note our strict security policies:
 * **HTTPS Only:** The API will outright reject requests originating from non-secure `http://` pages (with exceptions for `localhost` and `127.0.0.1` during development).
-* **Rate Limiting:** Do not spam connection requests. There is a strict cooldown of 1.5 seconds between requests. Spamming will result in an `ERR_RATE_LIMIT` rejection.
+* **Rate Limiting:** Do not spam requests. There is a strict cooldown of 1.5 seconds between requests. Spamming will result in an `ERR_RATE_LIMIT` rejection.
+* **Unique Requests:** Every payload must have a unique `requestId`. Reusing an ID that is currently being processed will trigger an `ERR_DUPLICATE_REQUEST`.
 * **User Consent:** The user always has the final say. When you send a request, a modal will appear on their client asking them to "Allow" or "Deny" your website.
 * **Strict Validation:** Hosts and Base64 SDP strings are heavily sanitized and validated using Regex.
 
@@ -54,7 +55,7 @@ window.addEventListener('message', (event) => {
 });
 ```
 
-### Step 3: Send a Connection Request
+### Step 3: Send a Request
 Once ready, you can send a payload to the iframe. You must include a unique `requestId` to track the response.
 
 #### Option A: Connect via IP Address
@@ -93,8 +94,26 @@ const connectViaSDP = (base64Answer) => {
 };
 ```
 
+#### Option C: Generate an SDP Offer
+If you need the client to generate a WebRTC offer so your server can respond with an answer, use this action.
+
+```javascript
+const requestOffer = () => {
+  if (!isApiReady) return;
+
+  const iframe = document.getElementById('tinyPonyApiBridge');
+  
+  const payload = {
+    action: 'generate_offer',
+    requestId: 'req_' + Date.now()
+  };
+
+  iframe.contentWindow.postMessage(payload, '*');
+};
+```
+
 ### Step 4: Handle the Response
-Listen for the `tiny_pony_api_response` event to know if the connection succeeded, was denied, or encountered an error.
+Listen for the `tiny_pony_api_response` event to know if the connection succeeded, was denied, or if data was returned.
 
 ```javascript
 window.addEventListener('message', (event) => {
@@ -104,11 +123,16 @@ window.addEventListener('message', (event) => {
     console.log(`Response for request ${data.requestId}:`, data.status);
     
     if (data.status === 'success') {
-      console.log('Successfully connected! Have fun!');
+      if (data.code === 'SUCCESS_OFFER_GENERATED') {
+        console.log('Client generated an Offer:', data.data.offer);
+        // Send this Base64 offer to your signaling server
+      } else {
+        console.log('Successfully connected! Have fun!');
       // Update your UI accordingly
+      }
     } else {
-      console.error(`Connection failed [${data.code}]:`, data.message);
-      // Handle errors (e.g., ERR_DENIED, ERR_BUSY, ERR_INSECURE_ORIGIN)
+      console.error(`Request failed [${data.code}]:`, data.message);
+      // Handle errors (e.g., ERR_DENIED, ERR_NO_CLIENT, ERR_BUSY)
     }
   }
 });
@@ -118,18 +142,21 @@ window.addEventListener('message', (event) => {
 
 ## 🛑 Status Error Codes Reference
 
-Here is a list of error codes you might receive in the `data.code` property:
+Here is a comprehensive list of status codes you might receive in the `data.code` property:
 
 | Error Code | Description |
 | :--- | :--- |
 | `SUCCESS_CONNECTED` | The user accepted, and the connection was initiated successfully. |
+| `SUCCESS_OFFER_GENERATED` | The user accepted, and the Base64 SDP offer is available in `r.data.offer`. |
+| `ERR_NO_CLIENT` | No active application window was found. The user must open the main streaming app first. |
 | `ERR_INSECURE_ORIGIN` | Your website is not using HTTPS. The request was killed instantly. |
+| `ERR_DUPLICATE_REQUEST` | The `requestId` sent is currently in use or was recently processed. |
 | `ERR_DENIED` | The user explicitly clicked "Deny" on the permission modal. |
 | `ERR_BLOCKED` | The user has permanently blocked your website in their API Manager. |
 | `ERR_TIMEOUT` | The user ignored the permission modal for over 30 seconds. |
 | `ERR_BUSY` | The client is already in a game or currently processing another prompt. |
 | `ERR_RATE_LIMIT` | You are sending requests too quickly. Wait 1.5s between calls. |
-| `ERR_INVALID_PAYLOAD`| The data sent did not pass Regex validation (e.g., invalid Base64 or invalid IP format). |
+| `ERR_INVALID_PAYLOAD`| The data sent did not pass strict Regex validation (e.g., invalid Base64 or invalid IP format). |
 
 ---
 **Happy Streaming!** 🎮
