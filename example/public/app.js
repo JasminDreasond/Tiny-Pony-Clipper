@@ -32,9 +32,12 @@ const btnClearModal = document.getElementById('btnClearModal');
 let currentIframe = null;
 /** @type {string} */
 let lastTargetUrl = '';
+/** @type {MessagePort|null} */
+let apiPort = null;
 
 /**
  * @param {Object} data
+ * @returns {void}
  */
 const showResponseModal = (data) => {
   responseOutput.textContent = JSON.stringify(data, null, 2);
@@ -64,11 +67,20 @@ const loadApiIframe = (baseUrl) => {
   return new Promise((resolve) => {
     /** @type {HTMLIFrameElement} */
     const iframe = document.createElement('iframe');
-    /** @type {string} */
-    const apiPath = `${baseUrl}/api.html`;
+    iframe.src = `${baseUrl}/api.html`;
 
-    iframe.src = apiPath;
-    iframe.onload = () => resolve(iframe);
+    /**
+     * @param {MessageEvent} event
+     * @returns {void}
+     */
+    const loadHandler = (event) => {
+      if (event.origin === baseUrl && event.data?.type === 'tiny_pony_iframe_loaded') {
+        window.removeEventListener('message', loadHandler);
+        resolve(iframe);
+      }
+    };
+
+    window.addEventListener('message', loadHandler);
 
     iframeContainer.innerHTML = '';
     iframeContainer.appendChild(iframe);
@@ -76,50 +88,34 @@ const loadApiIframe = (baseUrl) => {
 };
 
 /**
- * @param {string} expectedOrigin
- * @returns {Promise<void>}
+ * @param {HTMLIFrameElement} iframe
+ * @param {string} targetUrl
+ * @returns {Promise<MessagePort>}
  */
-const waitForApiReady = (expectedOrigin) => {
+const initSecureChannel = (iframe, targetUrl) => {
   return new Promise((resolve) => {
-    /**
-     * @param {MessageEvent} event
-     * @returns {void}
-     */
-    const messageHandler = (event) => {
-      /** @type {string} */
-      const origin = event.origin;
+    /** @type {MessageChannel} */
+    const channel = new MessageChannel();
+    apiPort = channel.port1;
+
+    apiPort.onmessage = (event) => {
       /** @type {Object} */
       const data = event.data;
 
-      if (origin === expectedOrigin && data?.type === 'tiny_pony_api_ready') {
-        window.removeEventListener('message', messageHandler);
-        resolve();
+      if (data?.type === 'tiny_pony_api_ready') {
+        console.log('[TEST APP] Secure channel ready!');
+        resolve(apiPort);
+      } else if (data?.type === 'tiny_pony_api_response') {
+        console.log('[TEST APP] API Response', data);
+        showResponseModal(data);
       }
     };
 
-    window.addEventListener('message', messageHandler);
+    if (iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'init_tiny_pony_api' }, targetUrl, [channel.port2]);
+    }
   });
 };
-
-/**
- * @param {MessageEvent} event
- * @returns {void}
- */
-const handleApiResponse = (event) => {
-  /** @type {Object} */
-  const data = event.data;
-  /** @type {string} */
-  const currentTargetUrl = targetUrlInput.value.replace(/\/$/, '');
-
-  // We check the origin and the message type to ensure it's the correct response
-  if (event.origin === currentTargetUrl && data?.type === 'tiny_pony_api_response') {
-    console.log(`[TEST APP] API Response`, data);
-    showResponseModal(data);
-  }
-};
-
-// We register the response listener only once here
-window.addEventListener('message', handleApiResponse);
 
 /**
  * Core function to ensure the API iframe is ready before sending a payload.
@@ -129,19 +125,16 @@ const ensureIframeReady = async () => {
   /** @type {string} */
   const targetUrl = targetUrlInput.value.replace(/\/$/, '');
 
-  // Check if we need to reload the iframe
-  if (targetUrl !== lastTargetUrl || !currentIframe) {
-    console.log(`[TEST APP] Loading API iframe from ${targetUrl}...`);
+  if (targetUrl !== lastTargetUrl || !currentIframe || !apiPort) {
+    console.log(`[TEST APP] Loading secure API from ${targetUrl}...`);
 
-    /** @type {Promise<HTMLIFrameElement>} */
-    const iframeLoadPromise = loadApiIframe(targetUrl);
-    /** @type {Promise<void>} */
-    const apiReadyPromise = waitForApiReady(targetUrl);
+    if (apiPort) {
+      apiPort.close();
+      apiPort = null;
+    }
 
-    /** @type {[HTMLIFrameElement, void]} */
-    const [newIframe] = await Promise.all([iframeLoadPromise, apiReadyPromise]);
-
-    currentIframe = newIframe;
+    currentIframe = await loadApiIframe(targetUrl);
+    await initSecureChannel(currentIframe, targetUrl);
     lastTargetUrl = targetUrl;
   }
 };
@@ -151,9 +144,11 @@ const ensureIframeReady = async () => {
  * @returns {void}
  */
 const sendPayload = (payload) => {
-  console.log('[TEST APP] Sending message:', payload);
-  if (currentIframe && currentIframe.contentWindow) {
-    currentIframe.contentWindow.postMessage(payload, lastTargetUrl);
+  console.log('[TEST APP] Sending secure message:', payload);
+  if (apiPort) {
+    apiPort.postMessage(payload);
+  } else {
+    console.error('[TEST APP] Secure port not initialized!');
   }
 };
 
@@ -161,39 +156,27 @@ const sendPayload = (payload) => {
 
 btnSendIp.addEventListener('click', async () => {
   await ensureIframeReady();
-
-  /** @type {Object} */
-  const payload = {
+  sendPayload({
     action: 'connect_ip',
     requestId: String(Math.random()),
     host: hostIpInput.value,
     pass: hostPassInput.value,
-  };
-
-  sendPayload(payload);
+  });
 });
 
 btnGenerateOffer.addEventListener('click', async () => {
   await ensureIframeReady();
-
-  /** @type {Object} */
-  const payload = {
+  sendPayload({
     action: 'generate_offer',
     requestId: String(Math.random()),
-  };
-
-  sendPayload(payload);
+  });
 });
 
 btnConnectSdp.addEventListener('click', async () => {
   await ensureIframeReady();
-
-  /** @type {Object} */
-  const payload = {
+  sendPayload({
     action: 'connect_sdp',
     requestId: String(Math.random()),
     answer: sdpAnswerInput.value,
-  };
-
-  sendPayload(payload);
+  });
 });

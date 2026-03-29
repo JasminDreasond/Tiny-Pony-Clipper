@@ -1,3 +1,8 @@
+/** @type {MessagePort | null} */
+let apiPort = null;
+/** @type {string | null} */
+let connectedOrigin = null;
+
 /**
  * @param {string} originUrl
  * @returns {boolean}
@@ -31,20 +36,15 @@ const initApiBridge = async () => {
     /** @type {Object} */
     const data = event.data;
 
-    if (data && data.type === 'api_response') {
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage(
-          {
-            type: 'tiny_pony_api_response',
-            requestId: data.requestId,
-            status: data.status,
-            code: data.code,
-            message: data.message,
-            data: data.data,
-          },
-          data.origin,
-        );
-      }
+    if (data && data.type === 'api_response' && apiPort && connectedOrigin === data.origin) {
+      apiPort.postMessage({
+        type: 'tiny_pony_api_response',
+        requestId: data.requestId,
+        status: data.status,
+        code: data.code,
+        message: data.message,
+        data: data.data,
+      });
     }
   });
 
@@ -53,45 +53,64 @@ const initApiBridge = async () => {
 
     /** @type {Object} */
     const payload = event.data;
-    if (!payload || typeof payload !== 'object' || !payload.action || !payload.requestId) return;
 
-    /** @type {string} */
-    const origin = event.origin;
-    if (!origin || origin === 'null') return;
+    if (payload && payload.type === 'init_tiny_pony_api') {
+      /** @type {string} */
+      const origin = event.origin;
 
-    if (!isOriginSecure(origin)) {
-      console.warn('[API Bridge] Rejected insecure origin:', origin);
-      window.parent.postMessage(
-        {
-          type: 'tiny_pony_api_response',
-          requestId: payload.requestId,
-          status: 'error',
-          code: 'ERR_INSECURE_ORIGIN',
-          message: 'Only HTTPS or localhost origins are allowed.',
-        },
-        origin,
-      );
-      return;
-    }
+      if (!origin || origin === 'null') return;
 
-    try {
-      /** @type {ServiceWorkerRegistration} */
-      const reg = await navigator.serviceWorker.ready;
-
-      if (reg && reg.active) {
-        reg.active.postMessage({
-          type: 'api_relay',
-          origin: origin,
-          payload: payload,
-        });
+      if (!isOriginSecure(origin)) {
+        console.warn('[API Bridge] Rejected insecure origin:', origin);
+        if (event.ports && event.ports[0]) {
+          event.ports[0].postMessage({
+            type: 'tiny_pony_api_response',
+            status: 'error',
+            code: 'ERR_INSECURE_ORIGIN',
+            message: 'Only HTTPS or localhost origins are allowed.',
+          });
+        }
+        return;
       }
-    } catch (err) {
-      console.error('[API Bridge] Message routing failed:', err);
+
+      if (event.ports && event.ports.length > 0) {
+        apiPort = event.ports[0];
+        connectedOrigin = origin;
+
+        apiPort.onmessage = async (portEvent) => {
+          /** @type {Object} */
+          const portPayload = portEvent.data;
+          if (
+            !portPayload ||
+            typeof portPayload !== 'object' ||
+            !portPayload.action ||
+            !portPayload.requestId
+          )
+            return;
+
+          try {
+            /** @type {ServiceWorkerRegistration} */
+            const reg = await navigator.serviceWorker.ready;
+
+            if (reg && reg.active) {
+              reg.active.postMessage({
+                type: 'api_relay',
+                origin: connectedOrigin,
+                payload: portPayload,
+              });
+            }
+          } catch (err) {
+            console.error('[API Bridge] Message routing failed:', err);
+          }
+        };
+
+        apiPort.postMessage({ type: 'tiny_pony_api_ready' });
+      }
     }
   });
 
   if (window.parent && window.parent !== window) {
-    window.parent.postMessage({ type: 'tiny_pony_api_ready' }, '*');
+    window.parent.postMessage({ type: 'tiny_pony_iframe_loaded' }, '*');
   }
 };
 
