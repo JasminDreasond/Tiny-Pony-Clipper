@@ -44,7 +44,7 @@
     "build:release": "yarn build:npx && electron-builder --linux -p always"
   },
   "devDependencies": {
-    "electron": "^41.0.3",
+    "electron": "^41.1.0",
     "electron-builder": "^26.8.1",
     "prettier": "^3.8.1"
   },
