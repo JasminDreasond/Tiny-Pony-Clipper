@@ -55,6 +55,9 @@ export const btnCancelKb = document.getElementById('btnCancelKb');
 /** @type {HTMLButtonElement} */
 export const btnResetKb = document.getElementById('btnResetKb');
 
+/** @type {HTMLButtonElement} */
+export const btnHudKbConfig = document.getElementById('btnHudKbConfig');
+
 // Debug Elements
 /** @type {HTMLElement} */
 export const dbgWs = document.getElementById('dbgWs');

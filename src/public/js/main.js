@@ -47,6 +47,7 @@ import {
   myOfferOutput,
   connectManualBtn,
   serverAnswerInput,
+  btnHudKbConfig,
 } from './html.js';
 import { showAlert, openModal, closeModal } from './Modal.js';
 import { sendBackgroundNotification } from './Notification.js';
@@ -738,18 +739,51 @@ window.addEventListener('keyup', (e) => {
   blockKeyboardAction(e);
 });
 
-btnOpenKbConfig.addEventListener('click', () => {
+const openKbConfigModal = () => {
   backupKeyBinds = { ...currentKeyBinds };
   openModal(kbModal);
   generateKbUI();
   drawGamepadCanvas();
-});
+};
+
+btnOpenKbConfig.addEventListener('click', openKbConfigModal);
+btnHudKbConfig.addEventListener('click', openKbConfigModal);
 
 btnCloseKb.addEventListener('click', () => {
   closeModal(kbModal);
   if (animFrameId) cancelAnimationFrame(animFrameId);
   localStorage.setItem('pony_kb_binds', JSON.stringify(currentKeyBinds));
+
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'broadcast_kb_binds',
+      binds: currentKeyBinds,
+    });
+  }
 });
+
+/**
+ * @returns {void}
+ */
+const updateHudKbButton = () => {
+  btnHudKbConfig.style.display =
+    virtualPad.connected && document.body.classList.contains('is-playing')
+      ? 'inline-block'
+      : 'none';
+};
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'sync_kb_binds') {
+      currentKeyBinds = event.data.binds;
+
+      // Updates the UI live if the user happens to have the modal open in this specific tab
+      if (kbModal.classList.contains('modal-enter')) {
+        generateKbUI();
+      }
+    }
+  });
+}
 
 btnCancelKb.addEventListener('click', () => {
   currentKeyBinds = { ...backupKeyBinds };
@@ -791,6 +825,7 @@ btnImportKbFile.addEventListener('change', (e) => {
 useKbPadInput.addEventListener('change', (e) => {
   virtualPad.connected = e.target.checked;
   localStorage.setItem('pony_use_kb', e.target.checked.toString());
+  updateHudKbButton();
 });
 
 wantsVideoInput.addEventListener('change', (e) => {
@@ -864,6 +899,7 @@ connectManualBtn.addEventListener('click', async () => {
       loginDiv.style.display = 'none';
       document.body.classList.add('is-playing');
       startPlayTimer();
+      updateHudKbButton();
       btnOpenTx.style.display = 'block';
       if (videoRequested) video.style.display = 'block';
 
@@ -1066,6 +1102,7 @@ const initConnection = () => {
       loginDiv.style.display = 'none';
       document.body.classList.add('is-playing');
       startPlayTimer();
+      updateHudKbButton();
       btnOpenTx.style.display = 'block'; // Show Transmitter button on auth
 
       // Makes the STUN server flexible by reading from config

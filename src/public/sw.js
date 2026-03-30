@@ -51,5 +51,17 @@ self.addEventListener('message', async (event) => {
         client.postMessage(data);
       }
     });
+  } else if (event.data && event.data.type === 'broadcast_kb_binds') {
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        // Prevents sending the data back to the tab that just saved it
+        if (client.id !== event.source.id) {
+          client.postMessage({
+            type: 'sync_kb_binds',
+            binds: event.data.binds,
+          });
+        }
+      });
+    });
   }
 });
