@@ -701,6 +701,15 @@ const handleVirtualInput = (code, isDown) => {
   }
 };
 
+/**
+ * @param {KeyboardEvent} e
+ */
+const blockKeyboardAction = (e) => {
+  if (document.body.classList.contains('is-playing') && virtualPad.connected) {
+    e.preventDefault();
+  }
+};
+
 window.addEventListener('keydown', (e) => {
   if (kbModal.classList.contains('modal-enter') && e.key === 'Escape') {
     if (awaitingBind) {
@@ -720,15 +729,13 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (document.body.classList.contains('is-playing') && virtualPad.connected) {
-    e.preventDefault();
-  }
-
   handleVirtualInput(e.code, true);
+  blockKeyboardAction(e);
 });
 
 window.addEventListener('keyup', (e) => {
   handleVirtualInput(e.code, false);
+  blockKeyboardAction(e);
 });
 
 btnOpenKbConfig.addEventListener('click', () => {
