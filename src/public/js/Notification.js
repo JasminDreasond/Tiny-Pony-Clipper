@@ -29,7 +29,7 @@ export const sendBackgroundNotification = (title, body) => {
     const notification = new Notification(title, {
       body,
       icon: '/icon/192.png',
-      silent: true // Prevents default system sound to use our custom audio instead
+      silent: true, // Prevents default system sound to use our custom audio instead
     });
 
     notification.onclick = () => {

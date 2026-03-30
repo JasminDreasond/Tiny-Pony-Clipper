@@ -101,6 +101,7 @@ const clipSound = path.join(srcFolder, './sounds/clip-saved.mp3');
 const saveSound = path.join(srcFolder, './sounds/saving-clip.mp3');
 const failSound = path.join(srcFolder, './sounds/clip-fail.mp3');
 const alertSound = path.join(srcFolder, './sounds/alert.mp3');
+const userSound = path.join(srcFolder, './public/sounds/notify.mp3');
 
 // --- RATE LIMIT VARIABLES ---
 /** @type {number} */
@@ -888,11 +889,14 @@ if (gotTheLock) {
     ipcMain.on('webrtc-client-connected', (event, clientId) => {
       if (!activeClientsMap.has(clientId)) {
         activeClientsMap.set(clientId, { id: clientId, connectedAt: Date.now() });
-        sendNotification({
-          title: 'New Player Connected!',
-          urgency: 'critical',
-          body: `ID: ${clientId}`,
-        });
+        sendNotification(
+          {
+            title: 'New Player Connected!',
+            urgency: 'critical',
+            body: `ID: ${clientId}`,
+          },
+          userSound,
+        );
       }
       broadcastClientList();
     });
@@ -901,22 +905,28 @@ if (gotTheLock) {
       if (activeClientsMap.has(clientId)) {
         activeClientsMap.delete(clientId);
         destroyGamepadsForClient(clientId);
-        sendNotification({
-          title: 'Player Disconnected',
-          urgency: 'critical',
-          body: `ID: ${clientId} left the server.`,
-        });
+        sendNotification(
+          {
+            title: 'Player Disconnected',
+            urgency: 'critical',
+            body: `ID: ${clientId} left the server.`,
+          },
+          userSound,
+        );
         broadcastClientList();
       }
     });
 
     ipcMain.on('kick-client-request', (event, clientId) => {
       console.log(`[SYSTEM] Manual kick requested for: ${clientId}`);
-      sendNotification({
-        title: 'Player Kicked',
-        urgency: 'critical',
-        body: `You removed: ${clientId}`,
-      });
+      sendNotification(
+        {
+          title: 'Player Kicked',
+          urgency: 'critical',
+          body: `You removed: ${clientId}`,
+        },
+        userSound,
+      );
 
       kickWsClient(clientId);
       if (windowsCache.captureWindow) {
