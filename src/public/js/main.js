@@ -49,6 +49,7 @@ import {
   serverAnswerInput,
 } from './html.js';
 import { showAlert, openModal, closeModal } from './Modal.js';
+import { sendBackgroundNotification } from './Notification.js';
 import { resolveApiConnection, setAuthenticating, setGenerateOfferCallback } from './pageApi.js';
 import { startPlayTimer, stopPlayTimer, bypassWelcome } from './Welcome.js';
 
@@ -718,6 +719,11 @@ window.addEventListener('keydown', (e) => {
     generateKbUI();
     return;
   }
+
+  if (document.body.classList.contains('is-playing') && virtualPad.connected) {
+    e.preventDefault();
+  }
+
   handleVirtualInput(e.code, true);
 });
 
@@ -856,6 +862,7 @@ connectManualBtn.addEventListener('click', async () => {
 
       setAuthenticating(false);
       resolveApiConnection(true);
+      sendBackgroundNotification('Tiny Pony Stream', 'Connected via manual signaling!');
     } catch (error) {
       setAuthenticating(false);
       resolveApiConnection(false, 'Failed to apply SDP answer');
@@ -1069,6 +1076,7 @@ const initConnection = () => {
 
       setAuthenticating(false);
       resolveApiConnection(true);
+      sendBackgroundNotification('Tiny Pony Stream', 'Connected to the server successfully!');
     } else if (data.type === 'auth_error') {
       isConnecting = false;
       setAuthenticating(false);
@@ -1089,7 +1097,9 @@ const initConnection = () => {
     } else if (data.type === 'server_warning') {
       updateDebug(dbgPad, 'Limit Reached / Kicked!', 'error');
       dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${data.message}</span>`;
-      showDisconnectNotification(`Host Message: ${data.message}`);
+      const msgErr = `Host Message: ${data.message}`;
+      showDisconnectNotification(msgErr);
+      sendBackgroundNotification('Tiny Pony Stream', msgErr);
       console.warn('[SERVER WARNING]', data.message);
     }
   };
@@ -1165,7 +1175,9 @@ const setupWebRTCEvents = () => {
       // ---> THIS ALLOWS THE P2P CLIENT TO READ SERVER WARNINGS <---
       updateDebug(dbgPad, 'Limit Reached / Kicked!', 'error');
       dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${msg.message}</span>`;
-      showDisconnectNotification(`Host Message: ${msg.message}`);
+      const msgErr = `Host Message: ${msg.message}`;
+      showDisconnectNotification(msgErr);
+      sendBackgroundNotification('Tiny Pony Stream', msgErr);
       console.warn('[SERVER WARNING]', msg.message);
     }
   };
@@ -1181,7 +1193,9 @@ const setupWebRTCEvents = () => {
     );
 
     if (s === 'disconnected' || s === 'failed') {
-      showDisconnectNotification('Lost connection to host.');
+      const msgErr = 'Lost connection to host.';
+      showDisconnectNotification(msgErr);
+      sendBackgroundNotification('Tiny Pony Stream', msgErr);
       stopPlayTimer();
     }
   };

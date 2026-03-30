@@ -15,6 +15,7 @@ import {
   serverAnswerInput,
 } from './html.js';
 import { openModal, closeModal } from './Modal.js';
+import { sendBackgroundNotification } from './Notification.js';
 
 // --- API BRIDGE & SERVICE WORKER LOGIC ---
 
@@ -169,13 +170,9 @@ export const resolveApiConnection = (success, errorMsg = '') => {
       'Login successful and connected',
     );
   } else {
-    sendApiResponse(
-      reqId,
-      origin,
-      'error',
-      'ERR_CONNECTION_FAILED',
-      errorMsg || 'Connection failed',
-    );
+    const errMsg = errorMsg || 'Connection failed';
+    sendApiResponse(reqId, origin, 'error', 'ERR_CONNECTION_FAILED', errMsg);
+    sendBackgroundNotification('Tiny Pony Stream', errMsg);
   }
 
   activeApiConnection = null;

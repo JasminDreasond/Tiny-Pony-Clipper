@@ -55,6 +55,8 @@ export const bypassWelcome = () => {
   if (welcomeScreen && welcomeScreen.style.display !== 'none') {
     welcomeScreen.style.display = 'none';
     loginDiv.style.display = 'flex';
+    if ('Notification' in window && Notification.permission === 'default')
+      Notification.requestPermission().catch(() => {});
   }
 };
 
