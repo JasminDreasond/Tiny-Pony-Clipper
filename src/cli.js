@@ -253,6 +253,103 @@ export const startCLIServer = (processSdpCallback, authCallback) => {
 };
 
 /**
+ * Reorganizes command line arguments by pairing flags with trailing positional values.
+ * @param {string[]} argv
+ * @returns {string[]}
+ */
+export const reorganizeArgv = (argv) => {
+  /** @type {string[]} */
+  const flagsNeedingValues = [];
+  /** @type {string[]} */
+  const values = [];
+  /** @type {string[]} */
+  const selfContained = [];
+
+  // We skip the first element (app path)
+  /** @type {string[]} */
+  const cleanArgs = argv.slice(1);
+
+  cleanArgs.forEach((arg) => {
+    if (arg.startsWith('--')) {
+      if (arg.includes('=')) {
+        selfContained.push(arg);
+      } else {
+        flagsNeedingValues.push(arg);
+      }
+    } else {
+      values.push(arg);
+    }
+  });
+
+  /** @type {string[]} */
+  const reconstructed = [];
+
+  // Pair flags with values based on discovery order
+  flagsNeedingValues.forEach((flag) => {
+    reconstructed.push(flag);
+    if (values.length > 0) {
+      // Shift the first available value to pair with this flag
+      reconstructed.push(values.shift());
+    }
+  });
+
+  // Append self-contained flags (--key=value) and remaining positionals
+  return [...reconstructed, ...selfContained, ...values];
+};
+
+/**
+ * Inverts a flag configuration object to map property names to their respective flags.
+ * @param {Object.<string, [string, Function]>} config
+ * @returns {Object.<string, string>}
+ */
+const invertFlagsConfig = (config) => {
+  /** @type {Array<[string, [string, Function]]>} */
+  const entries = Object.entries(config);
+
+  /** @type {Object.<string, string>} */
+  const inverted = entries.reduce((acc, [flag, [propName]]) => {
+    /** @type {string} */
+    const key = propName;
+    /** @type {string} */
+    const value = flag;
+
+    acc[key] = value;
+    return acc;
+  }, {});
+
+  return inverted;
+};
+
+/**
+ * @type {([string, (nextArg: string) => any])[]}
+ */
+const flagsOptions = {
+  '--stream-port': ['streamPort', (nextArg) => parseInt(nextArg, 10)],
+  '--stream-password': ['streamPassword', (nextArg) => nextArg],
+  '--max-gamepads': ['maxGamepads', (nextArg) => parseInt(nextArg, 10)],
+  '--ice-servers': ['iceServers', (nextArg) => nextArg],
+  '--enable-clipping': ['enableClipping', (nextArg) => nextArg === 'true'],
+  '--stream-video-enabled': ['streamVideoEnabled', (nextArg) => nextArg === 'true'],
+};
+
+const validFlags = Object.values(flagsOptions).map((item) => item[0]);
+
+export const flagsArgs = invertFlagsConfig(flagsOptions);
+
+/**
+ * Flattens an arg object into a key-value array, filtering by allowed keys.
+ * @param {Object} data
+ * @returns {Array<string|any>}
+ */
+export const flattenFilteredArgs = (data) => {
+  /** @type {Array<[string, any]>} */
+  const entries = Object.entries(data);
+  /** @type {Array<[string, any]>} */
+  const filtered = entries.filter(([key]) => validFlags.includes(key));
+  return filtered.flat();
+};
+
+/**
  * Parses command line arguments to extract configuration overrides for the application.
  *
  * @param {string[]} args - The command line arguments to parse.
@@ -269,15 +366,8 @@ export const parseCLIConfigOverrides = (args) => {
     const arg = args[i];
     /** @type {string | undefined} */
     const nextArg = args[i + 1];
-
-    if (arg === '--stream-port' && nextArg) overrides.streamPort = parseInt(nextArg, 10);
-    if (arg === '--stream-password' && nextArg) overrides.streamPassword = nextArg;
-    if (arg === '--max-gamepads' && nextArg) overrides.maxGamepads = parseInt(nextArg, 10);
-    if (arg === '--ice-servers' && nextArg) overrides.iceServers = nextArg;
-
-    if (arg === '--enable-clipping' && nextArg) overrides.enableClipping = nextArg === 'true';
-    if (arg === '--stream-video-enabled' && nextArg)
-      overrides.streamVideoEnabled = nextArg === 'true';
+    const argData = flagsOptions[arg];
+    if (argData && nextArg) overrides[argData[0]] = argData[1](nextArg);
   }
 
   // Force streamEnabled to true if any stream related argument is passed

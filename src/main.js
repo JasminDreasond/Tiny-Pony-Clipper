@@ -39,6 +39,9 @@ import {
   startCLIServer,
   parseCLIConfigOverrides,
   isCLICommand,
+  flattenFilteredArgs,
+  reorganizeArgv,
+  flagsArgs,
 } from './cli.js';
 
 import { checkAuth, setAuth, loadAuthList, removeAuth } from './utils/AuthManager.js';
@@ -64,6 +67,23 @@ if (!gotTheLock) {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     // Prevents the config window from opening if the execution is just a CLI command
     if (isCLICommand(commandLine)) return;
+
+    /** @type {Object} */
+    const overrides = parseCLIConfigOverrides(reorganizeArgv(commandLine));
+
+    console.log('[SYSTEM] Parsed CLI overrides from second instance:', overrides);
+
+    if (Object.keys(overrides).length > 0) {
+      /** @type {string[]} */
+      const argsToPass = flattenFilteredArgs(overrides).map((item) =>
+        flagsArgs[item] ? flagsArgs[item] : String(item),
+      );
+      console.log('[SYSTEM] Relaunching with temporary overrides...', argsToPass);
+
+      app.relaunch({ args: argsToPass });
+      app.quit();
+      return;
+    }
 
     if (windowsCache.configWindow) {
       if (windowsCache.configWindow.isMinimized()) windowsCache.configWindow.restore();
