@@ -28,7 +28,7 @@ You can append these arguments when launching the `tiny-pony-clipper` executable
 ### Configuration Overrides
 *Using these flags will temporarily override the user's saved JSON settings for that specific session.*
 
-* `--force-stream`: Forces the Remote Play WebRTC server to start upon initialization, even if the user disabled it in the UI.
+* `--force-stream [true/false]`: Forces the Remote Play WebRTC server to start upon initialization, even if the user disabled it in the UI.
 * `--stream-port [port]`: Sets a custom local port for the internal WebSocket/HTTP server.
 * `--stream-password [password]`: Sets a temporary access password for IP-based Remote Play connections.
 * `--max-gamepads [number]`: Defines the maximum number of virtual gamepads the server will allow (0 to 12).

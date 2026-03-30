@@ -79,7 +79,7 @@ export const runCLIClient = (args) => {
           '--exit': 'Closes the application and shuts down the server.',
           exit: 'Alternative to the --exit command.',
           '--help': 'Shows this list of commands.',
-          '--force-stream': 'Forces the server to start on initialization.',
+          '--force-stream [true/false]': 'Forces the server to start on initialization.',
           '--stream-port [port]': 'Sets the WebSocket/HTTP server port.',
           '--stream-password [password]': 'Sets the stream access password.',
           '--max-gamepads [number]': 'Sets the maximum limit of gamepads.',
@@ -330,6 +330,7 @@ const flagsOptions = {
   '--ice-servers': ['iceServers', (nextArg) => nextArg],
   '--enable-clipping': ['enableClipping', (nextArg) => nextArg === 'true'],
   '--stream-video-enabled': ['streamVideoEnabled', (nextArg) => nextArg === 'true'],
+  '--force-stream': ['forceStream', (nextArg) => nextArg === 'true'],
 };
 
 const validFlags = Object.values(flagsOptions).map((item) => item[0]);
@@ -358,8 +359,6 @@ export const flattenFilteredArgs = (data) => {
 export const parseCLIConfigOverrides = (args) => {
   /** @type {Object} */
   const overrides = {};
-
-  if (args.includes('--force-stream')) overrides.streamEnabled = true;
 
   for (let i = 0; i < args.length; i++) {
     /** @type {string} */
