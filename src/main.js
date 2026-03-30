@@ -100,6 +100,7 @@ const warnedPads = new Set();
 const clipSound = path.join(srcFolder, './sounds/clip-saved.mp3');
 const saveSound = path.join(srcFolder, './sounds/saving-clip.mp3');
 const failSound = path.join(srcFolder, './sounds/clip-fail.mp3');
+const alertSound = path.join(srcFolder, './sounds/alert.mp3');
 
 // --- RATE LIMIT VARIABLES ---
 /** @type {number} */
@@ -1104,7 +1105,7 @@ if (gotTheLock) {
             urgency: 'critical',
             body: 'An authorized third-party application is establishing a Remote Play connection.',
           },
-          saveSound,
+          alertSound,
         );
 
         return new Promise((resolve) => {
