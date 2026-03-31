@@ -80,6 +80,15 @@ if (!gotTheLock) {
       );
       console.log('[SYSTEM] Relaunching with temporary overrides...', argsToPass);
 
+      sendNotification(
+        {
+          title: 'Tiny Pony Clipper',
+          urgency: 'critical',
+          body: 'Relaunching application to apply temporary CLI configurations...',
+        },
+        userSound,
+      );
+
       app.relaunch({ args: argsToPass });
       app.quit();
       return;
