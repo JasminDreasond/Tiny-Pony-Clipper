@@ -51,7 +51,7 @@ ipcMain.on('console.error', (event, ...args) => console.error(...args));
 ipcMain.on('open-external', (event, url) => shell.openExternal(url));
 
 app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal,WebRTCPipeWireCapturer');
-app.setAppUserModelId('TinyPonyClipper');
+app.setAppUserModelId('com.jasmindreasond.tinyponyclipper');
 
 /** @type {boolean} */
 const isWaylandEnv = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
