@@ -1329,6 +1329,63 @@ const setupIPWebRTC = async () => {
 // --- EFFICIENT POLLING WITH CACHE ---
 
 /**
+ * @typedef {Object} GamepadProfile
+ * @property {number[]} buttons
+ * @property {number[]} axes
+ */
+
+/** 
+ * @type {Record<string, GamepadProfile>}
+ */
+const gamepadProfiles = {
+  gamecube: {
+    // [A, B, X, Y, LB, RB, LT, RT, Select, Start, L3, R3, Up, Down, Left, Right, Home]
+    // Replace these indices with the correct ones fired by your GameCube adapter
+    buttons: [1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    axes: [0, 1, 2, 3],
+  },
+};
+
+/**
+ * @param {Gamepad} gp
+ * @returns {{ buttons: {pressed: boolean, value: number}[], axes: number[] }}
+ */
+const remapGamepad = (gp) => {
+  /** @type {string} */
+  const id = gp.id.toLowerCase();
+
+  /** @type {GamepadProfile | null} */
+  let profile = null;
+
+  if (id.includes('gamecube') || id.includes('mayflash')) {
+    profile = gamepadProfiles['gamecube'];
+  }
+
+  if (!profile) {
+    return {
+      buttons: gp.buttons.map((b) => ({ pressed: b.pressed, value: b.value })),
+      axes: [...gp.axes],
+    };
+  }
+
+  /** @type {{pressed: boolean, value: number}[]} */
+  const mappedButtons = profile.buttons.map((srcIdx) => {
+    /** @type {GamepadButton | undefined} */
+    const btn = gp.buttons[srcIdx];
+    return btn ? { pressed: btn.pressed, value: btn.value } : { pressed: false, value: 0 };
+  });
+
+  /** @type {number[]} */
+  const mappedAxes = profile.axes.map((srcIdx) => {
+    /** @type {number | undefined} */
+    const axis = gp.axes[srcIdx];
+    return axis !== undefined ? axis : 0;
+  });
+
+  return { buttons: mappedButtons, axes: mappedAxes };
+};
+
+/**
  * Continuously polls active gamepads using the browser's Gamepad API.
  * Gathers pressed buttons and analog axis data, formats it, and sends it to the server via the DataChannel.
  *
@@ -1349,27 +1406,29 @@ const pollGamepad = () => {
 
     // STRICT CHECK: Ensure the gamepad is actually connected to avoid ghosts
     if (gp && gp.connected) {
-      /** @type {Object[]} */
-      const buttonsData = gp.buttons.map((b) => ({ pressed: b.pressed, value: b.value }));
-      /** @type {number[]} */
-      const axesVals = gp.axes;
+      /** @type {{ buttons: {pressed: boolean, value: number}[], axes: number[] }} */
+      const mappedData = remapGamepad(gp);
 
       padData.push({
         index: gp.index + (virtualPad.connected ? 1 : 0),
-        buttons: buttonsData,
-        axes: axesVals,
+        buttons: mappedData.buttons,
+        axes: mappedData.axes,
       });
 
       /** @type {number} */
-      const activeBtnsCount = buttonsData.reduce((acc, val) => acc + (val.pressed ? 1 : 0), 0);
+      const activeBtnsCount = mappedData.buttons.reduce(
+        (acc, val) => acc + (val.pressed ? 1 : 0),
+        0,
+      );
+
       /** @type {string} */
-      const lx = axesVals[0]?.toFixed(2) || '0.00';
+      const lx = mappedData.axes[0]?.toFixed(2) || '0.00';
       /** @type {string} */
-      const ly = axesVals[1]?.toFixed(2) || '0.00';
+      const ly = mappedData.axes[1]?.toFixed(2) || '0.00';
       /** @type {string} */
-      const rx = axesVals[2]?.toFixed(2) || '0.00';
+      const rx = mappedData.axes[2]?.toFixed(2) || '0.00';
       /** @type {string} */
-      const ry = axesVals[3]?.toFixed(2) || '0.00';
+      const ry = mappedData.axes[3]?.toFixed(2) || '0.00';
 
       debugText += `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br><br>`;
     } else {
