@@ -160,20 +160,27 @@ export const updateGamepadState = (clientId, padIndex, state, padType) => {
   /** @type {boolean} */
   let needsSync = false;
 
-  // Buttons and Digital Triggers
+  // Buttons and Digital/Analog Triggers
   state.buttons.forEach((btn, i) => {
     /** @type {number|null|undefined} */
     const code = BUTTON_MAP[i];
+    /** @type {boolean} */
+    const isTrigger = i === 6 || i === 7;
+
+    // Prevent collision: triggers only act as digital buttons when almost fully pressed (>= 0.95)
+    // const isPressed = isTrigger ? btn.value >= 0.95 : btn.pressed;
+    /** @type {boolean} */
+    const isPressed = btn.pressed;
 
     // Safety check to prevent undefined exceptions crashing the loop
-    if (code !== undefined && code !== null && btn.pressed !== session.previousButtons[i]) {
-      session.previousButtons[i] = btn.pressed;
-      uinput.emit(id, EV_KEY, code, btn.pressed ? 1 : 0);
+    if (code !== undefined && code !== null && isPressed !== session.previousButtons[i]) {
+      session.previousButtons[i] = isPressed;
+      uinput.emit(id, EV_KEY, code, isPressed ? 1 : 0);
       needsSync = true;
     }
 
     // Analog Triggers (LT/RT)
-    if (i === 6 || i === 7) {
+    if (isTrigger) {
       /** @type {number} */
       const axisCode = i === 6 ? keyCodes.ABS_Z : keyCodes.ABS_RZ;
       /** @type {number} */
