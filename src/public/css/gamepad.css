@@ -180,6 +180,7 @@
   font-family: monospace;
   font-size: 11px;
   color: #a6e3a1;
-  min-height: 40px;
+  height: 40px;
   border: 1px solid #313244;
+  overflow-y: auto;
 }
