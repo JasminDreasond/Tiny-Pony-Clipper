@@ -1174,6 +1174,7 @@ if ('serviceWorker' in navigator) {
 
 btnCancelKb.addEventListener('click', () => {
   currentKeyBinds = { ...backupKeyBinds };
+  liveEditingBuffer = null; // Revert by simply nulling the buffer
   closeModal(kbModal);
   if (animFrameId) cancelAnimationFrame(animFrameId);
 });
