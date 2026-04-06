@@ -364,6 +364,79 @@ const disableAllEditorFields = () => {
   profileAxesGrid.innerHTML = '';
 };
 
+/** @type {Record<number, { name: string, icon: string }>} */
+const profileButtonMap = {
+  0: { name: 'A', icon: 'img/kenney_input_xbox_series/xbox_button_a.png' },
+  1: { name: 'B', icon: 'img/kenney_input_xbox_series/xbox_button_b.png' },
+  2: { name: 'X', icon: 'img/kenney_input_xbox_series/xbox_button_x.png' },
+  3: { name: 'Y', icon: 'img/kenney_input_xbox_series/xbox_button_y.png' },
+  4: { name: 'LB', icon: 'img/kenney_input_xbox_series/xbox_lb.png' },
+  5: { name: 'RB', icon: 'img/kenney_input_xbox_series/xbox_rb.png' },
+  6: { name: 'LT', icon: 'img/kenney_input_xbox_series/xbox_lt.png' },
+  7: { name: 'RT', icon: 'img/kenney_input_xbox_series/xbox_rt.png' },
+  8: { name: 'Select', icon: 'img/kenney_input_xbox_series/xbox_button_back.png' },
+  9: { name: 'Start', icon: 'img/kenney_input_xbox_series/xbox_button_start.png' },
+  10: { name: 'LS', icon: 'img/kenney_input_xbox_series/xbox_ls.png' },
+  11: { name: 'RS', icon: 'img/kenney_input_xbox_series/xbox_rs.png' },
+  12: { name: 'Up', icon: 'img/kenney_input_xbox_series/xbox_dpad_up.png' },
+  13: { name: 'Down', icon: 'img/kenney_input_xbox_series/xbox_dpad_down.png' },
+  14: { name: 'Left', icon: 'img/kenney_input_xbox_series/xbox_dpad_left.png' },
+  15: { name: 'Right', icon: 'img/kenney_input_xbox_series/xbox_dpad_right.png' },
+  16: { name: 'Home', icon: 'img/kenney_input_xbox_series/xbox_guide.png' },
+};
+
+/** @type {Record<number, { name: string, icon: string }>} */
+const profileAxesMap = {
+  0: { name: 'LS X', icon: 'img/kenney_input_xbox_series/xbox_stick_l_left.png' },
+  1: { name: 'LS Y', icon: 'img/kenney_input_xbox_series/xbox_stick_l_up.png' },
+  2: { name: 'RS X', icon: 'img/kenney_input_xbox_series/xbox_stick_r_left.png' },
+  3: { name: 'RS Y', icon: 'img/kenney_input_xbox_series/xbox_stick_r_up.png' },
+};
+
+/**
+ * Creates a visual input box for the profile editor grid.
+ *
+ * @param {number} index
+ * @param {number} value
+ * @param {boolean} isReadonly
+ * @param {{name: string, icon: string} | undefined} info
+ * @param {[number, number]} limits
+ * @param {'buttons' | 'axes'} type
+ * @returns {HTMLElement}
+ */
+const createProfileInputItem = (index, value, isReadonly, info, limits, type) => {
+  const wrapper = document.createElement('div');
+  wrapper.style.display = 'flex';
+  wrapper.style.flexDirection = 'column';
+  wrapper.style.alignItems = 'center';
+  wrapper.style.background = '#181825';
+  wrapper.style.padding = '4px';
+  wrapper.style.borderRadius = '4px';
+  wrapper.style.border = '1px solid #313244';
+
+  /** @type {string} */
+  const iconHtml =
+    info && info.icon
+      ? `<img src="${info.icon}" alt="${info.name}" title="${info.name}" style="height: 20px; margin-bottom: 4px;" />`
+      : `<span style="font-size: 11px; color: #bac2de; margin-bottom: 4px; font-weight: bold;">${info ? info.name : `IDX ${index}`}</span>`;
+
+  wrapper.innerHTML = `${iconHtml}<input type="number" min="${limits[0]}" max="${limits[1]}" style="width: 100%; text-align: center; box-sizing: border-box;" />`;
+
+  /** @type {HTMLInputElement | null} */
+  const input = wrapper.querySelector('input');
+  if (input) {
+    input.value = value.toString();
+    input.disabled = isReadonly;
+    input.oninput = (e) => {
+      if (liveEditingBuffer) {
+        liveEditingBuffer[type][index] = parseInt(e.target.value, 10) || 0;
+      }
+    };
+  }
+
+  return wrapper;
+};
+
 /**
  * @returns {void}
  */
@@ -424,32 +497,36 @@ const renderProfileEditor = () => {
   profileName.oninput = syncMetadata;
   profileRegex.oninput = syncMetadata;
 
+  // Clear and render the Buttons grid using icons
   profileButtonsGrid.innerHTML = '';
   for (let i = 0; i <= 16; i++) {
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.min = '0';
-    input.max = '32';
-    input.value = profile.buttons[i].toString();
-    input.disabled = isReadonly;
-    input.oninput = (e) => {
-      if (liveEditingBuffer) liveEditingBuffer.buttons[i] = parseInt(e.target.value, 10) || 0;
-    };
-    profileButtonsGrid.appendChild(input);
+    /** @type {number} */
+    const btnValue = profile.buttons[i] !== undefined ? profile.buttons[i] : i;
+    const inputItem = createProfileInputItem(
+      i,
+      btnValue,
+      isReadonly,
+      profileButtonMap[i],
+      [0, 32],
+      'buttons',
+    );
+    profileButtonsGrid.appendChild(inputItem);
   }
 
+  // Clear and render the Axes grid using icons
   profileAxesGrid.innerHTML = '';
   for (let i = 0; i <= 3; i++) {
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.min = '0';
-    input.max = '8';
-    input.value = profile.axes[i].toString();
-    input.disabled = isReadonly;
-    input.oninput = (e) => {
-      if (liveEditingBuffer) liveEditingBuffer.axes[i] = parseInt(e.target.value, 10) || 0;
-    };
-    profileAxesGrid.appendChild(input);
+    /** @type {number} */
+    const axisValue = profile.axes[i] !== undefined ? profile.axes[i] : i;
+    const inputItem = createProfileInputItem(
+      i,
+      axisValue,
+      isReadonly,
+      profileAxesMap[i],
+      [0, 8],
+      'axes',
+    );
+    profileAxesGrid.appendChild(inputItem);
   }
 };
 
