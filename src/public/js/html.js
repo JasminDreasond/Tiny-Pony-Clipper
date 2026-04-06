@@ -58,6 +58,44 @@ export const btnResetKb = document.getElementById('btnResetKb');
 /** @type {HTMLButtonElement} */
 export const btnHudKbConfig = document.getElementById('btnHudKbConfig');
 
+// Tab Configuration Elements
+/** @type {HTMLButtonElement} */
+export const tabKbBtn = document.getElementById('tabKbBtn');
+/** @type {HTMLButtonElement} */
+export const tabProfileBtn = document.getElementById('tabProfileBtn');
+/** @type {HTMLElement} */
+export const tabKbContent = document.getElementById('tabKbContent');
+/** @type {HTMLElement} */
+export const tabProfileContent = document.getElementById('tabProfileContent');
+
+// Profile Manager Elements
+/** @type {HTMLSelectElement} */
+export const profileSelect = document.getElementById('profileSelect');
+/** @type {HTMLButtonElement} */
+export const btnCreateProfile = document.getElementById('btnCreateProfile');
+/** @type {HTMLButtonElement} */
+export const btnCloneProfile = document.getElementById('btnCloneProfile');
+/** @type {HTMLButtonElement} */
+export const btnDeleteProfile = document.getElementById('btnDeleteProfile');
+/** @type {HTMLInputElement} */
+export const profileName = document.getElementById('profileName');
+/** @type {HTMLInputElement} */
+export const profileRegex = document.getElementById('profileRegex');
+/** @type {HTMLElement} */
+export const profileButtonsGrid = document.getElementById('profileButtonsGrid');
+/** @type {HTMLElement} */
+export const profileAxesGrid = document.getElementById('profileAxesGrid');
+/** @type {HTMLElement} */
+export const rawGamepadDebugger = document.getElementById('rawGamepadDebugger');
+/** @type {HTMLButtonElement} */
+export const btnExportProfile = document.getElementById('btnExportProfile');
+/** @type {HTMLButtonElement} */
+export const btnImportProfileBtn = document.getElementById('btnImportProfileBtn');
+/** @type {HTMLInputElement} */
+export const btnImportProfileFile = document.getElementById('btnImportProfileFile');
+/** @type {HTMLButtonElement} */
+export const btnSaveProfile = document.getElementById('btnSaveProfile');
+
 // Debug Elements
 /** @type {HTMLElement} */
 export const dbgWs = document.getElementById('dbgWs');

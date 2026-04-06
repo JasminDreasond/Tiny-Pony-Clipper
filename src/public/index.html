@@ -39,6 +39,8 @@
 
     <link rel="preload" href="/css/main.css" as="style" />
     <link rel="stylesheet" href="/css/main.css" />
+    <link rel="preload" href="/css/gamepad.css" as="style" />
+    <link rel="stylesheet" href="/css/gamepad.css" />
   </head>
   <body>
     <div id="modalOverlay"></div>
@@ -98,15 +100,81 @@
     </div>
 
     <div id="kbModal" class="modal-base keyboard">
-      <h3>Keyboard Gamepad Config</h3>
+      <h3>Input Configuration</h3>
       <h5>Icons made by Kenney (www.kenney.nl)</h5>
-      <canvas id="gamepadCanvas" width="300" height="160"></canvas>
-      <div class="kb-layout-grid" id="kbMappings"></div>
-      <div class="modal-actions">
-        <button id="btnExportKb">Export</button>
-        <button id="btnImportKbBtn">Import</button>
-        <input type="file" id="btnImportKbFile" accept=".json" style="display: none" />
-        <button id="btnResetKb">Defaults</button>
+      <canvas
+        id="gamepadCanvas"
+        width="300"
+        height="160"
+        style="display: block; margin: 0 auto 15px auto"
+      ></canvas>
+
+      <div class="modal-tabs">
+        <button id="tabKbBtn" class="tab-btn active">Keyboard Emulator</button>
+        <button id="tabProfileBtn" class="tab-btn">Gamepad Profiles</button>
+      </div>
+
+      <div id="tabKbContent" class="tab-content active">
+        <div class="kb-layout-grid" id="kbMappings"></div>
+        <div class="modal-actions">
+          <button id="btnExportKb">Export</button>
+          <button id="btnImportKbBtn">Import</button>
+          <input type="file" id="btnImportKbFile" accept=".json" style="display: none" />
+          <button id="btnResetKb">Defaults</button>
+        </div>
+      </div>
+
+      <div id="tabProfileContent" class="tab-content">
+        <div class="profile-header">
+          <select id="profileSelect"></select>
+          <button
+            id="btnCreateProfile"
+            style="width: auto; padding: 6px 12px; background: #a6e3a1; color: #11111b"
+          >
+            Create
+          </button>
+          <button id="btnCloneProfile" style="width: auto; padding: 6px 12px">Clone</button>
+          <button
+            id="btnDeleteProfile"
+            style="width: auto; padding: 6px 12px; background: #f38ba8; color: #11111b"
+          >
+            Delete
+          </button>
+        </div>
+
+        <div class="profile-editor">
+          <label>Profile Name: <input type="text" id="profileName" /></label>
+          <label
+            >Identifier Regex:
+            <input type="text" id="profileRegex" placeholder="e.g. gamecube|mayflash"
+          /></label>
+
+          <div class="mapping-grids">
+            <div class="map-col">
+              <h4>Buttons (0-16)</h4>
+              <div id="profileButtonsGrid" class="profile-grid"></div>
+            </div>
+            <div class="map-col">
+              <h4>Axes (0-3)</h4>
+              <div id="profileAxesGrid" class="profile-grid"></div>
+            </div>
+          </div>
+
+          <div id="rawGamepadDebugger" class="raw-debug">Awaiting physical gamepad action...</div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 10px">
+          <button id="btnExportProfile">Export</button>
+          <button id="btnImportProfileBtn">Import</button>
+          <input type="file" id="btnImportProfileFile" accept=".json" style="display: none" />
+          <button id="btnSaveProfile">Save Profile</button>
+        </div>
+      </div>
+
+      <div
+        class="modal-actions"
+        style="margin-top: 15px; border-top: 1px solid #45475a; padding-top: 10px"
+      >
         <button id="btnCancelKb">Cancel</button>
         <button id="btnCloseKb">Save & Close</button>
       </div>

@@ -168,16 +168,6 @@ body {
     0 0 30px rgba(203, 166, 247, 0.2);
 }
 
-.modal-base.keyboard {
-  border: 2px solid #cba6f7;
-  z-index: 1000;
-  width: 540px;
-  max-width: 95vw;
-  box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.8),
-    0 0 30px rgba(203, 166, 247, 0.2);
-}
-
 .modal-base.auth {
   border: 2px solid #f38ba8;
   z-index: 2000;
@@ -533,77 +523,6 @@ button:disabled {
 .config-btn:hover {
   background: #cba6f7;
   color: #11111b;
-}
-
-/* --- KB Modal Specifics --- */
-#kbModal h3 {
-  margin: 0;
-  color: #cba6f7;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-#kbModal h5 {
-  margin: 0;
-  text-align: center;
-  color: #a6adc8;
-  font-weight: normal;
-}
-
-.kb-layout-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  max-height: 220px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-.kb-map-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(49, 50, 68, 0.6);
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  border: 1px solid transparent;
-  transition: border 0.2s;
-}
-
-.kb-map-item:hover {
-  border-color: #585b70;
-  background: rgba(49, 50, 68, 0.9);
-}
-
-.kb-map-item button {
-  padding: 6px 10px;
-  margin: 0;
-  font-size: 12px;
-  width: 85px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.modal-actions button {
-  font-size: 13px;
-  padding: 10px;
-  flex: 1;
-  min-width: 85px;
-}
-
-#gamepadCanvas {
-  background: radial-gradient(circle at center, #181825, #11111b);
-  border-radius: 12px;
-  border: 1px solid #45475a;
-  margin: 0 auto;
-  display: block;
-  box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
 /* --- HUD Overlays --- */

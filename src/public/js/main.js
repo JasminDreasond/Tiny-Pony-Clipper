@@ -48,6 +48,27 @@ import {
   connectManualBtn,
   serverAnswerInput,
   btnHudKbConfig,
+
+  // Tab Configuration Elements
+  tabKbBtn,
+  tabProfileBtn,
+  tabKbContent,
+  tabProfileContent,
+
+  // Profile Manager Elements
+  profileSelect,
+  btnCreateProfile,
+  btnCloneProfile,
+  btnDeleteProfile,
+  profileName,
+  profileRegex,
+  profileButtonsGrid,
+  profileAxesGrid,
+  rawGamepadDebugger,
+  btnExportProfile,
+  btnImportProfileBtn,
+  btnImportProfileFile,
+  btnSaveProfile,
 } from './html.js';
 import { showAlert, openModal, closeModal } from './Modal.js';
 import { sendBackgroundNotification } from './Notification.js';
@@ -213,7 +234,295 @@ export const applyServerAnswer = async (answerString) => {
   await pc.setRemoteDescription(remoteAnswer);
 };
 
+// --- MODAL TAB LOGIC ---
+
+/**
+ * @param {HTMLElement} btn
+ * @param {HTMLElement} content
+ * @returns {void}
+ */
+const switchTab = (btn, content) => {
+  tabKbBtn.classList.remove('active');
+  tabProfileBtn.classList.remove('active');
+  tabKbContent.classList.remove('active');
+  tabProfileContent.classList.remove('active');
+
+  btn.classList.add('active');
+  content.classList.add('active');
+};
+
+tabKbBtn.addEventListener('click', () => switchTab(tabKbBtn, tabKbContent));
+tabProfileBtn.addEventListener('click', () => switchTab(tabProfileBtn, tabProfileContent));
+
+// --- GAMEPAD PROFILES MANAGER LOGIC ---
+
+/**
+ * @typedef {Object} GamepadProfile
+ * @property {string} name
+ * @property {string} regex
+ * @property {number[]} buttons
+ * @property {number[]} axes
+ * @property {boolean} [readonly]
+ */
+
+/** @type {Record<string, GamepadProfile>} */
+const defaultProfiles = {
+  gamecube: {
+    name: 'GameCube Adapter',
+    regex: 'gamecube|mayflash',
+    // [A, B, X, Y, LB, RB, LT, RT, Select, Start, L3, R3, Up, Down, Left, Right, Home]
+    // Replace these indices with the correct ones fired by your GameCube adapter
+    buttons: [1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    axes: [0, 1, 2, 3],
+    readonly: true,
+  },
+};
+
+/** @type {Record<string, GamepadProfile>} */
+let customProfiles = JSON.parse(localStorage.getItem('pony_gamepad_profiles') || '{}');
+
+/**
+ * @returns {void}
+ */
+const saveCustomProfiles = () => {
+  localStorage.setItem('pony_gamepad_profiles', JSON.stringify(customProfiles));
+};
+
+/**
+ * @returns {void}
+ */
+const renderProfileDropdown = () => {
+  /** @type {string} */
+  const currentValue = profileSelect.value;
+  profileSelect.innerHTML = '';
+
+  const optGroupDefault = document.createElement('optgroup');
+  optGroupDefault.label = 'Default Profiles';
+  Object.keys(defaultProfiles).forEach((k) => {
+    const opt = document.createElement('option');
+    opt.value = `default_${k}`;
+    opt.textContent = defaultProfiles[k].name;
+    optGroupDefault.appendChild(opt);
+  });
+  profileSelect.appendChild(optGroupDefault);
+
+  const optGroupCustom = document.createElement('optgroup');
+  optGroupCustom.label = 'Custom Profiles';
+  Object.keys(customProfiles).forEach((k) => {
+    const opt = document.createElement('option');
+    opt.value = `custom_${k}`;
+    opt.textContent = customProfiles[k].name;
+    optGroupCustom.appendChild(opt);
+  });
+  profileSelect.appendChild(optGroupCustom);
+
+  if (currentValue && profileSelect.querySelector(`option[value="${currentValue}"]`)) {
+    profileSelect.value = currentValue;
+  } else {
+    profileSelect.selectedIndex = 0;
+  }
+};
+
+/**
+ * @param {string} val
+ * @returns {{ type: 'default' | 'custom', key: string }}
+ */
+const parseProfileVal = (val) => {
+  if (val.startsWith('default_')) return { type: 'default', key: val.replace('default_', '') };
+  return { type: 'custom', key: val.replace('custom_', '') };
+};
+
+/**
+ * @returns {void}
+ */
+const renderProfileEditor = () => {
+  /** @type {{ type: 'default' | 'custom', key: string }} */
+  const parsed = parseProfileVal(profileSelect.value);
+
+  /** @type {GamepadProfile | null} */
+  const profile =
+    parsed.type === 'default' ? defaultProfiles[parsed.key] : customProfiles[parsed.key];
+  if (!profile) return;
+
+  /** @type {boolean} */
+  const isReadonly = !!profile.readonly;
+
+  profileName.value = profile.name;
+  profileRegex.value = profile.regex;
+  profileName.disabled = isReadonly;
+  profileRegex.disabled = isReadonly;
+
+  btnSaveProfile.disabled = isReadonly;
+  btnDeleteProfile.disabled = isReadonly;
+
+  profileButtonsGrid.innerHTML = '';
+  for (let i = 0; i <= 16; i++) {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.max = '32';
+    input.value = profile.buttons[i] !== undefined ? profile.buttons[i].toString() : i.toString();
+    input.disabled = isReadonly;
+    input.dataset.idx = i.toString();
+    profileButtonsGrid.appendChild(input);
+  }
+
+  profileAxesGrid.innerHTML = '';
+  for (let i = 0; i <= 3; i++) {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.max = '8';
+    input.value = profile.axes[i] !== undefined ? profile.axes[i].toString() : i.toString();
+    input.disabled = isReadonly;
+    input.dataset.idx = i.toString();
+    profileAxesGrid.appendChild(input);
+  }
+};
+
+profileSelect.addEventListener('change', renderProfileEditor);
+
+btnCreateProfile.addEventListener('click', () => {
+  /** @type {string} */
+  const newKey = `custom_${Date.now()}`;
+  
+  customProfiles[newKey] = {
+    name: 'New Profile',
+    regex: '.*', // Captura qualquer controle por padrão até o usuário mudar
+    buttons: Array.from({ length: 17 }, (_, i) => i), // 0 ao 16 mapeados na ordem original
+    axes: [0, 1, 2, 3] // Eixos na ordem original
+  };
+  
+  saveCustomProfiles();
+  renderProfileDropdown();
+  profileSelect.value = `custom_${newKey}`;
+  renderProfileEditor();
+});
+
+btnCloneProfile.addEventListener('click', () => {
+  /** @type {{ type: 'default' | 'custom', key: string }} */
+  const parsed = parseProfileVal(profileSelect.value);
+  /** @type {GamepadProfile | null} */
+  const srcProfile =
+    parsed.type === 'default' ? defaultProfiles[parsed.key] : customProfiles[parsed.key];
+  if (!srcProfile) return;
+
+  /** @type {string} */
+  const newKey = `clone_${Date.now()}`;
+  customProfiles[newKey] = {
+    name: `${srcProfile.name} (Clone)`,
+    regex: srcProfile.regex,
+    buttons: [...srcProfile.buttons],
+    axes: [...srcProfile.axes],
+  };
+
+  saveCustomProfiles();
+  renderProfileDropdown();
+  profileSelect.value = `custom_${newKey}`;
+  renderProfileEditor();
+});
+
+btnSaveProfile.addEventListener('click', () => {
+  /** @type {{ type: 'default' | 'custom', key: string }} */
+  const parsed = parseProfileVal(profileSelect.value);
+  if (parsed.type === 'default') return;
+
+  /** @type {number[]} */
+  const newBtns = Array.from(profileButtonsGrid.querySelectorAll('input')).map((inp) =>
+    parseInt(inp.value, 10),
+  );
+  /** @type {number[]} */
+  const newAxes = Array.from(profileAxesGrid.querySelectorAll('input')).map((inp) =>
+    parseInt(inp.value, 10),
+  );
+
+  customProfiles[parsed.key] = {
+    name: profileName.value.trim() || 'Unnamed Profile',
+    regex: profileRegex.value.trim() || '.*',
+    buttons: newBtns,
+    axes: newAxes,
+  };
+
+  saveCustomProfiles();
+  renderProfileDropdown();
+  profileSelect.value = `custom_${parsed.key}`;
+  showAlert('Profile saved successfully!');
+});
+
+btnDeleteProfile.addEventListener('click', () => {
+  /** @type {{ type: 'default' | 'custom', key: string }} */
+  const parsed = parseProfileVal(profileSelect.value);
+  if (parsed.type === 'default') return;
+
+  delete customProfiles[parsed.key];
+  saveCustomProfiles();
+  renderProfileDropdown();
+  renderProfileEditor();
+});
+
+btnExportProfile.addEventListener('click', () => {
+  /** @type {{ type: 'default' | 'custom', key: string }} */
+  const parsed = parseProfileVal(profileSelect.value);
+  /** @type {GamepadProfile | null} */
+  const profile =
+    parsed.type === 'default' ? defaultProfiles[parsed.key] : customProfiles[parsed.key];
+
+  if (!profile) return;
+
+  /** @type {Object} */
+  const exportObj = { [parsed.key]: profile };
+  /** @type {Blob} */
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  /** @type {HTMLAnchorElement} */
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tiny_pony_profile_${parsed.key}.json`;
+  a.click();
+});
+
+btnImportProfileBtn.addEventListener('click', () => btnImportProfileFile.click());
+
+btnImportProfileFile.addEventListener('change', (e) => {
+  /** @type {File} */
+  const file = e.target.files[0];
+  if (!file) return;
+  /** @type {FileReader} */
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      /** @type {Object} */
+      const importedData = JSON.parse(evt.target.result);
+      Object.keys(importedData).forEach((k) => {
+        /** @type {GamepadProfile} */
+        const p = importedData[k];
+        if (p && p.name && p.buttons && p.axes) {
+          p.readonly = false; // Always force imports to be editable
+          customProfiles[k] = p;
+        }
+      });
+      saveCustomProfiles();
+      renderProfileDropdown();
+      showAlert('Profile(s) imported successfully!');
+    } catch (err) {
+      showAlert('Invalid JSON profile format!');
+    }
+  };
+  reader.readAsText(file);
+});
+
 // --- KEYBOARD EMULATOR LOGIC ---
+
+/**
+ * @typedef {Object} VisualizerPadState
+ * @property {number[]} axes
+ * @property {{pressed: boolean, value: number}[]} buttons
+ */
+
+/** @type {VisualizerPadState} */
+const visualizerPad = {
+  axes: [0, 0, 0, 0],
+  buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
+};
 
 /**
  * @typedef {Object} VirtualGamepadConfig
@@ -480,7 +789,7 @@ const drawGamepadCanvas = () => {
   const canvas = gamepadCanvas;
 
   /** @type {CanvasRenderingContext2D} */
-  const ctx = canvas.getContext('2d');
+  const ctx = gamepadCanvas.getContext('2d');
 
   ctx.clearRect(0, 0, 300, 180);
 
@@ -595,12 +904,12 @@ const drawGamepadCanvas = () => {
   };
 
   // Triggers (LT / RT)
-  drawShapeRect(50, 10, 45, 25, [10, 10, 0, 0], virtualPad.buttons[6].pressed);
-  drawShapeRect(205, 10, 45, 25, [10, 10, 0, 0], virtualPad.buttons[7].pressed);
+  drawShapeRect(50, 10, 45, 25, [10, 10, 0, 0], visualizerPad.buttons[6].pressed);
+  drawShapeRect(205, 10, 45, 25, [10, 10, 0, 0], visualizerPad.buttons[7].pressed);
 
   // Bumpers (LB / RB)
-  drawShapeRect(40, 30, 65, 15, 6, virtualPad.buttons[4].pressed);
-  drawShapeRect(195, 30, 65, 15, 6, virtualPad.buttons[5].pressed);
+  drawShapeRect(40, 30, 65, 15, 6, visualizerPad.buttons[4].pressed);
+  drawShapeRect(195, 30, 65, 15, 6, visualizerPad.buttons[5].pressed);
 
   // Main Body
   const bodyGrad = ctx.createLinearGradient(0, 40, 0, 150);
@@ -617,24 +926,26 @@ const drawGamepadCanvas = () => {
   resetShadow();
 
   // Select / Start
-  drawShapeRect(130, 75, 14, 8, 4, virtualPad.buttons[8].pressed);
-  drawShapeRect(156, 75, 14, 8, 4, virtualPad.buttons[9].pressed);
+  drawShapeRect(130, 75, 14, 8, 4, visualizerPad.buttons[8].pressed);
+  drawShapeRect(156, 75, 14, 8, 4, visualizerPad.buttons[9].pressed);
 
   // ABXY (Top Right)
   /** @type {number} */ const abxyX = 220;
   /** @type {number} */ const abxyY = 75;
-  drawShapeBtn(abxyX, abxyY + 19, 9, virtualPad.buttons[0].pressed); // A
-  drawShapeBtn(abxyX + 19, abxyY, 9, virtualPad.buttons[1].pressed); // B
-  drawShapeBtn(abxyX - 19, abxyY, 9, virtualPad.buttons[2].pressed); // X
-  drawShapeBtn(abxyX, abxyY - 19, 9, virtualPad.buttons[3].pressed); // Y
+  drawShapeBtn(abxyX, abxyY + 19, 9, visualizerPad.buttons[0].pressed); // A
+  drawShapeBtn(abxyX + 19, abxyY, 9, visualizerPad.buttons[1].pressed); // B
+  drawShapeBtn(abxyX - 19, abxyY, 9, visualizerPad.buttons[2].pressed); // X
+  drawShapeBtn(abxyX, abxyY - 19, 9, visualizerPad.buttons[3].pressed); // Y
 
   // Left Analog Stick (Top Left)
   drawAnalogStick(
     80,
     75,
-    virtualPad.axes[0],
-    virtualPad.axes[1],
-    virtualPad.buttons[10]?.pressed || virtualPad.axes[0] !== 0 || virtualPad.axes[1] !== 0,
+    visualizerPad.axes[0],
+    visualizerPad.axes[1],
+    visualizerPad.buttons[10]?.pressed ||
+      visualizerPad.axes[0] !== 0 ||
+      visualizerPad.axes[1] !== 0,
   );
 
   // D-Pad Configuration (Bottom Left)
@@ -642,10 +953,10 @@ const drawGamepadCanvas = () => {
   /** @type {number} */ const dpY = 115;
 
   // Up, Down, Left, Right
-  drawShapeRect(dpX - 6, dpY - 18, 12, 12, 2, virtualPad.buttons[12].pressed);
-  drawShapeRect(dpX - 6, dpY + 6, 12, 12, 2, virtualPad.buttons[13].pressed);
-  drawShapeRect(dpX - 18, dpY - 6, 12, 12, 2, virtualPad.buttons[14].pressed);
-  drawShapeRect(dpX + 6, dpY - 6, 12, 12, 2, virtualPad.buttons[15].pressed);
+  drawShapeRect(dpX - 6, dpY - 18, 12, 12, 2, visualizerPad.buttons[12].pressed);
+  drawShapeRect(dpX - 6, dpY + 6, 12, 12, 2, visualizerPad.buttons[13].pressed);
+  drawShapeRect(dpX - 18, dpY - 6, 12, 12, 2, visualizerPad.buttons[14].pressed);
+  drawShapeRect(dpX + 6, dpY - 6, 12, 12, 2, visualizerPad.buttons[15].pressed);
 
   // D-Pad Center Core
   ctx.fillStyle = colors.btnBase;
@@ -657,9 +968,11 @@ const drawGamepadCanvas = () => {
   drawAnalogStick(
     190,
     115,
-    virtualPad.axes[2],
-    virtualPad.axes[3],
-    virtualPad.buttons[11]?.pressed || virtualPad.axes[2] !== 0 || virtualPad.axes[3] !== 0,
+    visualizerPad.axes[2],
+    visualizerPad.axes[3],
+    visualizerPad.buttons[11]?.pressed ||
+      visualizerPad.axes[2] !== 0 ||
+      visualizerPad.axes[3] !== 0,
   );
 
   animFrameId = requestAnimationFrame(drawGamepadCanvas);
@@ -741,6 +1054,8 @@ window.addEventListener('keyup', (e) => {
 
 const openKbConfigModal = () => {
   backupKeyBinds = { ...currentKeyBinds };
+  renderProfileDropdown();
+  renderProfileEditor();
   openModal(kbModal);
   generateKbUI();
   drawGamepadCanvas();
@@ -766,10 +1081,9 @@ btnCloseKb.addEventListener('click', () => {
  * @returns {void}
  */
 const updateHudKbButton = () => {
-  btnHudKbConfig.style.display =
-    virtualPad.connected && document.body.classList.contains('is-playing')
-      ? 'inline-block'
-      : 'none';
+  btnHudKbConfig.style.display = document.body.classList.contains('is-playing')
+    ? 'inline-block'
+    : 'none';
 };
 
 if ('serviceWorker' in navigator) {
@@ -1293,8 +1607,6 @@ const setupWebRTCEvents = () => {
     updateDebug(dbgVidPlay, `Error: ${video.error.code}`, 'error');
     console.error('[VIDEO ELEMENT ERROR]', video.error);
   };
-
-  requestAnimationFrame(pollGamepad);
 };
 
 /**
@@ -1326,26 +1638,6 @@ const setupIPWebRTC = async () => {
   }
 };
 
-// --- EFFICIENT POLLING WITH CACHE ---
-
-/**
- * @typedef {Object} GamepadProfile
- * @property {number[]} buttons
- * @property {number[]} axes
- */
-
-/** 
- * @type {Record<string, GamepadProfile>}
- */
-const gamepadProfiles = {
-  gamecube: {
-    // [A, B, X, Y, LB, RB, LT, RT, Select, Start, L3, R3, Up, Down, Left, Right, Home]
-    // Replace these indices with the correct ones fired by your GameCube adapter
-    buttons: [1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-    axes: [0, 1, 2, 3],
-  },
-};
-
 /**
  * @param {Gamepad} gp
  * @returns {{ buttons: {pressed: boolean, value: number}[], axes: number[] }}
@@ -1353,15 +1645,24 @@ const gamepadProfiles = {
 const remapGamepad = (gp) => {
   /** @type {string} */
   const id = gp.id.toLowerCase();
-
   /** @type {GamepadProfile | null} */
-  let profile = null;
+  let activeProfile = null;
 
-  if (id.includes('gamecube') || id.includes('mayflash')) {
-    profile = gamepadProfiles['gamecube'];
+  /** @type {GamepadProfile[]} */
+  const allProfiles = [...Object.values(defaultProfiles), ...Object.values(customProfiles)];
+
+  for (const p of allProfiles) {
+    try {
+      if (new RegExp(p.regex, 'i').test(id)) {
+        activeProfile = p;
+        break;
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
-  if (!profile) {
+  if (!activeProfile) {
     return {
       buttons: gp.buttons.map((b) => ({ pressed: b.pressed, value: b.value })),
       axes: [...gp.axes],
@@ -1369,14 +1670,14 @@ const remapGamepad = (gp) => {
   }
 
   /** @type {{pressed: boolean, value: number}[]} */
-  const mappedButtons = profile.buttons.map((srcIdx) => {
+  const mappedButtons = activeProfile.buttons.map((srcIdx) => {
     /** @type {GamepadButton | undefined} */
     const btn = gp.buttons[srcIdx];
     return btn ? { pressed: btn.pressed, value: btn.value } : { pressed: false, value: 0 };
   });
 
   /** @type {number[]} */
-  const mappedAxes = profile.axes.map((srcIdx) => {
+  const mappedAxes = activeProfile.axes.map((srcIdx) => {
     /** @type {number | undefined} */
     const axis = gp.axes[srcIdx];
     return axis !== undefined ? axis : 0;
@@ -1394,10 +1695,40 @@ const remapGamepad = (gp) => {
 const pollGamepad = () => {
   /** @type {Gamepad[]} */
   const gamepads = navigator.getGamepads();
+
+  // Raw Input Debugger Engine
+  if (kbModal.classList.contains('modal-enter') && tabProfileContent.classList.contains('active')) {
+    /** @type {string[]} */
+    const debugArr = [];
+    for (let i = 0; i < gamepads.length; i++) {
+      /** @type {Gamepad | null} */
+      const gp = gamepads[i];
+      if (gp && gp.connected) {
+        /** @type {string[]} */
+        const pressed = gp.buttons
+          .map((b, idx) => (b.pressed ? idx : -1))
+          .filter((v) => v !== -1)
+          .map(String);
+        /** @type {string[]} */
+        const moved = gp.axes
+          .map((a, idx) => (Math.abs(a) > 0.1 ? `${idx}: ${a.toFixed(2)}` : null))
+          .filter((v) => v);
+        debugArr.push(
+          `[${gp.index}] ${gp.id} | Btns: ${pressed.length ? pressed.join(', ') : 'none'} | Axes: ${moved.length ? moved.join(', ') : 'idle'}`,
+        );
+      }
+    }
+    rawGamepadDebugger.innerHTML = debugArr.length
+      ? debugArr.join('<br>')
+      : 'Awaiting physical gamepad input...';
+  }
+
   /** @type {Object[]} */
   const padData = [];
   /** @type {string} */
   let debugText = '';
+  /** @type {boolean} */
+  let padVisualized = false;
 
   // Iterate ONLY over pads we verified through events
   for (const [index] of activeGamepadsCache.entries()) {
@@ -1408,6 +1739,15 @@ const pollGamepad = () => {
     if (gp && gp.connected) {
       /** @type {{ buttons: {pressed: boolean, value: number}[], axes: number[] }} */
       const mappedData = remapGamepad(gp);
+
+      if (!padVisualized && kbModal.classList.contains('modal-enter')) {
+        visualizerPad.axes = [...mappedData.axes];
+        visualizerPad.buttons = mappedData.buttons.map((b) => ({
+          pressed: b.pressed,
+          value: b.value,
+        }));
+        padVisualized = true;
+      }
 
       padData.push({
         index: gp.index + (virtualPad.connected ? 1 : 0),
@@ -1440,6 +1780,16 @@ const pollGamepad = () => {
   // Inject Virtual Keyboard Pad
   if (virtualPad.connected) {
     padData.push({ index: virtualPad.index, buttons: virtualPad.buttons, axes: virtualPad.axes });
+
+    if (!padVisualized && kbModal.classList.contains('modal-enter')) {
+      visualizerPad.axes = [...virtualPad.axes];
+      visualizerPad.buttons = virtualPad.buttons.map((b) => ({
+        pressed: b.pressed,
+        value: b.value,
+      }));
+      padVisualized = true;
+    }
+
     const activeBtnsCount = virtualPad.buttons.reduce((acc, val) => acc + (val.pressed ? 1 : 0), 0);
 
     /** @type {number[]} */
@@ -1455,6 +1805,15 @@ const pollGamepad = () => {
     const ry = axesVals[3]?.toFixed(2) || '0.00';
 
     debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br>`;
+  }
+
+  // Clear the canvas if there are no active controls so it doesn't get locked with hot buttons
+  if (!padVisualized && kbModal.classList.contains('modal-enter')) {
+    visualizerPad.axes.fill(0);
+    visualizerPad.buttons.forEach((b) => {
+      b.pressed = false;
+      b.value = 0;
+    });
   }
 
   if (padData.length > 0) {
@@ -1473,4 +1832,5 @@ const pollGamepad = () => {
   requestAnimationFrame(pollGamepad);
 };
 
+requestAnimationFrame(pollGamepad);
 btnConnect.addEventListener('click', initConnection);
