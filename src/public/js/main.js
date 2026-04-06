@@ -385,14 +385,14 @@ profileSelect.addEventListener('change', renderProfileEditor);
 btnCreateProfile.addEventListener('click', () => {
   /** @type {string} */
   const newKey = `custom_${Date.now()}`;
-  
+
   customProfiles[newKey] = {
     name: 'New Profile',
-    regex: '.*', // Captura qualquer controle por padrão até o usuário mudar
-    buttons: Array.from({ length: 17 }, (_, i) => i), // 0 ao 16 mapeados na ordem original
-    axes: [0, 1, 2, 3] // Eixos na ordem original
+    regex: '.*', // Capture any control by default until user changes
+    buttons: Array.from({ length: 17 }, (_, i) => i), // 0 to 16 mapped in original order
+    axes: [0, 1, 2, 3], // Axis in original order
   };
-  
+
   saveCustomProfiles();
   renderProfileDropdown();
   profileSelect.value = `custom_${newKey}`;
@@ -1695,9 +1695,15 @@ const remapGamepad = (gp) => {
 const pollGamepad = () => {
   /** @type {Gamepad[]} */
   const gamepads = navigator.getGamepads();
+  /** @type {boolean} */
+  const isModalOpen = kbModal.classList.contains('modal-enter');
+  /** @type {boolean} */
+  const isProfileTab = tabProfileContent.classList.contains('active');
+  /** @type {boolean} */
+  const isKbTab = tabKbContent.classList.contains('active');
 
   // Raw Input Debugger Engine
-  if (kbModal.classList.contains('modal-enter') && tabProfileContent.classList.contains('active')) {
+  if (isModalOpen && isProfileTab) {
     /** @type {string[]} */
     const debugArr = [];
     for (let i = 0; i < gamepads.length; i++) {
@@ -1740,7 +1746,8 @@ const pollGamepad = () => {
       /** @type {{ buttons: {pressed: boolean, value: number}[], axes: number[] }} */
       const mappedData = remapGamepad(gp);
 
-      if (!padVisualized && kbModal.classList.contains('modal-enter')) {
+      // Show physical gamepad inputs ONLY on the Profile Tab
+      if (!padVisualized && isModalOpen && isProfileTab) {
         visualizerPad.axes = [...mappedData.axes];
         visualizerPad.buttons = mappedData.buttons.map((b) => ({
           pressed: b.pressed,
@@ -1777,11 +1784,31 @@ const pollGamepad = () => {
     }
   }
 
-  // Inject Virtual Keyboard Pad
-  if (virtualPad.connected) {
-    padData.push({ index: virtualPad.index, buttons: virtualPad.buttons, axes: virtualPad.axes });
+  // Keyboard processing
+  if (virtualPad.connected || isKbTab) {
+    if (virtualPad.connected) {
+      padData.push({ index: virtualPad.index, buttons: virtualPad.buttons, axes: virtualPad.axes });
+      /** @type {number} */
+      const activeBtnsCount = virtualPad.buttons.reduce(
+        (acc, val) => acc + (val.pressed ? 1 : 0),
+        0,
+      );
+      /** @type {number[]} */
+      const axesVals = virtualPad.axes;
+      /** @type {string} */
+      const lx = axesVals[0]?.toFixed(2) || '0.00';
+      /** @type {string} */
+      const ly = axesVals[1]?.toFixed(2) || '0.00';
+      /** @type {string} */
+      const rx = axesVals[2]?.toFixed(2) || '0.00';
+      /** @type {string} */
+      const ry = axesVals[3]?.toFixed(2) || '0.00';
 
-    if (!padVisualized && kbModal.classList.contains('modal-enter')) {
+      debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br>`;
+    }
+
+    // Show virtual keyboard inputs ONLY on the Keyboard Tab
+    if (!padVisualized && isModalOpen && isKbTab) {
       visualizerPad.axes = [...virtualPad.axes];
       visualizerPad.buttons = virtualPad.buttons.map((b) => ({
         pressed: b.pressed,
@@ -1789,26 +1816,10 @@ const pollGamepad = () => {
       }));
       padVisualized = true;
     }
-
-    const activeBtnsCount = virtualPad.buttons.reduce((acc, val) => acc + (val.pressed ? 1 : 0), 0);
-
-    /** @type {number[]} */
-    const axesVals = virtualPad.axes;
-
-    /** @type {string} */
-    const lx = axesVals[0]?.toFixed(2) || '0.00';
-    /** @type {string} */
-    const ly = axesVals[1]?.toFixed(2) || '0.00';
-    /** @type {string} */
-    const rx = axesVals[2]?.toFixed(2) || '0.00';
-    /** @type {string} */
-    const ry = axesVals[3]?.toFixed(2) || '0.00';
-
-    debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br>`;
   }
 
   // Clear the canvas if there are no active controls so it doesn't get locked with hot buttons
-  if (!padVisualized && kbModal.classList.contains('modal-enter')) {
+  if (!padVisualized && isModalOpen) {
     visualizerPad.axes.fill(0);
     visualizerPad.buttons.forEach((b) => {
       b.pressed = false;
