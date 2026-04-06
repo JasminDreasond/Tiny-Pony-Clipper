@@ -268,6 +268,9 @@ tabProfileBtn.addEventListener('click', () => switchTab(tabProfileBtn, tabProfil
 /** @type {Record<string, GamepadProfile>} */
 const defaultProfiles = {};
 
+/** @type {GamepadProfile | null} */
+let liveEditingBuffer = null;
+
 /** @type {Record<string, GamepadProfile>} */
 let customProfiles = JSON.parse(localStorage.getItem('pony_gamepad_profiles') || '{}');
 
@@ -323,6 +326,27 @@ const parseProfileVal = (val) => {
 };
 
 /**
+ * Persistence logic to commit buffer changes to localStorage.
+ * @returns {void}
+ */
+const commitProfileBuffer = () => {
+  if (!liveEditingBuffer) return;
+
+  /** @type {string} */
+  const currentVal = profileSelect.value;
+  /** @type {{ type: 'default' | 'custom', key: string }} */
+  const parsed = parseProfileVal(currentVal);
+
+  if (parsed.type === 'custom') {
+    customProfiles[parsed.key] = { ...liveEditingBuffer };
+    saveCustomProfiles();
+    renderProfileDropdown();
+    profileSelect.value = currentVal;
+    showAlert('Profile saved successfully!');
+  }
+};
+
+/**
  * @returns {void}
  */
 const disableAllEditorFields = () => {
@@ -349,6 +373,7 @@ const renderProfileEditor = () => {
 
   if (!currentVal) {
     disableAllEditorFields();
+    liveEditingBuffer = null;
     return;
   }
 
@@ -361,8 +386,18 @@ const renderProfileEditor = () => {
 
   if (!profile) {
     disableAllEditorFields();
+    liveEditingBuffer = null;
     return;
   }
+
+  // Initialize live buffer with a deep copy of the selected profile
+  liveEditingBuffer = {
+    name: profile.name,
+    regex: profile.regex,
+    buttons: [...profile.buttons],
+    axes: [...profile.axes],
+    readonly: profile.readonly,
+  };
 
   /** @type {boolean} */
   const isReadonly = !!profile.readonly;
@@ -379,15 +414,27 @@ const renderProfileEditor = () => {
   btnCloneProfile.disabled = false;
   btnExportProfile.disabled = false;
 
+  // Sync buffer on metadata change
+  const syncMetadata = () => {
+    if (liveEditingBuffer) {
+      liveEditingBuffer.name = profileName.value;
+      liveEditingBuffer.regex = profileRegex.value;
+    }
+  };
+  profileName.oninput = syncMetadata;
+  profileRegex.oninput = syncMetadata;
+
   profileButtonsGrid.innerHTML = '';
   for (let i = 0; i <= 16; i++) {
     const input = document.createElement('input');
     input.type = 'number';
     input.min = '0';
     input.max = '32';
-    input.value = profile.buttons[i] !== undefined ? profile.buttons[i].toString() : i.toString();
+    input.value = profile.buttons[i].toString();
     input.disabled = isReadonly;
-    input.dataset.idx = i.toString();
+    input.oninput = (e) => {
+      if (liveEditingBuffer) liveEditingBuffer.buttons[i] = parseInt(e.target.value, 10) || 0;
+    };
     profileButtonsGrid.appendChild(input);
   }
 
@@ -397,9 +444,11 @@ const renderProfileEditor = () => {
     input.type = 'number';
     input.min = '0';
     input.max = '8';
-    input.value = profile.axes[i] !== undefined ? profile.axes[i].toString() : i.toString();
+    input.value = profile.axes[i].toString();
     input.disabled = isReadonly;
-    input.dataset.idx = i.toString();
+    input.oninput = (e) => {
+      if (liveEditingBuffer) liveEditingBuffer.axes[i] = parseInt(e.target.value, 10) || 0;
+    };
     profileAxesGrid.appendChild(input);
   }
 };
@@ -446,32 +495,7 @@ btnCloneProfile.addEventListener('click', () => {
   renderProfileEditor();
 });
 
-btnSaveProfile.addEventListener('click', () => {
-  /** @type {{ type: 'default' | 'custom', key: string }} */
-  const parsed = parseProfileVal(profileSelect.value);
-  if (parsed.type === 'default') return;
-
-  /** @type {number[]} */
-  const newBtns = Array.from(profileButtonsGrid.querySelectorAll('input')).map((inp) =>
-    parseInt(inp.value, 10),
-  );
-  /** @type {number[]} */
-  const newAxes = Array.from(profileAxesGrid.querySelectorAll('input')).map((inp) =>
-    parseInt(inp.value, 10),
-  );
-
-  customProfiles[parsed.key] = {
-    name: profileName.value.trim() || 'Unnamed Profile',
-    regex: profileRegex.value.trim() || '.*',
-    buttons: newBtns,
-    axes: newAxes,
-  };
-
-  saveCustomProfiles();
-  renderProfileDropdown();
-  profileSelect.value = `custom_${parsed.key}`;
-  showAlert('Profile saved successfully!');
-});
+btnSaveProfile.addEventListener('click', commitProfileBuffer);
 
 btnDeleteProfile.addEventListener('click', () => {
   /** @type {{ type: 'default' | 'custom', key: string }} */
@@ -1107,8 +1131,15 @@ btnOpenKbConfig.addEventListener('click', openKbConfigModal);
 btnHudKbConfig.addEventListener('click', openKbConfigModal);
 
 btnCloseKb.addEventListener('click', () => {
+  // If we are on the profiles tab, commit changes
+  if (tabProfileContent.classList.contains('active')) {
+    commitProfileBuffer();
+  }
+
   closeModal(kbModal);
+  liveEditingBuffer = null; // Clear buffer
   if (animFrameId) cancelAnimationFrame(animFrameId);
+  // Existing keyboard save logic...
   localStorage.setItem('pony_kb_binds', JSON.stringify(currentKeyBinds));
 
   if (navigator.serviceWorker.controller) {
@@ -1690,17 +1721,22 @@ const remapGamepad = (gp) => {
   /** @type {GamepadProfile | null} */
   let activeProfile = null;
 
-  /** @type {GamepadProfile[]} */
-  const allProfiles = [...Object.values(defaultProfiles), ...Object.values(customProfiles)];
+  // PRIORITY: If modal is open and we have a live buffer, use it for testing
+  if (kbModal.classList.contains('modal-enter') && liveEditingBuffer) {
+    activeProfile = liveEditingBuffer;
+  } else {
+    /** @type {GamepadProfile[]} */
+    const allProfiles = [...Object.values(defaultProfiles), ...Object.values(customProfiles)];
 
-  for (const p of allProfiles) {
-    try {
-      if (new RegExp(p.regex, 'i').test(id)) {
-        activeProfile = p;
-        break;
+    for (const p of allProfiles) {
+      try {
+        if (new RegExp(p.regex, 'i').test(id)) {
+          activeProfile = p;
+          break;
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
     }
   }
 
