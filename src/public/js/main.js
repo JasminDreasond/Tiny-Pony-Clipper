@@ -891,8 +891,11 @@ const drawGamepadCanvas = () => {
     /** @type {number} */
     const stickY = baseY + offsetY * 10;
 
+    /** @type {number} */
+    const radius = pressed ? 10 : 12; // Decreases the radius by pressing to give depth sensation
+
     // Moving Stick
-    drawShapeBtn(stickX, stickY, 12, pressed);
+    drawShapeBtn(stickX, stickY, radius, pressed);
 
     // Light Reflection
     if (!pressed) {
@@ -943,9 +946,7 @@ const drawGamepadCanvas = () => {
     75,
     visualizerPad.axes[0],
     visualizerPad.axes[1],
-    visualizerPad.buttons[10]?.pressed ||
-      visualizerPad.axes[0] !== 0 ||
-      visualizerPad.axes[1] !== 0,
+    visualizerPad.buttons[10].pressed,
   );
 
   // D-Pad Configuration (Bottom Left)
@@ -970,9 +971,7 @@ const drawGamepadCanvas = () => {
     115,
     visualizerPad.axes[2],
     visualizerPad.axes[3],
-    visualizerPad.buttons[11]?.pressed ||
-      visualizerPad.axes[2] !== 0 ||
-      visualizerPad.axes[3] !== 0,
+    visualizerPad.buttons[11].pressed,
   );
 
   animFrameId = requestAnimationFrame(drawGamepadCanvas);
