@@ -1,4 +1,5 @@
 ```js
+const defaultProfiles = {
   gamecube: {
     name: 'GameCube Adapter',
     regex: 'gamecube|mayflash',
@@ -8,4 +9,5 @@
     axes: [0, 1, 2, 3],
     readonly: true,
   },
+};
 ```
