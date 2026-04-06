@@ -325,14 +325,44 @@ const parseProfileVal = (val) => {
 /**
  * @returns {void}
  */
-const renderProfileEditor = () => {
-  /** @type {{ type: 'default' | 'custom', key: string }} */
-  const parsed = parseProfileVal(profileSelect.value);
+const disableAllEditorFields = () => {
+  profileName.value = '';
+  profileRegex.value = '';
+  profileName.disabled = true;
+  profileRegex.disabled = true;
 
-  /** @type {GamepadProfile | null} */
+  btnSaveProfile.disabled = true;
+  btnDeleteProfile.disabled = true;
+  btnCloneProfile.disabled = true;
+  btnExportProfile.disabled = true;
+
+  profileButtonsGrid.innerHTML = '';
+  profileAxesGrid.innerHTML = '';
+};
+
+/**
+ * @returns {void}
+ */
+const renderProfileEditor = () => {
+  /** @type {string} */
+  const currentVal = profileSelect.value;
+
+  if (!currentVal) {
+    disableAllEditorFields();
+    return;
+  }
+
+  /** @type {{ type: 'default' | 'custom', key: string }} */
+  const parsed = parseProfileVal(currentVal);
+
+  /** @type {GamepadProfile | null | undefined} */
   const profile =
     parsed.type === 'default' ? defaultProfiles[parsed.key] : customProfiles[parsed.key];
-  if (!profile) return;
+
+  if (!profile) {
+    disableAllEditorFields();
+    return;
+  }
 
   /** @type {boolean} */
   const isReadonly = !!profile.readonly;
@@ -344,6 +374,10 @@ const renderProfileEditor = () => {
 
   btnSaveProfile.disabled = isReadonly;
   btnDeleteProfile.disabled = isReadonly;
+
+  // These can always be used if a valid profile exists
+  btnCloneProfile.disabled = false;
+  btnExportProfile.disabled = false;
 
   profileButtonsGrid.innerHTML = '';
   for (let i = 0; i <= 16; i++) {
@@ -478,25 +512,44 @@ btnImportProfileFile.addEventListener('change', (e) => {
   if (!file) return;
   /** @type {FileReader} */
   const reader = new FileReader();
+
   reader.onload = (evt) => {
     try {
       /** @type {Object} */
       const importedData = JSON.parse(evt.target.result);
+      /** @type {string | null} */
+      let firstImportedKey = null;
+
       Object.keys(importedData).forEach((k) => {
         /** @type {GamepadProfile} */
         const p = importedData[k];
         if (p && p.name && p.buttons && p.axes) {
           p.readonly = false; // Always force imports to be editable
           customProfiles[k] = p;
+          if (!firstImportedKey) firstImportedKey = k;
         }
       });
+
       saveCustomProfiles();
       renderProfileDropdown();
+
+      // Auto-select the first imported profile to immediately show it to the user
+      if (firstImportedKey) {
+        profileSelect.value = `custom_${firstImportedKey}`;
+      }
+
+      // Re-renders and reactivates the editor fields
+      renderProfileEditor();
+
       showAlert('Profile(s) imported successfully!');
     } catch (err) {
       showAlert('Invalid JSON profile format!');
     }
+
+    // Clear the input so the same file can be imported again if needed
+    btnImportProfileFile.value = '';
   };
+
   reader.readAsText(file);
 });
 
