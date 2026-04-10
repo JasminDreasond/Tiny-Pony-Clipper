@@ -35,16 +35,15 @@
     "nvenc"
   ],
   "scripts": {
-    "start": "node npx-dispatcher.js && electron .",
-    "fix:prettier": "prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js && prettier --write ./build-dispatcher.js && prettier --write ./npx-dispatcher.js",
-    "build": "yarn build:web && node build-dispatcher.js",
+    "fix:prettier": "prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js && prettier --write ./build-dispatcher.js",
+    "start": "yarn build:npx && electron .",
+    "build": "yarn build:web && node ./build-dispatcher.js",
     "build:web": "node ./web-builder.js",
-    "build:npx:linux": "node -e \"require('fs').copyFileSync('binding_linux.gyp', 'binding.gyp')\" && npx node-gyp configure build",
-    "build:linux": "yarn build:npx:linux && electron-builder --linux -p never",
-    "build:release": "yarn build:npx:linux && electron-builder --linux -p always",
-    "build:npx:win": "node -e \"require('fs').copyFileSync('binding_win.gyp', 'binding.gyp')\" && npx node-gyp configure build",
-    "build:win": "yarn build:npx:win && electron-builder --win -p never",
-    "build:win:release": "yarn build:npx:win && electron-builder --win -p always"
+    "build:npx": "npx node-gyp configure build",
+    "build:linux": "yarn build:npx && electron-builder --linux -p never",
+    "build:release:linux": "yarn build:npx && electron-builder --linux -p always",
+    "build:win": "yarn build:npx && electron-builder --win -p never",
+    "build:release:win": "yarn build:npx && electron-builder --win -p always"
   },
   "devDependencies": {
     "electron": "^41.1.0",
