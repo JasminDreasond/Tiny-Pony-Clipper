@@ -81,27 +81,27 @@ You will need `node-gyp` to handle the native build configurations and `yarn` fo
 npm install -g node-gyp yarn
 ```
 
-#### 1.3- Running the Build
-
-Once the dependencies are met, you can trigger the configuration and compilation process:
-
-```bash
-npx node-gyp configure build
-```
-
 #### 2- Install Node.js dependencies
 
 ```bash
 yarn
 ```
 
-### 3- Run in development mode
+#### 3- Running the Build
+
+Once the dependencies are met, you can trigger the configuration and compilation process:
+
+```bash
+yarn build:npx
+```
+
+### 4- Run in development mode
 
 ```bash
 yarn start
 ```
 
-### 4- Build the Linux installers (.deb, .AppImage, .tar.gz)
+### 5- Build the Linux installers (.deb, .AppImage, .tar.gz)
 
 ```bash
 yarn build:linux
