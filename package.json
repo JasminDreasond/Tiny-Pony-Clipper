@@ -36,8 +36,8 @@
   ],
   "scripts": {
     "start": "yarn build:npx && electron .",
-    "fix:prettier": "prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js",
-    "build": "yarn build:web && yarn build:linux",
+    "fix:prettier": "prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js && prettier --write ./build-dispatcher.js",
+    "build": "yarn build:web && node build-dispatcher.js",
     "build:web": "node ./web-builder.js",
     "build:npx": "node -e \"require('fs').copyFileSync('binding_linux.gyp', 'binding.gyp')\" && npx node-gyp configure build",
     "build:npx:win": "node -e \"require('fs').copyFileSync('binding_win.gyp', 'binding.gyp')\" && npx node-gyp configure build",
