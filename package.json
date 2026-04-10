@@ -35,7 +35,7 @@
     "nvenc"
   ],
   "scripts": {
-    "fix:prettier": "prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js && prettier --write ./build-dispatcher.js",
+    "fix:prettier": "prettier --write ./win/* && prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js && prettier --write ./build-dispatcher.js",
     "start": "yarn build:npx && electron .",
     "build": "yarn build:web && node ./build-dispatcher.js",
     "build:web": "node ./web-builder.js",

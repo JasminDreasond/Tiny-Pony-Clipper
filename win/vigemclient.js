@@ -1,4 +1,3 @@
-
 import { createRequire } from 'module';
 import { platform } from 'os';
 
