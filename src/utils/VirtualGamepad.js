@@ -179,7 +179,8 @@ export const destroyGamepadsForClient = (clientId) => {
 export const updateGamepadState = (clientId, padIndex, state, padType) => {
   /** @type {number | Controller} */
   const device = getOrInitGamepad(clientId, padIndex, padType);
-  if (device < 0) return device === -2 ? 'LIMIT_REACHED' : 'ERROR';
+  if (device === -2) return 'LIMIT_REACHED';
+  if (device === -1) return 'ERROR';
 
   /** @type {string} */
   const key = `${clientId}_${padIndex}`;
