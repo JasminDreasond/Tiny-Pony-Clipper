@@ -1,15 +1,13 @@
 import { createRequire } from 'module';
-import { platform } from 'os';
 
+import { isWin, ViGEmClient } from '../../win/vigemclient.js';
 import { gotTheLock } from '../cli.js';
 import { keyCodes } from './keyCodes.js';
 
 /** @type {NodeJS.Require} */
 const require = createRequire(import.meta.url);
 /** @type {Object} */
-const uinput = require(
-  `../../build/Release/uinput_gamepad${platform() === 'win32' ? '_win' : ''}.node`,
-);
+const uinput = !isWin ? require(`../../build/Release/uinput_gamepad.node`) : {};
 
 /** @type {number} */
 const EV_KEY = 0x01;

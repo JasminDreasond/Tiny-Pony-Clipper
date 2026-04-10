@@ -1,0 +1,5 @@
+{
+    "dependencies": {
+        "vigemclient": "^1.5.3"
+    }
+}
