@@ -39,8 +39,10 @@
     "fix:prettier": "prettier --write ./src/* && prettier --write ./example/* && prettier --write ./test/* && prettier --write ./web-builder.js",
     "build": "yarn build:web && yarn build:linux",
     "build:web": "node ./web-builder.js",
-    "build:npx": "npx node-gyp configure build",
+    "build:npx": "node -e \"require('fs').copyFileSync('binding_linux.gyp', 'binding.gyp')\" && npx node-gyp configure build",
+    "build:npx:win": "node -e \"require('fs').copyFileSync('binding_win.gyp', 'binding.gyp')\" && npx node-gyp configure build",
     "build:linux": "yarn build:npx && electron-builder --linux -p never",
+    "build:win": "yarn build:npx:win && electron-builder --win -p never",
     "build:release": "yarn build:npx && electron-builder --linux -p always"
   },
   "devDependencies": {
@@ -84,6 +86,14 @@
       "category": "Video",
       "executableName": "tiny-pony-clipper",
       "synopsis": "Record and save gameplay clips instantly."
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "src/icons/tray-icon.png",
+      "executableName": "tiny-pony-clipper"
     },
     "deb": {
       "depends": [
