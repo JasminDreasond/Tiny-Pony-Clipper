@@ -64,13 +64,14 @@ const BUTTON_MAP = [
 const AXIS_MAP = [keyCodes.ABS_X, keyCodes.ABS_Y, keyCodes.ABS_RX, keyCodes.ABS_RY];
 
 /**
+ * @template T
  * @typedef {Object} PersistentGamepad
- * @property {number|Controller} device
+ * @property {T} device
  * @property {number[]} previousButtons
  * @property {number[]} previousAxes
  */
 
-/** @type {Map<string, PersistentGamepad>} */
+/** @type {Map<string, PersistentGamepad<number|Controller>>} */
 const persistentGamepads = new Map();
 
 /**
@@ -205,7 +206,7 @@ export const updateGamepadState = (clientId, padIndex, state, padType) => {
 /**
  * @param {number} id
  * @param {Object} state
- * @param {PersistentGamepad} session
+ * @param {PersistentGamepad<number>} session
  * @returns {void}
  */
 const updateLinuxState = (id, state, session) => {
@@ -263,9 +264,9 @@ const updateLinuxState = (id, state, session) => {
 };
 
 /**
- * @param {Object} pad
+ * @param {Controller} pad
  * @param {Object} state
- * @param {PersistentGamepad} session
+ * @param {PersistentGamepad<Controller>} session
  * @param {string} padType
  * @returns {void}
  */
