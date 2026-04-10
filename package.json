@@ -72,6 +72,7 @@
       "node_modules/.yarn-integrity",
       "node_modules/.package-lock.json",
       "build/**/*",
+      "win/vigemclient.js",
       "src/**/*",
       "package.json",
       "package-lock.json"
@@ -88,6 +89,13 @@
       "synopsis": "Record and save gameplay clips instantly."
     },
     "win": {
+      "asarUnpack": [
+        "win/node_modules/**/*",
+        "win/package.json"
+      ],
+      "files": [
+        "win/**/*"
+      ],
       "target": [
         "nsis",
         "portable"
