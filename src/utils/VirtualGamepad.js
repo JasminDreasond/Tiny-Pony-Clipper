@@ -4,10 +4,23 @@ import { isWin, ViGEmClient } from '../../win/vigemclient.js';
 import { gotTheLock } from '../cli.js';
 import { keyCodes } from './keyCodes.js';
 
+/**
+ * @typedef {import('../../win/vigemclient.js').DS4Controller} DS4Controller
+ * @typedef {import('../../win/vigemclient.js').X360Controller} X360Controller
+ */
+
+/**
+ * @typedef {DS4Controller|X360Controller} Controller
+ */
+
 /** @type {NodeJS.Require} */
 const require = createRequire(import.meta.url);
-/** @type {Object} */
-const uinput = !isWin ? require(`../../build/Release/uinput_gamepad.node`) : {};
+/** @type {Object | null} */
+const uinput = !isWin ? require(`../../build/Release/uinput_gamepad.node`) : null;
+
+/** @type {ViGEmClient | null} */
+const vigem = isWin ? new ViGEmClient() : null;
+if (isWin && vigem) vigem.connect();
 
 /** @type {number} */
 const EV_KEY = 0x01;
@@ -84,7 +97,7 @@ export const getTotalGamepads = () => {
  * @param {string} clientId - The unique identifier of the client.
  * @param {number} padIndex - The index of the gamepad from the client's side.
  * @param {string} padType - The hardware type to emulate ('ds4' for DualShock 4 or 'xbox' for Xbox 360).
- * @returns {number} The internal uinput device ID, or a negative error code if it failed or limits were reached.
+ * @returns {number|Controller} The internal uinput device ID, or a negative error code if it failed or limits were reached.
  */
 export const getOrInitGamepad = (clientId, padIndex, padType) => {
   /** @type {string} */
@@ -92,22 +105,27 @@ export const getOrInitGamepad = (clientId, padIndex, padType) => {
   if (persistentGamepads.has(key)) return persistentGamepads.get(key).id;
   if (persistentGamepads.size >= MAX_GAMEPADS) return -2;
 
-  /** @type {number} */
-  const typeCode = padType === 'ds4' ? 1 : 0;
-  /** @type {number} */
-  const id = uinput.setup(typeCode);
+  /** @type {number | Controller} */
+  let device;
 
-  if (id !== -1) {
-    persistentGamepads.set(key, {
-      id: id,
-      previousButtons: new Array(BUTTON_MAP.length).fill(false),
-      previousAxes: new Array(6).fill(0),
-      prevHatX: 0,
-      prevHatY: 0,
-    });
-    console.log(`[GAMEPAD] Created persistent virtual ${padType.toUpperCase()} for [${key}]`);
+  if (isWin && vigem) {
+    device = padType === 'ds4' ? vigem.createDS4Controller() : vigem.createX360Controller();
+    device.connect();
+  } else {
+    /** @type {number} */
+    const typeCode = padType === 'ds4' ? 1 : 0;
+    device = uinput.setup(typeCode);
+    if (device === -1) return -1;
   }
-  return id;
+
+  persistentGamepads.set(key, {
+    device,
+    previousButtons: new Array(BUTTON_MAP.length).fill(false),
+    previousAxes: new Array(6).fill(0),
+  });
+  console.log(`[GAMEPAD] Created persistent virtual ${padType.toUpperCase()} for [${key}]`);
+
+  return device;
 };
 
 /**
@@ -118,7 +136,11 @@ export const getOrInitGamepad = (clientId, padIndex, padType) => {
  */
 export const destroyAllGamepads = () => {
   for (const session of persistentGamepads.values()) {
-    uinput.destroy(session.id);
+    if (isWin) {
+      session.device.disconnect();
+    } else {
+      uinput.destroy(session.device);
+    }
   }
   persistentGamepads.clear();
 };
@@ -133,7 +155,11 @@ export const destroyAllGamepads = () => {
 export const destroyGamepadsForClient = (clientId) => {
   for (const [key, session] of persistentGamepads.entries()) {
     if (key.startsWith(`${clientId}_`)) {
-      uinput.destroy(session.id);
+      if (isWin) {
+        session.device.disconnect();
+      } else {
+        uinput.destroy(session.device);
+      }
       persistentGamepads.delete(key);
       console.log(`[GAMEPAD] Destroyed and released gamepad [${key}] due to client disconnect.`);
     }
@@ -151,20 +177,37 @@ export const destroyGamepadsForClient = (clientId) => {
  * @returns {string} The status of the operation: 'OK', 'ERROR', or 'LIMIT_REACHED'.
  */
 export const updateGamepadState = (clientId, padIndex, state, padType) => {
-  /** @type {number} */
-  const id = getOrInitGamepad(clientId, padIndex, padType);
+  /** @type {number | Controller} */
+  const device = getOrInitGamepad(clientId, padIndex, padType);
   if (id < 0) return id === -2 ? 'LIMIT_REACHED' : 'ERROR';
 
   /** @type {string} */
   const key = `${clientId}_${padIndex}`;
   /** @type {Object} */
   const session = persistentGamepads.get(key);
+
+  if (isWin) {
+    updateWindowsState(device, state, session, padType);
+  } else {
+    updateLinuxState(device, state, session);
+  }
+
+  return 'OK';
+};
+
+/**
+ * @param {number} id
+ * @param {Object} state
+ * @param {Object} session
+ * @returns {void}
+ */
+const updateLinuxState = (id, state, session) => {
   /** @type {boolean} */
   let needsSync = false;
 
   // Buttons and Digital/Analog Triggers
   state.buttons.forEach((btn, i) => {
-    /** @type {number|null|undefined} */
+    /** @type {number | undefined} */
     const code = BUTTON_MAP[i];
     /** @type {boolean} */
     const isTrigger = i === 6 || i === 7;
@@ -210,7 +253,120 @@ export const updateGamepadState = (clientId, padIndex, state, padType) => {
   });
 
   if (needsSync) uinput.emit(id, EV_SYN, SYN_REPORT, 0);
-  return 'OK';
+};
+
+/**
+ * @param {Object} pad
+ * @param {Object} state
+ * @param {Object} session
+ * @param {string} padType
+ * @returns {void}
+ */
+const updateWindowsState = (pad, state, session, padType) => {
+  /** @type {boolean} */
+  const isDS4 = padType === 'ds4';
+
+  state.buttons.forEach((btn, i) => {
+    /** @type {boolean} */
+    const isTrigger = i === 6 || i === 7;
+    /** @type {boolean} */
+    const isPressed = btn.pressed;
+
+    if (isPressed !== session.previousButtons[i]) {
+      session.previousButtons[i] = isPressed;
+
+      /** @type {string | null} */
+      const btnName = getWindowsButtonName(i, isDS4);
+      if (btnName && pad.button[btnName]) {
+        pad.button[btnName].setValue(isPressed);
+      }
+    }
+
+    if (isTrigger) {
+      /** @type {number} */
+      const cacheIdx = i === 6 ? 4 : 5;
+      /** @type {number} */
+      const scaledValue = isDS4 ? Math.floor(btn.value * 255) : btn.value;
+
+      if (scaledValue !== session.previousAxes[cacheIdx]) {
+        session.previousAxes[cacheIdx] = scaledValue;
+
+        /** @type {string} */
+        const axisName = i === 6 ? 'leftTrigger' : 'rightTrigger';
+        if (pad.axis[axisName]) {
+          pad.axis[axisName].setValue(scaledValue);
+        }
+      }
+    }
+  });
+
+  /** @type {string[]} */
+  const axisNames = ['leftX', 'leftY', 'rightX', 'rightY'];
+
+  axisNames.forEach((axisName, i) => {
+    /** @type {number} */
+    const val = isDS4 ? Math.floor((state.axes[i] || 0) * 127) : state.axes[i] || 0;
+
+    if (val !== session.previousAxes[i]) {
+      session.previousAxes[i] = val;
+      if (pad.axis[axisName]) {
+        pad.axis[axisName].setValue(val);
+      }
+    }
+  });
+
+  if (typeof pad.update === 'function') {
+    pad.update();
+  }
+};
+
+/**
+ * @param {number} index
+ * @param {boolean} isDS4
+ * @returns {string | null}
+ */
+const getWindowsButtonName = (index, isDS4) => {
+  /** @type {string[]} */
+  const x360Map = [
+    'A',
+    'B',
+    'X',
+    'Y',
+    'leftShoulder',
+    'rightShoulder',
+    null,
+    null,
+    'back',
+    'start',
+    'leftThumb',
+    'rightThumb',
+    'dpadUp',
+    'dpadDown',
+    'dpadLeft',
+    'dpadRight',
+    'guide',
+  ];
+  /** @type {string[]} */
+  const ds4Map = [
+    'cross',
+    'circle',
+    'square',
+    'triangle',
+    'l1',
+    'r1',
+    null,
+    null,
+    'share',
+    'options',
+    'l3',
+    'r3',
+    'dpadUp',
+    'dpadDown',
+    'dpadLeft',
+    'dpadRight',
+    'ps',
+  ];
+  return isDS4 ? ds4Map[index] : x360Map[index];
 };
 
 /**
@@ -219,7 +375,7 @@ export const updateGamepadState = (clientId, padIndex, state, padType) => {
  * @returns {boolean} True if the system grants access, false otherwise.
  */
 export const canAccessUinput = () => {
-  return uinput.checkPermissions();
+  return isWin ? true : uinput.checkPermissions();
 };
 
 if (gotTheLock) {
