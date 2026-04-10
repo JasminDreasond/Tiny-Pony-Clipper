@@ -21,6 +21,7 @@ import {
   getHardwareInfo,
   appIconProcessingPath,
   windowsCache,
+  isFFmpegInstalled,
 } from './utils/values.js';
 
 import {
@@ -871,6 +872,15 @@ const toggleConfigWindow = () => {
 
 if (gotTheLock) {
   app.whenReady().then(async () => {
+    if (!isFFmpegInstalled()) {
+      dialog.showErrorBox(
+        'FFmpeg Missing',
+        'FFmpeg is not installed or not found in the system PATH.\nPlease install FFmpeg to use Tiny Pony Clipper.',
+      );
+      app.quit();
+      return;
+    }
+
     // Expose gamepad status to the UI
     ipcMain.handle('get-gamepad-status', () => canAccessUinput());
 

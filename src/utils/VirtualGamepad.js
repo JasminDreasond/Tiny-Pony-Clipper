@@ -102,7 +102,7 @@ export const getTotalGamepads = () => {
 export const getOrInitGamepad = (clientId, padIndex, padType) => {
   /** @type {string} */
   const key = `${clientId}_${padIndex}`;
-  if (persistentGamepads.has(key)) return persistentGamepads.get(key).id;
+  if (persistentGamepads.has(key)) return persistentGamepads.get(key).device;
   if (persistentGamepads.size >= MAX_GAMEPADS) return -2;
 
   /** @type {number | Controller} */
@@ -179,7 +179,7 @@ export const destroyGamepadsForClient = (clientId) => {
 export const updateGamepadState = (clientId, padIndex, state, padType) => {
   /** @type {number | Controller} */
   const device = getOrInitGamepad(clientId, padIndex, padType);
-  if (id < 0) return id === -2 ? 'LIMIT_REACHED' : 'ERROR';
+  if (device < 0) return device === -2 ? 'LIMIT_REACHED' : 'ERROR';
 
   /** @type {string} */
   const key = `${clientId}_${padIndex}`;

@@ -1,7 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { screen } from 'electron';
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 
 /** @type {string} */
 const __filename = fileURLToPath(import.meta.url);
@@ -71,4 +71,16 @@ export const getHardwareInfo = () => {
   }
 
   return { monitors, audioOutputs, audioInputs };
+};
+
+/**
+ * @returns {boolean}
+ */
+export const isFFmpegInstalled = () => {
+  try {
+    const result = spawnSync('ffmpeg', ['-version']);
+    return !result.error;
+  } catch (e) {
+    return false;
+  }
 };
