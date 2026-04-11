@@ -9,6 +9,7 @@ import {
   session,
   desktopCapturer,
   shell,
+  nativeImage,
 } from 'electron';
 import { spawn } from 'child_process';
 import path from 'path';
@@ -53,6 +54,9 @@ ipcMain.on('open-external', (event, url) => shell.openExternal(url));
 
 app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal,WebRTCPipeWireCapturer');
 app.setAppUserModelId('com.jasmindreasond.tinyponyclipper');
+
+const icoImg = nativeImage.createFromPath(appIconPath);
+const icoProcessingImg = nativeImage.createFromPath(appIconProcessingPath);
 
 /** @type {boolean} */
 const isWaylandEnv = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
@@ -449,14 +453,14 @@ const saveClip = (saveDir) => {
   }
 
   clipsProcessingCount++;
-  if (tray) tray.setImage(appIconProcessingPath);
+  if (tray) tray.setImage(icoProcessingImg);
 
   sendNotification(
     {
       title: 'Tiny Pony Clipper',
       urgency: 'critical',
       body: `Processing your clip... (${clipsProcessingCount} in queue)`,
-      icon: appIconProcessingPath,
+      icon: icoProcessingImg,
     },
     saveSound,
   );
@@ -631,7 +635,7 @@ const saveClip = (saveDir) => {
     clipsProcessingCount--;
     if (clipsProcessingCount <= 0) {
       clipsProcessingCount = 0;
-      if (tray) tray.setImage(appIconPath);
+      if (tray) tray.setImage(icoImg);
     }
 
     try {
@@ -676,7 +680,7 @@ const saveClip = (saveDir) => {
     clipsProcessingCount--;
     if (clipsProcessingCount <= 0) {
       clipsProcessingCount = 0;
-      if (tray) tray.setImage(appIconPath);
+      if (tray) tray.setImage(icoImg);
     }
 
     try {
@@ -807,7 +811,7 @@ const applyConfigurationAndStart = (config) => {
 const createHiddenCaptureWindow = async () => {
   windowsCache.captureWindow = new BrowserWindow({
     show: false,
-    icon: appIconPath,
+    icon: icoImg,
     webPreferences: {
       preload: path.join(srcFolder, 'preload.js'),
       contextIsolation: true,
@@ -834,7 +838,7 @@ const createConfigWindow = () => {
     height: 750,
     show: false,
     autoHideMenuBar: true,
-    icon: appIconPath,
+    icon: icoImg,
     webPreferences: {
       preload: path.join(srcFolder, 'preload.js'),
       contextIsolation: true,
@@ -1116,7 +1120,7 @@ if (gotTheLock) {
           alwaysOnTop: true,
           resizable: false,
           autoHideMenuBar: true,
-          icon: appIconPath,
+          icon: icoImg,
           webPreferences: {
             preload: path.join(srcFolder, 'preload.js'),
             contextIsolation: true,
@@ -1207,7 +1211,7 @@ if (gotTheLock) {
     );
 
     try {
-      tray = new Tray(appIconPath);
+      tray = new Tray(icoImg);
       tray.setToolTip('Tiny Pony Clipper');
       tray.setContextMenu(
         Menu.buildFromTemplate([
