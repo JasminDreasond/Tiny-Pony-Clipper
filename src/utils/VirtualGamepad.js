@@ -281,6 +281,8 @@ const updateLinuxState = (id, state, session) => {
 };
 
 /**
+ * Synchronizes the game controller state with the Windows ViGEm device.
+ *
  * @param {Controller} pad
  * @param {Object} state
  * @param {PersistentGamepad<Controller>} session
@@ -292,33 +294,51 @@ const updateWindowsState = (pad, state, session, padType) => {
   const isDS4 = padType === 'ds4';
 
   state.buttons.forEach((btn, i) => {
-    /** @type {boolean} */
+    /**
+     * @type {boolean}
+     * @description Identifies if the button corresponds to L2 or R2 analog triggers.
+     */
     const isTrigger = i === 6 || i === 7;
+
+    /**
+     * @type {boolean}
+     * @description Identifies if the button corresponds to the directional pad.
+     */
+    const isDpad = i >= 12 && i <= 15;
+
     /** @type {boolean} */
     const isPressed = btn.pressed;
 
     if (isPressed !== session.previousButtons[i]) {
       session.previousButtons[i] = isPressed;
 
-      /** @type {string | null} */
-      const btnName = getWindowsButtonName(i, isDS4);
-      if (btnName && pad.button && pad.button[btnName]) {
-        pad.button[btnName].setValue(isPressed);
+      if (isDpad) {
+        applyDpadState(pad, i, isPressed);
+      } else if (!isTrigger) {
+        /** @type {string | null} */
+        const btnName = getWindowsButtonName(i, isDS4);
+        if (btnName && pad.button && pad.button[btnName] !== undefined) {
+          pad.button[btnName].setValue(isPressed);
+        }
       }
     }
 
     if (isTrigger) {
       /** @type {number} */
       const cacheIdx = i === 6 ? 4 : 5;
-      /** @type {number} */
-      const scaledValue = isDS4 ? Math.floor(btn.value * 255) : btn.value;
+
+      /**
+       * @type {number}
+       * @description Scales the trigger value from 0.0-1.0 to 0-255 for both DS4 and X360 hardware.
+       */
+      const scaledValue = Math.floor(btn.value * 255);
 
       if (scaledValue !== session.previousAxes[cacheIdx]) {
         session.previousAxes[cacheIdx] = scaledValue;
 
         /** @type {string} */
         const axisName = i === 6 ? 'leftTrigger' : 'rightTrigger';
-        if (pad.axis && pad.axis[axisName]) {
+        if (pad.axis && pad.axis[axisName] !== undefined) {
           pad.axis[axisName].setValue(scaledValue);
         }
       }
@@ -341,7 +361,7 @@ const updateWindowsState = (pad, state, session, padType) => {
 
     if (finalVal !== session.previousAxes[i]) {
       session.previousAxes[i] = finalVal;
-      if (pad.axis && pad.axis[axisName]) {
+      if (pad.axis && pad.axis[axisName] !== undefined) {
         pad.axis[axisName].setValue(finalVal);
       }
     }
@@ -353,52 +373,88 @@ const updateWindowsState = (pad, state, session, padType) => {
 };
 
 /**
+ * 2D Array mapping standard D-Pad indices (12-15) to various known API nomenclatures.
+ * @type {[string[], { type: 'dpadVert'|'dpadHorz', value: 1|-1 }][]}
+ */
+const dpadVariants = [
+  [['DPAD_UP', 'UP', 'DPAD_NORTH'], { type: 'dpadVert', value: 1 }], // 12
+  [['DPAD_DOWN', 'DOWN', 'DPAD_SOUTH'], { type: 'dpadVert', value: -1 }], // 13
+  [['DPAD_LEFT', 'LEFT', 'DPAD_WEST'], { type: 'dpadHorz', value: -1 }], // 14
+  [['DPAD_RIGHT', 'RIGHT', 'DPAD_EAST'], { type: 'dpadHorz', value: 1 }], // 15
+];
+
+/**
+ * Safely attempts to set a D-Pad value by dynamically checking the most common
+ * properties across different ViGEmBus Node.js wrappers.
+ *
+ * @param {Controller} pad
+ * @param {number} index
+ * @param {boolean} isPressed
+ * @returns {void}
+ */
+const applyDpadState = (pad, index, isPressed) => {
+  const variants = dpadVariants[index - 12];
+
+  for (const variant of variants[0]) {
+    if (pad.button && pad.button[variant] !== undefined) {
+      pad.button[variant].setValue(isPressed);
+      return; // Stop searching once the correct property is found
+    }
+    if (pad.dpad && pad.dpad[variant] !== undefined) {
+      pad.dpad[variant].setValue(isPressed);
+      return; // Stop searching once the correct property is found
+    }
+  }
+  if (pad.axis && pad.axis[variants[1].type] !== undefined) {
+    pad.axis[variants[1].type].setValue(isPressed ? variants[1].value : 0);
+  }
+};
+
+/**
+ * Retrieves the proper API string identifier for regular buttons.
+ *
  * @param {number} index
  * @param {boolean} isDS4
  * @returns {string | null}
  */
 const getWindowsButtonName = (index, isDS4) => {
-  /** @type {string[]} */
-  const x360Map = [
-    'A',
-    'B',
-    'X',
-    'Y',
-    'LEFT_SHOULDER',
-    'RIGHT_SHOULDER',
-    'LEFT_TRIGGER',
-    'RIGHT_TRIGGER',
-    'BACK',
-    'START',
-    'LEFT_THUMB',
-    'RIGHT_THUMB',
-    'DPAD_UP',
-    'DPAD_DOWN',
-    'DPAD_LEFT',
-    'DPAD_RIGHT',
-    'GUIDE',
-  ];
-  /** @type {string[]} */
-  const ds4Map = [
-    'CROSS',
-    'CIRCLE',
-    'SQUARE',
-    'TRIANGLE',
-    'L1',
-    'R1',
-    'L2',
-    'R2',
-    'SHARE',
-    'OPTIONS',
-    'L3',
-    'R3',
-    'DPAD_UP',
-    'DPAD_DOWN',
-    'DPAD_LEFT',
-    'DPAD_RIGHT',
-    'PS',
-  ];
-  return isDS4 ? ds4Map[index] : x360Map[index];
+  /**
+   * @type {Record<number, string>}
+   * @description Standard mapping for X360 buttons, excluding D-Pad and Triggers.
+   */
+  const x360Map = {
+    0: 'A',
+    1: 'B',
+    2: 'X',
+    3: 'Y',
+    4: 'LEFT_SHOULDER',
+    5: 'RIGHT_SHOULDER',
+    8: 'BACK',
+    9: 'START',
+    10: 'LEFT_THUMB',
+    11: 'RIGHT_THUMB',
+    16: 'GUIDE',
+  };
+
+  /**
+   * @type {Record<number, string>}
+   * @description Standard mapping for DS4 buttons, excluding D-Pad and Triggers.
+   */
+  const ds4Map = {
+    0: 'CROSS',
+    1: 'CIRCLE',
+    2: 'SQUARE',
+    3: 'TRIANGLE',
+    4: 'L1',
+    5: 'R1',
+    8: 'SHARE',
+    9: 'OPTIONS',
+    10: 'L3',
+    11: 'R3',
+    16: 'PS',
+  };
+
+  return isDS4 ? ds4Map[index] || null : x360Map[index] || null;
 };
 
 /**
