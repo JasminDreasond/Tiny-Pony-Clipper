@@ -346,7 +346,7 @@ const updateWindowsState = (pad, state, session, padType) => {
   });
 
   /** @type {string[]} */
-  const axisNames = ['leftX', 'leftY', 'rightX', 'rightY'];
+  const axisNames = ['leftX', 'leftY', 'rightX', 'rightY', 'leftTrigger', 'rightTrigger'];
 
   axisNames.forEach((axisName, i) => {
     /** @type {number} */
