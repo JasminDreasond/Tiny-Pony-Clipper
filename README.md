@@ -81,13 +81,13 @@ You will need `node-gyp` to handle the native build configurations and `yarn` fo
 npm install -g node-gyp yarn
 ```
 
-#### 2- Install Node.js dependencies
+### 2- Install Node.js dependencies
 
 ```bash
 yarn
 ```
 
-#### 3- Running the Build
+### 3- Running the Build
 
 Once the dependencies are met, you can trigger the configuration and compilation process:
 
