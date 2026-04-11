@@ -193,6 +193,7 @@
 
       button:hover:not(:disabled) {
         background: #b4befe;
+        color: #11111b;
       }
 
       .row {
@@ -287,7 +288,8 @@
         margin-top: 4px;
       }
 
-      .panel-style .latency-1 {
+      .panel-style .latency-1,
+      .stream-section .latency-1 {
         color: #6a9165;
       }
 
@@ -302,6 +304,9 @@
       @media (prefers-color-scheme: dark) {
         .panel-style > div {
           background: rgba(30, 30, 46, 0.5);
+        }
+        .stream-section .latency-1 {
+          color: #a6e3a1;
         }
 
         .panel-style .user-index {
@@ -547,7 +552,8 @@
             <h3 class="stream-title">👥 Connected Players</h3>
             <div
               id="gamepadSlotsInfo"
-              style="margin-bottom: 12px; font-weight: bold; color: #a6e3a1; font-size: 14px"
+              class="latency-1"
+              style="margin-bottom: 12px; font-weight: bold; font-size: 14px"
             >
               Available Gamepad Slots: Waiting for server...
             </div>
