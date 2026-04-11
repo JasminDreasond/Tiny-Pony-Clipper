@@ -20,7 +20,23 @@ const uinput = !isWin ? require(`../../build/Release/uinput_gamepad.node`) : nul
 
 /** @type {ViGEmClient | null} */
 const vigem = isWin ? new ViGEmClient() : null;
-if (isWin && vigem) vigem.connect();
+
+/** @type {boolean} */
+let isVigemConnected = false;
+
+if (isWin && vigem) {
+  try {
+    const err = vigem.connect();
+    if (err) {
+      console.error('[GAMEPAD] ViGEmBus connection error:', err);
+    } else {
+      isVigemConnected = true;
+      console.log('[GAMEPAD] ViGEmBus connected successfully.');
+    }
+  } catch (error) {
+    console.error('[GAMEPAD] ViGEmBus connection exception:', error);
+  }
+}
 
 /** @type {number} */
 const EV_KEY = 0x01;
@@ -116,7 +132,8 @@ export const getOrInitGamepad = (clientId, padIndex, padType) => {
   /** @type {number | Controller} */
   let device;
 
-  if (isWin && vigem) {
+  if (isWin) {
+    if (!isVigemConnected || !vigem) return -1;
     device = padType === 'ds4' ? vigem.createDS4Controller() : vigem.createX360Controller();
     device.connect();
   } else {
@@ -383,13 +400,15 @@ const getWindowsButtonName = (index, isDS4) => {
  * @returns {boolean} True if the system grants access, false otherwise.
  */
 export const canAccessUinput = () => {
-  return isWin ? true : uinput.checkPermissions();
+  return isWin ? isVigemConnected : uinput.checkPermissions();
 };
 
 if (gotTheLock) {
   if (!canAccessUinput()) {
     console.error(
-      '[GAMEPAD] Error: No RW permissions for /dev/uinput. Try running with sudo or check udev rules.',
+      isWin
+        ? '[GAMEPAD] Error: ViGEmBus is not connected. Controllers will not be created.'
+        : '[GAMEPAD] Error: No RW permissions for /dev/uinput. Try running with sudo or check udev rules.',
     );
   } else {
     console.log('[GAMEPAD] Permissions OK! Ready to create virtual controllers.');
