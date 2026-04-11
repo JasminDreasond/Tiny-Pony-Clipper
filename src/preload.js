@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  platform: () => process.platform,
   log: (...args) => ipcRenderer.send('console.log', ...args),
   error: (...args) =>
     ipcRenderer.send(

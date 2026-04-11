@@ -431,6 +431,13 @@ const init = async () => {
   /** @type {boolean} */
   const isGamepadReady = await electronAPI.getGamepadStatus();
   if (!isGamepadReady) {
+    uinputWarning.innerHTML =
+      electronAPI.platform() !== 'win32'
+        ? `⚠️ Missing permissions for Virtual Gamepad! The app cannot inject controller inputs.
+      Please configure uinput permissions on your Linux system.`
+        : `⚠️ It looks like the ViGEmBus driver is missing from your system.
+      This driver is required to emulate Xbox and PlayStation controllers on Windows.
+      Please install the latest ViGEmBus driver and restart the application.`;
     uinputWarning.style.display = 'block';
     // Optionally uncheck and disable if you don't want them streaming without gamepad
     // streamEnabledInput.checked = false;
