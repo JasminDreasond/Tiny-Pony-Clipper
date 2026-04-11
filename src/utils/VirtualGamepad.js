@@ -302,7 +302,7 @@ const updateWindowsState = (pad, state, session, padType) => {
 
       /** @type {string | null} */
       const btnName = getWindowsButtonName(i, isDS4);
-      if (btnName && pad.button[btnName]) {
+      if (btnName && pad.button && pad.button[btnName]) {
         pad.button[btnName].setValue(isPressed);
       }
     }
@@ -318,7 +318,7 @@ const updateWindowsState = (pad, state, session, padType) => {
 
         /** @type {string} */
         const axisName = i === 6 ? 'leftTrigger' : 'rightTrigger';
-        if (pad.axis[axisName]) {
+        if (pad.axis && pad.axis[axisName]) {
           pad.axis[axisName].setValue(scaledValue);
         }
       }
@@ -330,12 +330,19 @@ const updateWindowsState = (pad, state, session, padType) => {
 
   axisNames.forEach((axisName, i) => {
     /** @type {number} */
-    const val = isDS4 ? Math.floor((state.axes[i] || 0) * 127) : state.axes[i] || 0;
+    let val = state.axes[i] || 0;
 
-    if (val !== session.previousAxes[i]) {
-      session.previousAxes[i] = val;
-      if (pad.axis[axisName]) {
-        pad.axis[axisName].setValue(val);
+    if (i === 1 || i === 3) {
+      val = -val;
+    }
+
+    /** @type {number} */
+    const finalVal = isDS4 ? Math.floor(val * 127) : val;
+
+    if (finalVal !== session.previousAxes[i]) {
+      session.previousAxes[i] = finalVal;
+      if (pad.axis && pad.axis[axisName]) {
+        pad.axis[axisName].setValue(finalVal);
       }
     }
   });
@@ -357,39 +364,39 @@ const getWindowsButtonName = (index, isDS4) => {
     'B',
     'X',
     'Y',
-    'leftShoulder',
-    'rightShoulder',
-    null,
-    null,
-    'back',
-    'start',
-    'leftThumb',
-    'rightThumb',
-    'dpadUp',
-    'dpadDown',
-    'dpadLeft',
-    'dpadRight',
-    'guide',
+    'LEFT_SHOULDER',
+    'RIGHT_SHOULDER',
+    'LEFT_TRIGGER',
+    'RIGHT_TRIGGER',
+    'BACK',
+    'START',
+    'LEFT_THUMB',
+    'RIGHT_THUMB',
+    'DPAD_UP',
+    'DPAD_DOWN',
+    'DPAD_LEFT',
+    'DPAD_RIGHT',
+    'GUIDE',
   ];
   /** @type {string[]} */
   const ds4Map = [
-    'cross',
-    'circle',
-    'square',
-    'triangle',
-    'l1',
-    'r1',
-    null,
-    null,
-    'share',
-    'options',
-    'l3',
-    'r3',
-    'dpadUp',
-    'dpadDown',
-    'dpadLeft',
-    'dpadRight',
-    'ps',
+    'CROSS',
+    'CIRCLE',
+    'SQUARE',
+    'TRIANGLE',
+    'L1',
+    'R1',
+    'L2',
+    'R2',
+    'SHARE',
+    'OPTIONS',
+    'L3',
+    'R3',
+    'DPAD_UP',
+    'DPAD_DOWN',
+    'DPAD_LEFT',
+    'DPAD_RIGHT',
+    'PS',
   ];
   return isDS4 ? ds4Map[index] : x360Map[index];
 };
