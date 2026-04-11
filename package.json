@@ -43,6 +43,7 @@
     "build:linux": "yarn build:npx && electron-builder --linux -p never",
     "build:release:linux": "yarn build:npx && electron-builder --linux -p always",
     "build:win": "yarn build:npx && electron-builder --win -p never",
+    "build:win:vigemclient": "cd ./win && yarn",
     "build:release:win": "yarn build:npx && electron-builder --win -p always"
   },
   "devDependencies": {
