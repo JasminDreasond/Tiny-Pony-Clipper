@@ -101,13 +101,29 @@ yarn build:npx
 yarn start
 ```
 
-### 5- Build the Linux installers (.deb, .AppImage, .tar.gz)
+### 5- Building the installers
+
+The compiled binaries for both operating systems will be available in the `dist/` folder after the process is finished.
+
+#### 5.1- Linux (.deb, .AppImage, .tar.gz)
+
+To generate the installers for Linux distributions, run:
 
 ```bash
 yarn build:linux
 ```
 
-*The compiled binaries will be available in the `dist/` folder.*
+#### 5.2- Windows (.exe) (BETA VERSION)
+
+For Windows, the process requires an extra step to build the ViGEm client dependencies before packaging the final executable. Execute the following commands in order:
+
+```bash
+# First, build the ViGEm client
+yarn build:win:vigemclient
+
+# Then, build the Windows installer
+yarn build:win
+```
 
 ## 💖 Contributing
 
