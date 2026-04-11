@@ -80,6 +80,13 @@ const serveFile = (res, filePath, contentType, isHostRoot = false) => {
   });
 };
 
+const filePath = {
+  '/img/tray-icon.png': path.join(srcFolder, './icons/tray-icon.png'),
+  '/img/tray-icon.ico': path.join(srcFolder, './icons/tray-icon.ico'),
+  '/img/tray-icon-processing.png': path.join(srcFolder, './icons/tray-icon-processing.png'),
+  '/img/tray-icon-processing.ico': path.join(srcFolder, './icons/tray-icon-processing.ico'),
+};
+
 /**
  * Initializes and starts the local HTTP and WebSocket servers for Remote Play.
  * Serves the client UI and handles WebSocket authentication and WebRTC signaling.
@@ -100,8 +107,8 @@ export const startStreamServer = (config, captureWebContents) => {
     let fullPath;
 
     // Specific case for the tray icon residing outside the public folder
-    if (req.url === '/img/tray-icon.png') {
-      fullPath = path.join(srcFolder, './icons/tray-icon.png');
+    if (filePath[req.url]) {
+      fullPath = filePath[req.url];
     } else {
       /** @type {string} */
       const urlPath = isHostRoot || req.url === '/public' ? '/index.html' : req.url;

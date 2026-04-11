@@ -2,6 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { screen } from 'electron';
 import { execSync, spawnSync } from 'child_process';
+import { isWin } from '../../win/vigemclient.js';
 
 /** @type {string} */
 const __filename = fileURLToPath(import.meta.url);
@@ -20,10 +21,13 @@ export const rootFolder = path.join(__dirname, '../../');
 export const srcFolder = path.join(rootFolder, './src');
 
 /** @type {string} */
-export const appIconPath = path.join(srcFolder, './icons/tray-icon.png');
+export const appIconPath = path.join(srcFolder, `./icons/tray-icon.${!isWin ? 'png' : 'ico'}`);
 
 /** @type {string} */
-export const appIconProcessingPath = path.join(srcFolder, './icons/tray-icon-processing.png');
+export const appIconProcessingPath = path.join(
+  srcFolder,
+  `./icons/tray-icon-processing.${!isWin ? 'png' : 'ico'}`,
+);
 
 /**
  * Queries the system for available monitors and audio devices (inputs and outputs) using Electron and PulseAudio.

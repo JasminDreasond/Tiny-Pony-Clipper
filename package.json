@@ -101,7 +101,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "src/icons/tray-icon.png",
+      "icon": "src/icons/tray-icon.ico",
       "executableName": "tiny-pony-clipper"
     },
     "deb": {
