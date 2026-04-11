@@ -40,6 +40,19 @@ sudo apt update
 sudo apt install ffmpeg pulseaudio-utils libnotify-bin
 ```
 
+#### Win32
+
+Ensure your system has the following packages installed:
+
+* `ffmpeg` (for video encoding and assembly)
+* `ViGEmBus` (required if you want remote play features)
+
+On your machine, you can install ffmpeg via:
+
+```bash
+choco install ffmpeg
+```
+
 ### 🎮 Virtual Gamepad Support (uinput)
 To use the **Remote Play Server**, the application needs permission to write to `/dev/uinput`.
 
