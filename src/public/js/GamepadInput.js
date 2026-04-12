@@ -1001,6 +1001,17 @@ const handleVirtualInput = (code, isDown) => {
 
 /**
  * @param {KeyboardEvent} e
+ * @returns {boolean}
+ */
+const isTyping = (e) => {
+  /** @type {HTMLElement} */
+  const target = /** @type {any} */ (e.target);
+  if (!target) return false;
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+};
+
+/**
+ * @param {KeyboardEvent} e
  */
 const blockKeyboardAction = (e) => {
   if (document.body.classList.contains('is-playing') && virtualPad.connected) {
@@ -1027,12 +1038,17 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Prevents the emulator from "stealing" the keys and triggering controls while you type
+  if (isTyping(e)) return;
+
   handleVirtualInput(e.code, true);
   blockKeyboardAction(e);
 });
 
 window.addEventListener('keyup', (e) => {
+  // Always releases the key in the virtual array, avoiding stuck keys if the focus changes in the middle of the click
   handleVirtualInput(e.code, false);
+  if (isTyping(e)) return;
   blockKeyboardAction(e);
 });
 
