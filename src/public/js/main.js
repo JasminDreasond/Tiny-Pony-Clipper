@@ -43,6 +43,7 @@ import {
   // Tab Configuration Elements
   tabKbContent,
   tabProfileContent,
+  tabFilterContent,
 
   // Profile Manager Elements
   rawGamepadDebugger,
@@ -716,6 +717,8 @@ const pollGamepad = () => {
   const isProfileTab = tabProfileContent.classList.contains('active');
   /** @type {boolean} */
   const isKbTab = tabKbContent.classList.contains('active');
+  /** @type {boolean} */
+  const isFilterTab = tabFilterContent.classList.contains('active');
 
   // Raw Input Debugger Engine
   if (isModalOpen && isProfileTab) {
@@ -758,7 +761,7 @@ const pollGamepad = () => {
 
     // STRICT CHECK: Ensure the gamepad is actually connected to avoid ghosts
     if (gp && gp.connected) {
-      // ---> FILTER CHECK <---
+      // FILTER CHECK
       if (!isGamepadAllowed(gp)) {
         // If the gamepad has been blocked by the user, it will not be transmitted to the host
         // and will not update the visualizer pad.
@@ -769,8 +772,8 @@ const pollGamepad = () => {
       /** @type {{ buttons: {pressed: boolean, value: number}[], axes: number[] }} */
       const mappedData = remapGamepad(gp);
 
-      // Show physical gamepad inputs ONLY on the Profile Tab
-      if (!padVisualized && isModalOpen && isProfileTab) {
+      // Show physical gamepad inputs in the Profile Tab And the Filter Tab
+      if (!padVisualized && isModalOpen && (isProfileTab || isFilterTab)) {
         visualizerPad.axes = [...mappedData.axes];
         visualizerPad.buttons = mappedData.buttons.map((b) => ({
           pressed: b.pressed,
