@@ -64,6 +64,21 @@
         flex-direction: column;
         height: 100vh;
         overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: default;
+      }
+
+      /* Re-enable selection for inputs, textareas, and specific info fields */
+      input, 
+      textarea, 
+      .app-path, 
+      #savePath, 
+      .about-content,
+      #manualSdpContainer textarea {
+        user-select: text;
+        -webkit-user-select: text;
+        cursor: text;
       }
 
       /* TABS CSS */
@@ -234,6 +249,7 @@
 
       .github-btn:hover:not(:disabled) {
         background: #45475a;
+        color: #ffffff;
       }
 
       .stream-title {
