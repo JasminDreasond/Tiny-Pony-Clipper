@@ -975,6 +975,7 @@ if (gotTheLock) {
       if (windowsCache.captureWindow) {
         windowsCache.captureWindow.webContents.send('force-close-webrtc', clientId);
       }
+      broadcastClientList();
     });
 
     // Handle Gamepad Inputs from WebRTC DataChannel
