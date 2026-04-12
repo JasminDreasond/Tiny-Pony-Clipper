@@ -803,9 +803,9 @@ const pollGamepad = () => {
       /** @type {string} */
       const ry = mappedData.axes[3]?.toFixed(2) || '0.00';
       /** @type {string} */
-      const tx = mappedData.axes[4]?.toFixed(2) || '0.00';
+      const tx = mappedData.buttons[6].value?.toFixed(2) || '0.00';
       /** @type {string} */
-      const ty = mappedData.axes[5]?.toFixed(2) || '0.00';
+      const ty = mappedData.buttons[7].value?.toFixed(2) || '0.00';
 
       debugText += `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br><br>`;
     } else {
@@ -823,8 +823,8 @@ const pollGamepad = () => {
         (acc, val) => acc + (val.pressed ? 1 : 0),
         0,
       );
-      /** @type {number[]} */
       const axesVals = virtualPad.axes;
+      const buttonVals = virtualPad.buttons;
       /** @type {string} */
       const lx = axesVals[0]?.toFixed(2) || '0.00';
       /** @type {string} */
@@ -834,9 +834,9 @@ const pollGamepad = () => {
       /** @type {string} */
       const ry = axesVals[3]?.toFixed(2) || '0.00';
       /** @type {string} */
-      const tx = axesVals[4]?.toFixed(2) || '0.00';
+      const tx = buttonVals[6].value?.toFixed(2) || '0.00';
       /** @type {string} */
-      const ty = axesVals[5]?.toFixed(2) || '0.00';
+      const ty = buttonVals[7].value?.toFixed(2) || '0.00';
 
       debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br>`;
     }

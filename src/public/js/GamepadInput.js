@@ -493,7 +493,7 @@ tabFilterBtn.addEventListener('click', () => switchTab(tabFilterBtn, tabFilterCo
 
 /** @type {VisualizerPadState} */
 export const visualizerPad = {
-  axes: [0, 0, 0, 0, 0, 0],
+  axes: [0, 0, 0, 0],
   buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
 };
 
@@ -509,7 +509,7 @@ export const visualizerPad = {
 export const virtualPad = {
   connected: false,
   index: 0,
-  axes: [0, 0, 0, 0, -1, -1],
+  axes: [0, 0, 0, 0],
   buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
 };
 
@@ -574,22 +574,6 @@ const defaultActionMap = {
     name: 'Right Trigger',
     type: 'button',
     index: 7,
-  },
-
-  // Analog Triggers for Keyboard (Mapping keys to axes 4 and 5)
-  ltAnalog: {
-    icon: 'img/kenney_input_xbox_series/xbox_lt.png',
-    name: 'LT Analog',
-    type: 'axis',
-    index: 4,
-    val: 2,
-  },
-  rtAnalog: {
-    icon: 'img/kenney_input_xbox_series/xbox_rt.png',
-    name: 'RT Analog',
-    type: 'axis',
-    index: 5,
-    val: 2,
   },
 
   // System Buttons
@@ -715,8 +699,6 @@ const DEFAULT_KEY_BINDS = {
   btnRB: 'KeyO',
   btnLT: 'Digit7',
   btnRT: 'Digit8',
-  ltAnalog: 'Digit7',
-  rtAnalog: 'Digit8',
   btnL3: 'KeyQ',
   btnR3: 'KeyE',
   dUp: 'ArrowUp',
@@ -978,8 +960,6 @@ const handleVirtualInput = (code, isDown) => {
   else pressedKeys.delete(code);
 
   virtualPad.axes.fill(0);
-  virtualPad.axes[4] = -1;
-  virtualPad.axes[5] = -1;
   virtualPad.buttons.forEach((b) => {
     b.pressed = false;
     b.value = 0;
@@ -1004,7 +984,7 @@ const handleVirtualInput = (code, isDown) => {
   }
 
   // Clamping axis values to -1.0 / 1.0 range
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     virtualPad.axes[i] = Math.max(-1, Math.min(1, virtualPad.axes[i]));
   }
 };
