@@ -73,11 +73,11 @@ Napi::Value SetupVirtualGamepad(const Napi::CallbackInfo& info) {
     uidev.id.version = 0x0111;
 
     if (type == 1) {
-        snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Tiny Pony DualShock 4");
+        snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Tiny Pony DualShock 4 - P%d", next_pad_id);
         uidev.id.vendor  = 0x054C; // Sony
         uidev.id.product = 0x05C4; // DualShock 4
     } else {
-        snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Tiny Pony Xbox 360");
+        snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Tiny Pony Xbox 360 - P%d", next_pad_id);
         uidev.id.vendor  = 0x045E; // Microsoft
         uidev.id.product = 0x028E; // Xbox 360 Controller
     }
