@@ -1301,7 +1301,7 @@ export const remapGamepad = (gp) => {
       /** @type {number} */
       const ltAxis = (mappedAxes[4] + 1) / 2;
 
-      if (ltAxis > 0.1 && !mappedButtons[6].pressed) {
+      if (ltAxis > 0) {
         mappedButtons[6].pressed = true;
         mappedButtons[6].value = ltAxis;
       }
@@ -1311,7 +1311,7 @@ export const remapGamepad = (gp) => {
       /** @type {number} */
       const rtAxis = (mappedAxes[5] + 1) / 2;
 
-      if (rtAxis > 0.1 && !mappedButtons[7].pressed) {
+      if (rtAxis > 0) {
         mappedButtons[7].pressed = true;
         mappedButtons[7].value = rtAxis;
       }
