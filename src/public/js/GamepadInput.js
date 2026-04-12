@@ -687,6 +687,14 @@ const defaultActionMap = {
     index: 2,
     val: 1,
   },
+
+  // Home
+  btnHome: {
+    icon: 'img/kenney_input_xbox_series/xbox_guide.png',
+    name: 'Home',
+    type: 'button',
+    index: 16,
+  },
 };
 
 /** @type {Record<string, string>} */
@@ -711,6 +719,7 @@ const DEFAULT_KEY_BINDS = {
   lsRight: 'KeyD',
   btnStart: 'Enter',
   btnSelect: 'ShiftRight',
+  btnHome: 'Backspace',
   rsUp: 'Numpad8',
   rsDown: 'Numpad2',
   rsLeft: 'Numpad4',
@@ -901,9 +910,10 @@ const drawGamepadCanvas = () => {
   ctx.fill();
   resetShadow();
 
-  // Select / Start
+  // Select / Start / Home
   drawShapeRect(130, 75, 14, 8, 4, visualizerPad.buttons[8].pressed);
   drawShapeRect(156, 75, 14, 8, 4, visualizerPad.buttons[9].pressed);
+  drawShapeBtn(150, 55, 8, visualizerPad.buttons[16].pressed);
 
   // ABXY (Top Right)
   /** @type {number} */ const abxyX = 220;
