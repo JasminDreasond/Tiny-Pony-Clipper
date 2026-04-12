@@ -215,16 +215,18 @@ export const applyServerAnswer = async (answerString) => {
 /**
  * @returns {void}
  */
-const updateHudKbButton = () => {
-  btnHudKbConfig.style.display = document.body.classList.contains('is-playing')
-    ? 'inline-block'
-    : 'none';
+const updateHudButtons = () => {
+  /** @type {boolean} */
+  const isPlaying = document.body.classList.contains('is-playing');
+
+  btnHudKbConfig.style.display = isPlaying ? 'inline-block' : 'none';
+  btnOpenTx.style.display = isPlaying ? 'inline-block' : 'none';
 };
 
 useKbPadInput.addEventListener('change', (e) => {
   virtualPad.connected = e.target.checked;
   localStorage.setItem('pony_use_kb', e.target.checked.toString());
-  updateHudKbButton();
+  updateHudButtons();
 });
 
 wantsVideoInput.addEventListener('change', (e) => {
@@ -284,8 +286,7 @@ connectManualBtn.addEventListener('click', async () => {
       loginDiv.style.display = 'none';
       document.body.classList.add('is-playing');
       startPlayTimer();
-      updateHudKbButton();
-      btnOpenTx.style.display = 'block';
+      updateHudButtons();
       if (videoRequested) video.style.display = 'block';
 
       setAuthenticating(false);
@@ -478,7 +479,7 @@ const initConnection = () => {
       loginDiv.style.display = 'none';
       document.body.classList.add('is-playing');
       startPlayTimer();
-      updateHudKbButton();
+      updateHudButtons();
       btnOpenTx.style.display = 'block'; // Show Transmitter button on auth
 
       // Makes the STUN server flexible by reading from config

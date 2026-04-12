@@ -28,6 +28,7 @@ import {
   btnDeleteProfile,
   profileName,
   profileRegex,
+  profileEmulateTriggers,
   profileButtonsGrid,
   profileAxesGrid,
   btnExportProfile,
@@ -46,6 +47,7 @@ import { showAlert, openModal, closeModal } from './Modal.js';
  * @property {number[]} buttons
  * @property {number[]} axes
  * @property {boolean} [readonly]
+ * @property {boolean} [emulateTriggers]
  */
 
 /** @type {Record<string, GamepadProfile>} */
@@ -137,6 +139,8 @@ const disableAllEditorFields = () => {
   profileRegex.value = '';
   profileName.disabled = true;
   profileRegex.disabled = true;
+  profileEmulateTriggers.checked = false;
+  profileEmulateTriggers.disabled = true;
 
   btnSaveProfile.disabled = true;
   btnDeleteProfile.disabled = true;
@@ -253,6 +257,7 @@ const renderProfileEditor = () => {
     buttons: [...profile.buttons],
     axes: [...profile.axes],
     readonly: profile.readonly,
+    emulateTriggers: !!profile.emulateTriggers,
   };
 
   /** @type {boolean} */
@@ -260,8 +265,11 @@ const renderProfileEditor = () => {
 
   profileName.value = profile.name;
   profileRegex.value = profile.regex;
+  profileEmulateTriggers.checked = liveEditingBuffer.emulateTriggers;
+
   profileName.disabled = isReadonly;
   profileRegex.disabled = isReadonly;
+  profileEmulateTriggers.disabled = isReadonly;
 
   btnSaveProfile.disabled = isReadonly;
   btnDeleteProfile.disabled = isReadonly;
@@ -275,10 +283,12 @@ const renderProfileEditor = () => {
     if (liveEditingBuffer) {
       liveEditingBuffer.name = profileName.value;
       liveEditingBuffer.regex = profileRegex.value;
+      liveEditingBuffer.emulateTriggers = profileEmulateTriggers.checked;
     }
   };
   profileName.oninput = syncMetadata;
   profileRegex.oninput = syncMetadata;
+  profileEmulateTriggers.onchange = syncMetadata;
 
   // Clear and render the Buttons grid using icons
   profileButtonsGrid.innerHTML = '';
@@ -324,6 +334,7 @@ btnCreateProfile.addEventListener('click', () => {
     regex: '.*', // Capture any control by default until user changes
     buttons: Array.from({ length: 17 }, (_, i) => i), // 0 to 16 mapped in original order
     axes: [0, 1, 2, 3], // Axis in original order
+    emulateTriggers: false,
   };
 
   saveCustomProfiles();
@@ -347,6 +358,7 @@ btnCloneProfile.addEventListener('click', () => {
     regex: srcProfile.regex,
     buttons: [...srcProfile.buttons],
     axes: [...srcProfile.axes],
+    emulateTriggers: !!srcProfile.emulateTriggers,
   };
 
   saveCustomProfiles();
@@ -1071,7 +1083,7 @@ btnImportKbFile.addEventListener('change', (e) => {
 // --- POPUP TRANSMITTER ---
 
 btnOpenTx.addEventListener('click', () => {
-  const popupHtml = `<!DOCTYPE html><html><head><title>Input Transmitter</title><style>body{background:#1e1e2e;color:#cba6f7;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h3{margin:0;}</style></head><body><div><h3>Transmitter Active</h3><p>Keep this window focused to send keyboard inputs to Tiny Pony Stream.</p></div><script>['keydown','keyup'].forEach(evt=>{window.addEventListener(evt,e=>{e.preventDefault();if(window.opener){window.opener.postMessage({type:'kb_event',event:evt,code:e.code},'*');}});});</script></body></html>`;
+  const popupHtml = `<!DOCTYPE html><html><head><title>Input Transmitter</title><style>body{background:#1e1e2e;color:#cba6f7;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h3{margin:0;}</style></head><body><div><h3>Transmitter Active</h3><p>Keep this window focused to send keyboard and gamepad inputs to Tiny Pony Stream.</p></div><script>['keydown','keyup'].forEach(evt=>{window.addEventListener(evt,e=>{e.preventDefault();if(window.opener){window.opener.postMessage({type:'kb_event',event:evt,code:e.code},'*');}});});</script></body></html>`;
   const blob = new Blob([popupHtml], { type: 'text/html' });
   window.open(URL.createObjectURL(blob), 'InputTransmitter', 'width=350,height=250');
 });
@@ -1131,6 +1143,25 @@ export const remapGamepad = (gp) => {
     const axis = gp.axes[srcIdx];
     return axis !== undefined ? axis : 0;
   });
+
+  if (activeProfile.emulateTriggers) {
+    if (gp.axes.length > 4 && mappedButtons[6]) {
+      /** @type {number} */
+      const ltAxis = gp.axes[4];
+      if (ltAxis > 0.1 && !mappedButtons[6].pressed) {
+        mappedButtons[6].pressed = true;
+        mappedButtons[6].value = ltAxis;
+      }
+    }
+    if (gp.axes.length > 5 && mappedButtons[7]) {
+      /** @type {number} */
+      const rtAxis = gp.axes[5];
+      if (rtAxis > 0.1 && !mappedButtons[7].pressed) {
+        mappedButtons[7].pressed = true;
+        mappedButtons[7].value = rtAxis;
+      }
+    }
+  }
 
   return { buttons: mappedButtons, axes: mappedAxes };
 };

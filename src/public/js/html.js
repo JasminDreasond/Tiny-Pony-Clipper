@@ -81,6 +81,8 @@ export const btnDeleteProfile = document.getElementById('btnDeleteProfile');
 export const profileName = document.getElementById('profileName');
 /** @type {HTMLInputElement} */
 export const profileRegex = document.getElementById('profileRegex');
+/** @type {HTMLInputElement} */
+export const profileEmulateTriggers = document.getElementById('profileEmulateTriggers');
 /** @type {HTMLElement} */
 export const profileButtonsGrid = document.getElementById('profileButtonsGrid');
 /** @type {HTMLElement} */
