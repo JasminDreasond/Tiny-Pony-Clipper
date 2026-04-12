@@ -20,6 +20,10 @@ import {
   tabProfileBtn,
   tabKbContent,
   tabProfileContent,
+  tabFilterBtn,
+  tabFilterContent,
+  filterRegexInput,
+  filterGrid,
 
   // Profile Manager Elements
   profileSelect,
@@ -459,15 +463,23 @@ btnImportProfileFile.addEventListener('change', (e) => {
 const switchTab = (btn, content) => {
   tabKbBtn.classList.remove('active');
   tabProfileBtn.classList.remove('active');
+  tabFilterBtn.classList.remove('active');
+
   tabKbContent.classList.remove('active');
   tabProfileContent.classList.remove('active');
+  tabFilterContent.classList.remove('active');
 
   btn.classList.add('active');
   content.classList.add('active');
+
+  if (content === tabFilterContent) {
+    renderFilterList();
+  }
 };
 
 tabKbBtn.addEventListener('click', () => switchTab(tabKbBtn, tabKbContent));
 tabProfileBtn.addEventListener('click', () => switchTab(tabProfileBtn, tabProfileContent));
+tabFilterBtn.addEventListener('click', () => switchTab(tabFilterBtn, tabFilterContent));
 
 // --- KEYBOARD EMULATOR LOGIC ---
 
@@ -1093,6 +1105,112 @@ window.addEventListener('message', (e) => {
     handleVirtualInput(e.data.code, e.data.event === 'keydown');
   }
 });
+
+// --- GAMEPAD FILTER LOGIC ---
+
+/** @type {Set<string>} */
+const blockedGamepads = new Set(JSON.parse(localStorage.getItem('pony_blocked_pads') || '[]'));
+
+/**
+ * @returns {void}
+ */
+const saveBlockedGamepads = () => {
+  localStorage.setItem('pony_blocked_pads', JSON.stringify([...blockedGamepads]));
+};
+
+// Loads the saved regex or uses the default '.*' (allow all)
+filterRegexInput.value = localStorage.getItem('pony_filter_regex') || '.*';
+
+filterRegexInput.addEventListener('input', (e) => {
+  localStorage.setItem('pony_filter_regex', e.target.value);
+});
+
+/**
+ * @returns {void}
+ */
+const renderFilterList = () => {
+  filterGrid.innerHTML = '';
+  /** @type {Gamepad[]} */
+  const gps = navigator.getGamepads();
+  /** @type {boolean} */
+  let hasPads = false;
+
+  for (let i = 0; i < gps.length; i++) {
+    /** @type {Gamepad | null} */
+    const gp = gps[i];
+    if (gp && gp.connected) {
+      hasPads = true;
+      const label = document.createElement('label');
+      label.className = 'checkbox-container';
+      label.style.background = '#181825';
+      label.style.padding = '8px';
+      label.style.borderRadius = '6px';
+      label.style.border = '1px solid #313244';
+      label.style.cursor = 'pointer';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = blockedGamepads.has(gp.id);
+      cb.onchange = (e) => {
+        if (e.target.checked) {
+          blockedGamepads.add(gp.id);
+        } else {
+          blockedGamepads.delete(gp.id);
+        }
+        saveBlockedGamepads();
+      };
+
+      const span = document.createElement('span');
+      // The regex does not affect the visual listing of the buttons, it just says if it has final permission,
+      // to the user to always see what is physically connected.
+      span.textContent = `[Idx: ${gp.index}] ${gp.id}`;
+
+      label.appendChild(cb);
+      label.appendChild(span);
+      filterGrid.appendChild(label);
+    }
+  }
+
+  if (!hasPads) {
+    filterGrid.innerHTML =
+      '<span style="font-size: 13px; color: #a6adc8;">No gamepads connected. Plug one in!</span>';
+  }
+};
+
+// Keeps the list up to date if a control is connected/disconnected while the modal is open
+window.addEventListener('gamepadconnected', () => {
+  if (tabFilterContent.classList.contains('active')) renderFilterList();
+});
+window.addEventListener('gamepaddisconnected', () => {
+  if (tabFilterContent.classList.contains('active')) renderFilterList();
+});
+
+/**
+ * Validate whether the gamepad is allowed to be broadcast based on regex and checkboxes.
+ * The sequence: 1. Valida Regex (Whitelist) -> 2. Validate Checkbox (Blacklist).
+ * @param {Gamepad} gp
+ * @returns {boolean}
+ */
+export const isGamepadAllowed = (gp) => {
+  // 1. Regex Validation
+  /** @type {string} */
+  const regexStr = filterRegexInput.value || '.*';
+  try {
+    /** @type {RegExp} */
+    const regex = new RegExp(regexStr, 'i');
+    if (!regex.test(gp.id)) return false;
+  } catch (e) {
+    // If the user types a broken regex into the field, it doesn't block everything, let it pass.
+    console.warn('[INPUT FILTER] Invalid regex pattern:', regexStr);
+  }
+
+  // 2. Checkbox Validation
+  if (blockedGamepads.has(gp.id)) {
+    return false;
+  }
+
+  return true;
+};
 
 /**
  * @param {Gamepad} gp

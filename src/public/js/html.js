@@ -98,6 +98,15 @@ export const btnImportProfileFile = document.getElementById('btnImportProfileFil
 /** @type {HTMLButtonElement} */
 export const btnSaveProfile = document.getElementById('btnSaveProfile');
 
+/** @type {HTMLButtonElement} */
+export const tabFilterBtn = document.getElementById('tabFilterBtn');
+/** @type {HTMLElement} */
+export const tabFilterContent = document.getElementById('tabFilterContent');
+/** @type {HTMLInputElement} */
+export const filterRegexInput = document.getElementById('filterRegexInput');
+/** @type {HTMLElement} */
+export const filterGrid = document.getElementById('filterGrid');
+
 // Debug Elements
 /** @type {HTMLElement} */
 export const dbgWs = document.getElementById('dbgWs');

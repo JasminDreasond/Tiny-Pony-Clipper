@@ -110,8 +110,9 @@
       ></canvas>
 
       <div class="modal-tabs">
-        <button id="tabKbBtn" class="tab-btn active">Keyboard Emulator</button>
+        <button id="tabKbBtn" class="tab-btn active">Keyboard Gamepad</button>
         <button id="tabProfileBtn" class="tab-btn">Gamepad Profiles</button>
+        <button id="tabFilterBtn" class="tab-btn">Filter Pads</button>
       </div>
 
       <div id="tabKbContent" class="tab-content active">
@@ -175,6 +176,40 @@
           <button id="btnImportProfileBtn">Import</button>
           <input type="file" id="btnImportProfileFile" accept=".json" style="display: none" />
           <button id="btnSaveProfile">Save Profile</button>
+        </div>
+      </div>
+
+      <div id="tabFilterContent" class="tab-content">
+        <div class="profile-editor">
+          <label
+            >Allowed Gamepads Regex:
+            <input type="text" id="filterRegexInput" placeholder=".*" value=".*" />
+          </label>
+          <div
+            style="
+              background-color: rgba(243, 139, 168, 0.1);
+              border: 1px solid #f38ba8;
+              padding: 10px;
+              border-radius: 6px;
+              margin-top: 10px;
+              margin-bottom: 10px;
+            "
+          >
+            <p style="font-size: 12px; color: #f38ba8; margin: 0">
+              Check the box to <strong>BLOCK</strong> a connected gamepad from interacting with the
+              client.
+            </p>
+          </div>
+          <div
+            id="filterGrid"
+            style="
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+              max-height: 250px;
+              overflow-y: auto;
+            "
+          ></div>
         </div>
       </div>
 
@@ -260,7 +295,7 @@
           ><input type="checkbox" id="wantsVideo" checked /> Enable Video</label
         >
         <label class="checkbox-container"
-          ><input type="checkbox" id="useKbPad" /> Emulate Gamepad</label
+          ><input type="checkbox" id="useKbPad" /> Use Keyboard Gamepad</label
         >
         <label class="checkbox-container"
           ><input type="checkbox" id="wantsAudio" checked /> Enable Audio</label

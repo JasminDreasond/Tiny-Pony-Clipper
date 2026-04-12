@@ -50,7 +50,7 @@ import {
 import { showAlert } from './Modal.js';
 import { sendBackgroundNotification } from './Notification.js';
 import { resolveApiConnection, setAuthenticating, setGenerateOfferCallback } from './PageApi.js';
-import { remapGamepad, virtualPad, visualizerPad } from './GamepadInput.js';
+import { remapGamepad, virtualPad, visualizerPad, isGamepadAllowed } from './GamepadInput.js';
 import { startPlayTimer, stopPlayTimer, bypassWelcome } from './Welcome.js';
 
 /** @type {NodeJS.Timeout | null} */
@@ -758,6 +758,14 @@ const pollGamepad = () => {
 
     // STRICT CHECK: Ensure the gamepad is actually connected to avoid ghosts
     if (gp && gp.connected) {
+      // ---> FILTER CHECK <---
+      if (!isGamepadAllowed(gp)) {
+        // If the gamepad has been blocked by the user, it will not be transmitted to the host
+        // and will not update the visualizer pad.
+        continue;
+      }
+      // --------------------------------------
+
       /** @type {{ buttons: {pressed: boolean, value: number}[], axes: number[] }} */
       const mappedData = remapGamepad(gp);
 
