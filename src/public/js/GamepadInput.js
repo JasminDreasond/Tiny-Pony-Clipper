@@ -493,7 +493,7 @@ tabFilterBtn.addEventListener('click', () => switchTab(tabFilterBtn, tabFilterCo
 
 /** @type {VisualizerPadState} */
 export const visualizerPad = {
-  axes: [0, 0, 0, 0],
+  axes: [0, 0, 0, 0, 0, 0],
   buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
 };
 
@@ -509,7 +509,7 @@ export const visualizerPad = {
 export const virtualPad = {
   connected: false,
   index: 0,
-  axes: [0, 0, 0, 0],
+  axes: [0, 0, 0, 0, -1, -1],
   buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
 };
 
@@ -574,6 +574,22 @@ const defaultActionMap = {
     name: 'Right Trigger',
     type: 'button',
     index: 7,
+  },
+
+  // Analog Triggers for Keyboard (Mapping keys to axes 4 and 5)
+  ltAnalog: {
+    icon: 'img/kenney_input_xbox_series/xbox_lt.png',
+    name: 'LT Analog',
+    type: 'axis',
+    index: 4,
+    val: 2,
+  },
+  rtAnalog: {
+    icon: 'img/kenney_input_xbox_series/xbox_rt.png',
+    name: 'RT Analog',
+    type: 'axis',
+    index: 5,
+    val: 2,
   },
 
   // System Buttons
@@ -699,6 +715,8 @@ const DEFAULT_KEY_BINDS = {
   btnRB: 'KeyO',
   btnLT: 'Digit7',
   btnRT: 'Digit8',
+  ltAnalog: 'Digit7',
+  rtAnalog: 'Digit8',
   btnL3: 'KeyQ',
   btnR3: 'KeyE',
   dUp: 'ArrowUp',
@@ -960,6 +978,8 @@ const handleVirtualInput = (code, isDown) => {
   else pressedKeys.delete(code);
 
   virtualPad.axes.fill(0);
+  virtualPad.axes[4] = -1;
+  virtualPad.axes[5] = -1;
   virtualPad.buttons.forEach((b) => {
     b.pressed = false;
     b.value = 0;
@@ -973,6 +993,7 @@ const handleVirtualInput = (code, isDown) => {
 
     mappedActions.forEach((actionId) => {
       const config = defaultActionMap[actionId];
+      if (!config) return;
       if (config.type === 'button') {
         virtualPad.buttons[config.index].pressed = true;
         virtualPad.buttons[config.index].value = 1;
@@ -982,7 +1003,8 @@ const handleVirtualInput = (code, isDown) => {
     });
   }
 
-  for (let i = 0; i < 4; i++) {
+  // Clamping axis values to -1.0 / 1.0 range
+  for (let i = 0; i < 6; i++) {
     virtualPad.axes[i] = Math.max(-1, Math.min(1, virtualPad.axes[i]));
   }
 };
@@ -1250,6 +1272,7 @@ export const remapGamepad = (gp) => {
     };
   }
 
+  // Apply button mapping from profile
   /** @type {{pressed: boolean, value: number}[]} */
   const mappedButtons = activeProfile.buttons.map((srcIdx) => {
     /** @type {GamepadButton | undefined} */
@@ -1257,6 +1280,7 @@ export const remapGamepad = (gp) => {
     return btn ? { pressed: btn.pressed, value: btn.value } : { pressed: false, value: 0 };
   });
 
+  // Apply axis mapping from profile
   /** @type {number[]} */
   const mappedAxes = activeProfile.axes.map((srcIdx) => {
     /** @type {number | undefined} */
@@ -1264,18 +1288,19 @@ export const remapGamepad = (gp) => {
     return axis !== undefined ? axis : 0;
   });
 
+  // Handle Trigger Emulation if enabled in profile
   if (activeProfile.emulateTriggers) {
-    if (gp.axes.length > 4 && mappedButtons[6]) {
+    if (mappedAxes.length > 4 && mappedButtons[6]) {
       /** @type {number} */
-      const ltAxis = gp.axes[4];
+      const ltAxis = mappedAxes[4];
       if (ltAxis > 0.1 && !mappedButtons[6].pressed) {
         mappedButtons[6].pressed = true;
         mappedButtons[6].value = ltAxis;
       }
     }
-    if (gp.axes.length > 5 && mappedButtons[7]) {
+    if (mappedAxes.length > 5 && mappedButtons[7]) {
       /** @type {number} */
-      const rtAxis = gp.axes[5];
+      const rtAxis = mappedAxes[5];
       if (rtAxis > 0.1 && !mappedButtons[7].pressed) {
         mappedButtons[7].pressed = true;
         mappedButtons[7].value = rtAxis;

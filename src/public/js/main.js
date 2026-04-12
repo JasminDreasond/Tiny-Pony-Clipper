@@ -802,8 +802,12 @@ const pollGamepad = () => {
       const rx = mappedData.axes[2]?.toFixed(2) || '0.00';
       /** @type {string} */
       const ry = mappedData.axes[3]?.toFixed(2) || '0.00';
+      /** @type {string} */
+      const tx = mappedData.axes[4]?.toFixed(2) || '0.00';
+      /** @type {string} */
+      const ty = mappedData.axes[5]?.toFixed(2) || '0.00';
 
-      debugText += `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br><br>`;
+      debugText += `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br><br>`;
     } else {
       // Cleanup ghost disconnections
       activeGamepadsCache.delete(index);
@@ -829,8 +833,12 @@ const pollGamepad = () => {
       const rx = axesVals[2]?.toFixed(2) || '0.00';
       /** @type {string} */
       const ry = axesVals[3]?.toFixed(2) || '0.00';
+      /** @type {string} */
+      const tx = axesVals[4]?.toFixed(2) || '0.00';
+      /** @type {string} */
+      const ty = axesVals[5]?.toFixed(2) || '0.00';
 
-      debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br>`;
+      debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br>`;
     }
 
     // Show virtual keyboard inputs ONLY on the Keyboard Tab
