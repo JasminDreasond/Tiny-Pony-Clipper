@@ -182,6 +182,8 @@ const profileAxesMap = {
   1: { name: 'LS Y', icon: 'img/kenney_input_xbox_series/xbox_stick_l_up.png' },
   2: { name: 'RS X', icon: 'img/kenney_input_xbox_series/xbox_stick_r_left.png' },
   3: { name: 'RS Y', icon: 'img/kenney_input_xbox_series/xbox_stick_r_up.png' },
+  4: { name: 'LT Axis', icon: 'img/kenney_input_xbox_series/xbox_lt.png' },
+  5: { name: 'RT Axis', icon: 'img/kenney_input_xbox_series/xbox_rt.png' },
 };
 
 /**
@@ -312,7 +314,7 @@ const renderProfileEditor = () => {
 
   // Clear and render the Axes grid using icons
   profileAxesGrid.innerHTML = '';
-  for (let i = 0; i <= 3; i++) {
+  for (let i = 0; i <= 5; i++) {
     /** @type {number} */
     const axisValue = profile.axes[i] !== undefined ? profile.axes[i] : i;
     const inputItem = createProfileInputItem(
@@ -337,7 +339,7 @@ btnCreateProfile.addEventListener('click', () => {
     name: 'New Profile',
     regex: '.*', // Capture any control by default until user changes
     buttons: Array.from({ length: 17 }, (_, i) => i), // 0 to 16 mapped in original order
-    axes: [0, 1, 2, 3], // Axis in original order
+    axes: [0, 1, 2, 3, 4, 5], // Axis in original order
     emulateTriggers: false,
   };
 
