@@ -1296,7 +1296,11 @@ export const remapGamepad = (gp) => {
 
   // Handle Trigger Emulation if enabled in profile
   if (activeProfile.emulateTriggers) {
-    if (mappedAxes.length > 4 && mappedButtons[6]) {
+    if (
+      mappedAxes.length > 4 &&
+      mappedButtons[6] &&
+      (mappedButtons[6].pressed || mappedAxes[4] !== 0)
+    ) {
       // Normalizes the axis from [-1, 1] to [0, 1]
       /** @type {number} */
       const ltAxis = (mappedAxes[4] + 1) / 2;
@@ -1306,7 +1310,11 @@ export const remapGamepad = (gp) => {
         mappedButtons[6].value = ltAxis;
       }
     }
-    if (mappedAxes.length > 5 && mappedButtons[7]) {
+    if (
+      mappedAxes.length > 5 &&
+      mappedButtons[7] &&
+      (mappedButtons[7].pressed || mappedAxes[5] !== 0)
+    ) {
       // Normalizes the axis from [-1, 1] to [0, 1]
       /** @type {number} */
       const rtAxis = (mappedAxes[5] + 1) / 2;
