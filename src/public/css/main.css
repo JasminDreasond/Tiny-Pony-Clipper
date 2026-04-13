@@ -442,14 +442,14 @@ textarea {
 }
 
 @keyframes pulseBtn {
-  0% {
-    box-shadow: 0 0 0 0 var(--shadow-light);
+  0% { 
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 70%, transparent); 
   }
-  70% {
-    box-shadow: 0 0 0 15px transparent;
+  70% { 
+    box-shadow: 0 0 0 15px color-mix(in srgb, var(--accent-green) 0%, transparent); 
   }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
+  100% { 
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 0%, transparent); 
   }
 }
 
