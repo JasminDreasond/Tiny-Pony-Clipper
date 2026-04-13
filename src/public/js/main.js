@@ -518,7 +518,7 @@ const initConnection = () => {
       }
     } else if (data.type === 'server_warning') {
       updateDebug(dbgPad, 'Limit Reached / Kicked!', 'error');
-      dbgInput.innerHTML += `<br><span style="color:#f38ba8; font-weight:bold;">${data.message}</span>`;
+      dbgInput.innerHTML += `<br><span style="color:var(--accent-red); font-weight:bold;">${data.message}</span>`;
       const msgErr = `Host Message: ${data.message}`;
       showDisconnectNotification(msgErr);
       sendBackgroundNotification('Tiny Pony Stream', msgErr);
@@ -807,7 +807,7 @@ const pollGamepad = () => {
       /** @type {string} */
       const ty = mappedData.buttons[7].value?.toFixed(2) || '0.00';
 
-      debugText += `<span style="color:#cba6f7;">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br><br>`;
+      debugText += `<span style="color:var(--accent-mauve);">Pad [${gp.index}]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br><br>`;
     } else {
       // Cleanup ghost disconnections
       activeGamepadsCache.delete(index);
@@ -838,7 +838,7 @@ const pollGamepad = () => {
       /** @type {string} */
       const ty = buttonVals[7].value?.toFixed(2) || '0.00';
 
-      debugText += `<span style="color:#a6e3a1;">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br>`;
+      debugText += `<span style="color:var(--accent-green);">[KB Pad]</span> - Btns Active: ${activeBtnsCount}<br>L: ${lx}, ${ly} | R: ${rx}, ${ry}<br/>T: ${tx}, ${ty}<br>`;
     }
 
     // Show virtual keyboard inputs ONLY on the Keyboard Tab
@@ -890,9 +890,16 @@ const initTheme = () => {
   /** @type {string | null} */
   const savedTheme = localStorage.getItem('pony_theme');
 
+  // Change HTML Theme Color meta tag
+  const updateMetaTheme = (theme) => {
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) metaTheme.setAttribute('content', theme === 'light' ? '#8839ef' : '#cba6f7');
+  };
+
   // Apply saved theme if it exists
   if (savedTheme) {
     document.documentElement.setAttribute('data-theme', savedTheme);
+    updateMetaTheme(savedTheme);
   }
 
   btnToggleTheme.addEventListener('click', () => {
@@ -918,7 +925,12 @@ const initTheme = () => {
     // Apply and save
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('pony_theme', newTheme);
+
+    updateMetaTheme(newTheme);
+    updateCanvasColors();
   });
+
+  updateCanvasColors();
 };
 
 // Execute theme initialization

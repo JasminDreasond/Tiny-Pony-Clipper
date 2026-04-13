@@ -92,7 +92,8 @@ const renderApiOrigins = () => {
   const origins = Object.keys(apiOrigins);
 
   if (origins.length === 0) {
-    apiOriginList.innerHTML = '<p style="text-align:center; color:#a6adc8;">No origins saved.</p>';
+    apiOriginList.innerHTML =
+      '<p style="text-align:center; color:var(--text-sub);">No origins saved.</p>';
     return;
   }
 
@@ -105,16 +106,16 @@ const renderApiOrigins = () => {
     row.style.display = 'flex';
     row.style.justifyContent = 'space-between';
     row.style.alignItems = 'center';
-    row.style.background = 'rgba(49, 50, 68, 0.6)';
+    row.style.background = 'var(--hud-btn-bg)';
     row.style.padding = '8px 12px';
     row.style.borderRadius = '6px';
 
     /** @type {string} */
-    const color = status === 'allowed' ? '#a6e3a1' : '#f38ba8';
+    const color = status === 'allowed' ? 'var(--accent-green)' : 'var(--accent-red)';
 
     row.innerHTML = `
       <span style="font-family: monospace; font-size: 13px; color: ${color};">${origin} (${status})</span>
-      <button style="width: auto; padding: 6px 10px; margin: 0; font-size: 12px; background: #45475a; color: #cdd6f4;">Remove</button>
+      <button style="width: auto; padding: 6px 10px; margin: 0; font-size: 12px; background: var(--bg-surface1); color: var(--text-main);">Remove</button>
     `;
 
     /** @type {HTMLButtonElement|null} */
