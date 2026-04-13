@@ -19,7 +19,18 @@ export const gotTheLock = app.requestSingleInstanceLock();
  * @returns {boolean} True if a CLI command is present, false otherwise.
  */
 export const isCLICommand = (args) => {
-  return args.some((arg) => ['--process-sdp', '--help', '--exit', 'exit'].includes(arg));
+  return args.some((arg) =>
+    [
+      '--process-sdp',
+      '--exit',
+      'exit',
+      '--help',
+      '--client-status',
+      '--client-connect-ip',
+      '--client-connect-sdp',
+      '--client-offer',
+    ].includes(arg),
+  );
 };
 
 /**
@@ -75,10 +86,14 @@ export const runCLIClient = (args) => {
       const helpOutput = {
         status: 'success',
         commands: {
-          '--process-sdp [base64]': 'Processes an SDP offer for P2P connection.',
+          '--process-sdp [base64]': 'Processes an SDP offer for P2P connection as the Host server.',
           '--exit': 'Closes the application and shuts down the server.',
-          exit: 'Alternative to the --exit command.',
-          '--help': 'Shows this list of commands.',
+          '--client-status': 'Checks the active playing status of the local Remote Play Client.',
+          '--client-connect-ip [ip] [pass]':
+            'Forces the local Remote Play Client to connect to an IP.',
+          '--client-connect-sdp [base64]':
+            'Forces the local Remote Play Client to connect using SDP.',
+          '--client-offer': 'Generates a WebRTC Offer from the local Remote Play Client.',
           '--force-stream [true/false]': 'Forces the server to start on initialization.',
           '--stream-port [port]': 'Sets the WebSocket/HTTP server port.',
           '--stream-password [password]': 'Sets the stream access password.',
@@ -95,20 +110,38 @@ export const runCLIClient = (args) => {
 
     /** @type {string} */
     const callerApp = getCallerExecutable();
-    /** @type {string | null} */
-    let commandToSend = null;
+    /** @type {{ cmd: string; action?: string; data?: string; host?: string; past?: string; } | null} */
+    let commandPayload = null;
 
     if (args.includes('--exit') || args.includes('exit')) {
-      commandToSend = 'CMD_EXIT';
-    } else {
-      /** @type {number} */
-      const sdpIndex = args.indexOf('--process-sdp');
-      if (sdpIndex !== -1 && sdpIndex !== args.length - 1) {
-        commandToSend = args[sdpIndex + 1];
+      commandPayload = { cmd: 'CMD_EXIT' };
+    } else if (args.includes('--process-sdp')) {
+      const idx = args.indexOf('--process-sdp');
+      if (idx !== -1 && idx !== args.length - 1) {
+        commandPayload = { cmd: 'CMD_PROCESS_SDP', data: args[idx + 1] };
+      }
+    } else if (args.includes('--client-status')) {
+      commandPayload = { cmd: 'CMD_API', action: 'check_session_status' };
+    } else if (args.includes('--client-offer')) {
+      commandPayload = { cmd: 'CMD_API', action: 'generate_offer' };
+    } else if (args.includes('--client-connect-ip')) {
+      const idx = args.indexOf('--client-connect-ip');
+      if (idx !== -1 && args.length >= idx + 3) {
+        commandPayload = {
+          cmd: 'CMD_API',
+          action: 'connect_ip',
+          host: args[idx + 1],
+          pass: args[idx + 2],
+        };
+      }
+    } else if (args.includes('--client-connect-sdp')) {
+      const idx = args.indexOf('--client-connect-sdp');
+      if (idx !== -1 && args.length >= idx + 2) {
+        commandPayload = { cmd: 'CMD_API', action: 'connect_sdp', answer: args[idx + 1] };
       }
     }
 
-    if (!commandToSend) {
+    if (!commandPayload) {
       console.log(
         JSON.stringify({ status: 'error', error: 'Invalid command or missing arguments!' }),
       );
@@ -116,9 +149,11 @@ export const runCLIClient = (args) => {
       return;
     }
 
+    commandPayload.caller = callerApp;
+
     /** @type {net.Socket} */
     const client = net.createConnection(PIPE_PATH, () => {
-      client.write(JSON.stringify({ cmd: commandToSend, caller: callerApp }));
+      client.write(JSON.stringify(commandPayload));
     });
 
     client.on('data', (data) => {
@@ -146,21 +181,20 @@ export const runCLIClient = (args) => {
  *
  * @param {function(string): Promise<string | null>} processSdpCallback - Callback function to handle SDP processing.
  * @param {function(string): Promise<boolean>} authCallback
- * @returns {net.Server} The active network server instance.
+ * @param {function(Object): Promise<Object>} clientApiCallback
+ * @returns {net.Server}
  */
-export const startCLIServer = (processSdpCallback, authCallback) => {
+export const startCLIServer = (processSdpCallback, authCallback, clientApiCallback) => {
   /** @type {net.Server} */
   const server = net.createServer((socket) => {
     socket.on('data', async (data) => {
-      /** @type {string} */
-      let payloadString;
+      /** @type {Object} */
+      let parsed;
       /** @type {string} */
       let callerApp;
 
       try {
-        /** @type {Object} */
-        const parsed = JSON.parse(data.toString().trim());
-        payloadString = parsed.cmd;
+        parsed = JSON.parse(data.toString().trim());
         callerApp = parsed.caller || 'Unknown Application';
       } catch (e) {
         socket.write(JSON.stringify({ status: 'error', error: 'Malformed JSON payload from CLI' }));
@@ -176,7 +210,7 @@ export const startCLIServer = (processSdpCallback, authCallback) => {
         return;
       }
 
-      if (payloadString === 'CMD_EXIT') {
+      if (parsed.cmd === 'CMD_EXIT') {
         socket.write(
           JSON.stringify({ status: 'success', message: 'Application is shutting down.' }),
         );
@@ -190,8 +224,8 @@ export const startCLIServer = (processSdpCallback, authCallback) => {
       /** @type {number} */
       const timeDiff = now - lastExecutionTime;
 
-      if (timeDiff < RATE_LIMIT_MS) {
-        /** @type {number} */
+      // Rate limit bypasses status checks so scripts don't hang if just polling
+      if (timeDiff < RATE_LIMIT_MS && parsed.action !== 'check_session_status') {
         const remaining = (RATE_LIMIT_MS - timeDiff) / 1000;
         socket.write(
           JSON.stringify({
@@ -207,29 +241,31 @@ export const startCLIServer = (processSdpCallback, authCallback) => {
       lastExecutionTime = now;
 
       try {
-        /** @type {string} */
-        const offerString = await decompressFromBase64(payloadString);
-        JSON.parse(offerString);
+        if (parsed.cmd === 'CMD_PROCESS_SDP') {
+          const offerString = await decompressFromBase64(parsed.data);
+          JSON.parse(offerString);
 
-        /** @type {string | null} */
-        const answerString = await processSdpCallback(offerString);
+          const answerString = await processSdpCallback(offerString);
+          if (!answerString) {
+            socket.write(
+              JSON.stringify({ status: 'error', error: 'Server failed to generate an answer' }),
+            );
+            socket.end();
+            return;
+          }
 
-        if (!answerString) {
-          socket.write(
-            JSON.stringify({ status: 'error', error: 'Server failed to generate an answer' }),
-          );
-          socket.end();
-          return;
+          const b64Answer = await compressToBase64(answerString);
+          socket.write(JSON.stringify({ status: 'success', data: b64Answer }));
+        } else if (parsed.cmd === 'CMD_API') {
+          // Send request to the Hosted Client Window!
+          const apiResponse = await clientApiCallback(parsed);
+          socket.write(JSON.stringify(apiResponse));
         }
-
-        /** @type {string} */
-        const b64Answer = await compressToBase64(answerString);
-        socket.write(JSON.stringify({ status: 'success', data: b64Answer }));
       } catch (error) {
         socket.write(
           JSON.stringify({
             status: 'error',
-            error: 'Invalid SDP payload or processing failure',
+            error: 'Processing failure',
             details: error instanceof Error ? error.message : String(error),
           }),
         );
@@ -287,10 +323,8 @@ export const reorganizeArgv = (argv) => {
   // Pair flags with values based on discovery order
   flagsNeedingValues.forEach((flag) => {
     reconstructed.push(flag);
-    if (values.length > 0) {
-      // Shift the first available value to pair with this flag
-      reconstructed.push(values.shift());
-    }
+    // Shift the first available value to pair with this flag
+    if (values.length > 0) reconstructed.push(values.shift());
   });
 
   // Append self-contained flags (--key=value) and remaining positionals
@@ -307,17 +341,10 @@ const invertFlagsConfig = (config) => {
   const entries = Object.entries(config);
 
   /** @type {Object.<string, string>} */
-  const inverted = entries.reduce((acc, [flag, [propName]]) => {
-    /** @type {string} */
-    const key = propName;
-    /** @type {string} */
-    const value = flag;
-
-    acc[key] = value;
+  return entries.reduce((acc, [flag, [propName]]) => {
+    acc[propName] = flag;
     return acc;
   }, {});
-
-  return inverted;
 };
 
 /**

@@ -998,7 +998,7 @@ if (gotTheLock) {
      * @param {GlobalRequest} request - The intercepted network request.
      * @returns {Promise<GlobalResponse>} The fetched local file response.
      */
-    protocol.handle('app', (request) => {
+    protocol.handle('app', async (request) => {
       /** @type {URL} */
       const requestUrl = new URL(request.url);
 
@@ -1010,8 +1010,34 @@ if (gotTheLock) {
         targetPath = path.join(targetPath, 'index.html');
       }
 
-      // Convert the absolute file path to a valid file:// URL for net.fetch
-      return net.fetch(pathToFileURL(targetPath).href);
+      // Fetch the file from the local disk
+      /** @type {GlobalResponse} */
+      const response = await net.fetch(pathToFileURL(targetPath).href);
+
+      // Clone headers and force No-Cache to prevent memory/disk caching on the app:// protocol
+      /** @type {Headers} */
+      const headers = new Headers(response.headers);
+      headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      headers.set('Pragma', 'no-cache');
+      headers.set('Expires', '0');
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: headers,
+      });
+    });
+
+    // --- CLI TO PUBLIC CLIENT BRIDGE ---
+    ipcMain.on('api-response-from-client', (event, responseData) => {
+      /** @type {string | undefined} */
+      const requestId = responseData.requestId;
+      if (requestId && pendingCliResolves.has(requestId)) {
+        /** @type {function(Object | null): void} */
+        const resolve = pendingCliResolves.get(requestId);
+        resolve(responseData);
+        pendingCliResolves.delete(requestId);
+      }
     });
 
     // Expose gamepad status to the UI

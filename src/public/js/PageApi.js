@@ -17,19 +17,15 @@ import {
 import { openModal, closeModal } from './Modal.js';
 import { sendBackgroundNotification } from './Notification.js';
 
-// --- API BRIDGE & SERVICE WORKER LOGIC ---
+// --- API BRIDGE LOGIC ---
 
 /** @type {Record<string, string>} */
 let apiOrigins = JSON.parse(localStorage.getItem('pony_api_origins') || '{}');
 
-/**
- * @type {{ origin: string, payload: Object, timer: NodeJS.Timeout } | null}
- */
+/** @type {{ origin: string, payload: Object, timer: NodeJS.Timeout } | null} */
 let pendingApiRequest = null;
 
-/**
- * @type {{ reqId: string, origin: string } | null}
- */
+/** @type {{ reqId: string, origin: string } | null} */
 export let activeApiConnection = null;
 
 /** @type {boolean} */
@@ -45,6 +41,13 @@ const processedRequests = new Set();
 
 /** @type {(() => Promise<string>) | null} */
 export let onGenerateOffer = null;
+
+/**
+ * Checks if the application is currently running securely within the Electron wrapper
+ * via the custom local protocol.
+ * @type {boolean}
+ */
+const isNativeAppProtocol = window.location.protocol === 'app:';
 
 /**
  * @param {() => Promise<string>} cb
@@ -127,6 +130,8 @@ const renderApiOrigins = () => {
 };
 
 /**
+ * Sends the response back either to the Service Worker (Web) or directly to the Preload Bridge (App).
+ *
  * @param {string} requestId
  * @param {string} origin
  * @param {'success' | 'error'} status
@@ -136,16 +141,17 @@ const renderApiOrigins = () => {
  * @returns {void}
  */
 const sendApiResponse = (requestId, origin, status, code, message, data = null) => {
-  if (navigator.serviceWorker.controller && requestId) {
-    navigator.serviceWorker.controller.postMessage({
-      type: 'api_response',
-      requestId,
-      origin,
-      status,
-      code,
-      message,
-      data,
-    });
+  if (!requestId) return;
+
+  /** @type {Object} */
+  const payload = { type: 'api_response', requestId, origin, status, code, message, data };
+
+  if (isNativeAppProtocol) {
+    // If native, blast it to window for preload-public.js to catch
+    window.postMessage(payload, '*');
+  } else if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    // If web, send it to the Service Worker Controller
+    navigator.serviceWorker.controller.postMessage(payload);
   }
 };
 
@@ -157,10 +163,7 @@ const sendApiResponse = (requestId, origin, status, code, message, data = null) 
 export const resolveApiConnection = (success, errorMsg = '') => {
   if (!activeApiConnection) return;
 
-  /** @type {string} */
-  const reqId = activeApiConnection.reqId;
-  /** @type {string} */
-  const origin = activeApiConnection.origin;
+  const { reqId, origin } = activeApiConnection;
 
   if (success) {
     sendApiResponse(
@@ -185,9 +188,7 @@ export const resolveApiConnection = (success, errorMsg = '') => {
  */
 const isValidHost = (host) => {
   if (typeof host !== 'string' || host.length > 255 || host.length < 3) return false;
-  /** @type {RegExp} */
-  const hostRegex = /^(?:wss?:\/\/)?(?:[a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(?::\d{1,5})?(?:\/.*)?$/;
-  return hostRegex.test(host);
+  return /^(?:wss?:\/\/)?(?:[a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(?::\d{1,5})?(?:\/.*)?$/.test(host);
 };
 
 /**
@@ -196,9 +197,7 @@ const isValidHost = (host) => {
  */
 const isValidBase64 = (b64) => {
   if (typeof b64 !== 'string' || b64.length > 15000 || b64.length < 10) return false;
-  /** @type {RegExp} */
-  const base64Regex = /^[A-Za-z0-9+/=]+$/;
-  return base64Regex.test(b64.trim());
+  return /^[A-Za-z0-9+/=]+$/.test(b64.trim());
 };
 
 /**
@@ -345,9 +344,7 @@ btnManageApiOrigins.addEventListener('click', () => {
   openModal(apiManagerModal);
 });
 
-btnCloseApiManager.addEventListener('click', () => {
-  closeModal(apiManagerModal);
-});
+btnCloseApiManager.addEventListener('click', () => closeModal(apiManagerModal));
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && apiManagerModal.classList.contains('modal-enter')) {
@@ -355,176 +352,203 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Service Worker Registration and Message Handling
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(() => {
-    console.log('[SW] Service Worker Registered for Main App');
-  });
+/**
+ * Universal handler for processing both ServiceWorker and Native IPC API Requests.
+ *
+ * @param {Object} data
+ * @returns {Promise<void>}
+ */
+const handleIncomingApiRequest = async (data) => {
+  if (data && data.type === 'api_request') {
+    /** @type {string|undefined} */
+    const reqId = data.payload.requestId;
 
-  navigator.serviceWorker.addEventListener('message', async (event) => {
-    /** @type {Object} */
-    const data = event.data;
-
-    if (data && data.type === 'api_request') {
-      /** @type {string|undefined} */
-      const reqId = data.payload.requestId;
-
-      if (reqId) {
-        if (processedRequests.has(reqId)) {
-          console.warn(`[API] Duplicate request blocked: ${reqId}`);
-          sendApiResponse(
-            reqId,
-            data.origin,
-            'error',
-            'ERR_DUPLICATE_REQUEST',
-            'This requestId is already in use.',
-          );
-          return;
-        }
-
-        processedRequests.add(reqId);
-        setTimeout(() => processedRequests.delete(reqId), 600000);
-      }
-
-      /** @type {number} */
-      const now = Date.now();
-
-      if (now - lastApiRequestTime < RATE_LIMIT_MS) {
-        console.warn(`[API] Rate limit hit from: ${data.origin}`);
-        if (reqId)
-          sendApiResponse(
-            reqId,
-            data.origin,
-            'error',
-            'ERR_RATE_LIMIT',
-            'Too many requests. Please slow down.',
-          );
-        return;
-      }
-      lastApiRequestTime = now;
-
-      /** @type {boolean} */
-      const isPing = data.payload.action === 'ping';
-
-      // Ping is silent and bypasses permission modals and busy states
-      if (isPing) {
-        if (reqId)
-          sendApiResponse(
-            reqId,
-            data.origin,
-            'success',
-            'SUCCESS_CLIENT_ALIVE',
-            'The client is open and ready.',
-            { alive: true },
-          );
+    if (reqId) {
+      if (processedRequests.has(reqId)) {
+        console.warn(`[API] Duplicate request blocked: ${reqId}`);
+        sendApiResponse(
+          reqId,
+          data.origin,
+          'error',
+          'ERR_DUPLICATE_REQUEST',
+          'This requestId is already in use.',
+        );
         return;
       }
 
-      /** @type {string} */
-      const originStatus = apiOrigins[data.origin];
-      /** @type {boolean} */
-      const isStatusCheck = data.payload.action === 'check_session_status';
+      processedRequests.add(reqId);
+      setTimeout(() => processedRequests.delete(reqId), 600000);
+    }
 
-      // BLINK: Intercept and reject if the player is already busy with an active stream!
-      if (document.body.classList.contains('is-playing')) {
-        if (isStatusCheck && originStatus === 'allowed') {
-          // Allows you to check invisibly if the site is already reliable
-        } else {
-          console.warn(`[API] Ignoring request of ${data.origin} - The player is in a room.`);
-          if (reqId)
-            sendApiResponse(
-              reqId,
-              data.origin,
-              'error',
-              'ERR_BUSY',
-              'The player is currently busy playing a game.',
-            );
-          return;
-        }
-      }
+    /** @type {number} */
+    const now = Date.now();
 
-      // Universal blocker of shelled requests
-      if (!isStatusCheck && (isAuthenticating || activeApiConnection || pendingApiRequest)) {
-        console.warn(`[API] Ignoring request of ${data.origin} - Busy client.`);
+    if (
+      now - lastApiRequestTime < RATE_LIMIT_MS &&
+      data.payload.action !== 'check_session_status'
+    ) {
+      console.warn(`[API] Rate limit hit from: ${data.origin}`);
+      if (reqId)
+        sendApiResponse(
+          reqId,
+          data.origin,
+          'error',
+          'ERR_RATE_LIMIT',
+          'Too many requests. Please slow down.',
+        );
+      return;
+    }
+    lastApiRequestTime = now;
+
+    /** @type {boolean} */
+    const isPing = data.payload.action === 'ping';
+
+    // Ping is silent and bypasses permission modals and busy states
+    if (isPing) {
+      if (reqId)
+        sendApiResponse(
+          reqId,
+          data.origin,
+          'success',
+          'SUCCESS_CLIENT_ALIVE',
+          'The client is open and ready.',
+          { alive: true },
+        );
+      return;
+    }
+
+    /** @type {string} */
+    const originStatus = apiOrigins[data.origin];
+    /** @type {boolean} */
+    const isStatusCheck = data.payload.action === 'check_session_status';
+
+    // BLINK: Intercept and reject if the player is already busy with an active stream!
+    if (document.body.classList.contains('is-playing')) {
+      if (!isStatusCheck || originStatus !== 'allowed') {
+        console.warn(`[API] Ignoring request of ${data.origin} - The player is in a room.`);
         if (reqId)
           sendApiResponse(
             reqId,
             data.origin,
             'error',
             'ERR_BUSY',
-            'The client is currently busy processing another request.',
+            'The player is currently busy playing a game.',
           );
         return;
       }
+    }
 
-      if (originStatus === 'allowed') {
-        /** @type {{ valid: boolean, error?: string, data?: any }} */
-        const result = await executeApiPayload(data.payload);
+    // Universal blocker of shelled requests
+    if (!isStatusCheck && (isAuthenticating || activeApiConnection || pendingApiRequest)) {
+      console.warn(`[API] Ignoring request of ${data.origin} - Busy client.`);
+      if (reqId)
+        sendApiResponse(
+          reqId,
+          data.origin,
+          'error',
+          'ERR_BUSY',
+          'The client is currently busy processing another request.',
+        );
+      return;
+    }
 
-        if (reqId) {
-          if (result.valid) {
-            if (data.payload.action === 'generate_offer') {
-              sendApiResponse(
-                reqId,
-                data.origin,
-                'success',
-                'SUCCESS_OFFER_GENERATED',
-                'Offer generated successfully',
-                result.data,
-              );
-            } else if (data.payload.action === 'check_session_status') {
-              sendApiResponse(
-                reqId,
-                data.origin,
-                'success',
-                'SUCCESS_STATUS_CHECKED',
-                'Status retrieved successfully',
-                result.data,
-              );
-            } else {
-              activeApiConnection = { reqId, origin: data.origin };
-            }
-          } else {
+    if (originStatus === 'allowed') {
+      /** @type {{ valid: boolean, error?: string, data?: any }} */
+      const result = await executeApiPayload(data.payload);
+
+      if (reqId) {
+        if (result.valid) {
+          if (data.payload.action === 'generate_offer') {
             sendApiResponse(
               reqId,
               data.origin,
-              'error',
-              'ERR_INVALID_PAYLOAD',
-              result.error || 'Invalid payload format',
+              'success',
+              'SUCCESS_OFFER_GENERATED',
+              'Offer generated successfully',
+              result.data,
             );
+          } else if (data.payload.action === 'check_session_status') {
+            sendApiResponse(
+              reqId,
+              data.origin,
+              'success',
+              'SUCCESS_STATUS_CHECKED',
+              'Status retrieved successfully',
+              result.data,
+            );
+          } else {
+            activeApiConnection = { reqId, origin: data.origin };
           }
-        }
-      } else if (originStatus === 'blocked') {
-        console.warn(`[API] Blocked request from: ${data.origin}`);
-        if (reqId)
+        } else {
           sendApiResponse(
             reqId,
             data.origin,
             'error',
-            'ERR_BLOCKED',
-            'Origin is permanently blocked',
+            'ERR_INVALID_PAYLOAD',
+            result.error || 'Invalid payload format',
           );
-      } else {
-        apiAuthOriginText.textContent = data.origin;
-        openModal(apiAuthModal);
-
-        pendingApiRequest = {
-          origin: data.origin,
-          payload: data.payload,
-          timer: setTimeout(() => {
-            if (pendingApiRequest && pendingApiRequest.payload.requestId === reqId) {
-              sendApiResponse(
-                reqId,
-                data.origin,
-                'error',
-                'ERR_TIMEOUT',
-                'User did not respond in time',
-              );
-              clearPendingRequest();
-            }
-          }, 30000),
-        };
+        }
       }
+    } else if (originStatus === 'blocked') {
+      console.warn(`[API] Blocked request from: ${data.origin}`);
+      if (reqId)
+        sendApiResponse(
+          reqId,
+          data.origin,
+          'error',
+          'ERR_BLOCKED',
+          'Origin is permanently blocked',
+        );
+    } else {
+      // Differentiates the Modal Text if it's the internal CLI to make it less scary for local users
+      if (data.origin === 'Local System (CLI)') {
+        document.querySelector('#apiAuthModal p').textContent =
+          'Your local machine (CLI Terminal) is trying to interact with your client.';
+      } else {
+        document.querySelector('#apiAuthModal p').textContent =
+          'An external application is trying to connect to your client.';
+      }
+
+      apiAuthOriginText.textContent = data.origin;
+      openModal(apiAuthModal);
+
+      pendingApiRequest = {
+        origin: data.origin,
+        payload: data.payload,
+        timer: setTimeout(() => {
+          if (pendingApiRequest && pendingApiRequest.payload.requestId === reqId) {
+            sendApiResponse(
+              reqId,
+              data.origin,
+              'error',
+              'ERR_TIMEOUT',
+              'User did not respond in time',
+            );
+            clearPendingRequest();
+          }
+        }, 30000),
+      };
     }
+  }
+};
+
+// --- ROUTER: ServiceWorker vs Native Window IPC ---
+
+if (isNativeAppProtocol) {
+  console.log('[API ROUTER] App Native Protocol Detected. SW Disabled. Using IPC Bridge.');
+
+  // Listens to direct messages dispatched by preload-public.js
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    handleIncomingApiRequest(event.data);
+  });
+} else if ('serviceWorker' in navigator) {
+  console.log('[API ROUTER] Web Protocol Detected. Registering Service Worker.');
+  navigator.serviceWorker.register('/sw.js').then(() => {
+    console.log('[SW] Service Worker Registered for Main App');
+  });
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    handleIncomingApiRequest(event.data);
   });
 }

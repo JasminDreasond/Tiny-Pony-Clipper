@@ -51,7 +51,13 @@ import {
 import { showAlert } from './Modal.js';
 import { sendBackgroundNotification } from './Notification.js';
 import { resolveApiConnection, setAuthenticating, setGenerateOfferCallback } from './PageApi.js';
-import { remapGamepad, virtualPad, visualizerPad, isGamepadAllowed } from './GamepadInput.js';
+import {
+  remapGamepad,
+  virtualPad,
+  visualizerPad,
+  isGamepadAllowed,
+  updateCanvasColors,
+} from './GamepadInput.js';
 import { startPlayTimer, stopPlayTimer, bypassWelcome } from './Welcome.js';
 
 /** @type {NodeJS.Timeout | null} */
