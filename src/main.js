@@ -10,11 +10,15 @@ import {
   desktopCapturer,
   shell,
   nativeImage,
+  protocol,
+  net,
 } from 'electron';
 import { spawn } from 'child_process';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
+import { pathToFileURL } from 'url';
+
 import { sendNotification } from './utils/Notification.js';
 import {
   appIconPath,
@@ -47,6 +51,23 @@ import {
 } from './cli.js';
 
 import { checkAuth, setAuth, loadAuthList, removeAuth } from './utils/AuthManager.js';
+
+/**
+ * Register custom protocols as standard and secure before the app is ready.
+ * This allows absolute paths (/) in HTML to resolve correctly to the protocol's root.
+ */
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      corsEnabled: true,
+    },
+  },
+]);
 
 ipcMain.on('console.log', (event, ...args) => console.log(...args));
 ipcMain.on('console.error', (event, ...args) => console.error(...args));
@@ -874,6 +895,91 @@ const toggleConfigWindow = () => {
   }
 };
 
+/**
+ * Updates the system tray context menu dynamically based on the Remote Play window state.
+ *
+ * @param {boolean} isRemotePlayOpen - Indicates whether the Remote Play window is currently open.
+ * @returns {void}
+ */
+const updateTrayMenu = (isRemotePlayOpen) => {
+  if (!tray) return;
+
+  /**
+   * @type {string}
+   * The dynamic label for the Remote Play tray button.
+   */
+  const remotePlayLabel = isRemotePlayOpen ? 'View Remote Play Client' : 'Open Remote Play Client';
+
+  /**
+   * @type {import('electron').MenuItemConstructorOptions[]}
+   * The template array for the tray context menu.
+   */
+  const menuTemplate = [
+    { label: 'Settings', click: createConfigWindow },
+    { label: remotePlayLabel, click: createRemotePlayWindow },
+    { type: 'separator' },
+    { label: 'Quit', click: () => app.quit() },
+  ];
+
+  tray.setContextMenu(Menu.buildFromTemplate(menuTemplate));
+};
+
+/**
+ * Creates, maximizes, and focuses the Remote Play client window.
+ *
+ * @returns {void}
+ */
+const createRemotePlayWindow = () => {
+  // If the window already exists, we ensure it gets restored, maximized, and focused
+  if (windowsCache.remotePlayWindow) {
+    if (windowsCache.remotePlayWindow.isMinimized()) windowsCache.remotePlayWindow.restore();
+    if (!windowsCache.remotePlayWindow.isVisible()) windowsCache.remotePlayWindow.show();
+    
+    windowsCache.remotePlayWindow.maximize();
+    windowsCache.remotePlayWindow.focus();
+    return;
+  }
+
+  console.log('[UI] Requesting Remote Play window...');
+
+  windowsCache.remotePlayWindow = new BrowserWindow({
+    width: 1024, // Fallback width
+    height: 768, // Fallback height
+    show: false,
+    autoHideMenuBar: true,
+    icon: icoImg,
+    webPreferences: {
+      preload: path.join(srcFolder, 'preload-public.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  // Loading via our custom protocol
+  windowsCache.remotePlayWindow.loadURL('app://localhost/');
+
+  // Wait for the window to be fully ready before maximizing and showing it
+  windowsCache.remotePlayWindow.once('ready-to-show', () => {
+    console.log('[UI] Remote Play window ready to show. Maximizing...');
+    windowsCache.remotePlayWindow.maximize();
+    windowsCache.remotePlayWindow.show();
+  });
+
+  windowsCache.remotePlayWindow.on('closed', () => {
+    console.log('[UI] Remote Play window closed.');
+    // Completely destroy the reference
+    windowsCache.remotePlayWindow = null;
+    // Revert the tray menu label
+    updateTrayMenu(false);
+  });
+};
+
+// IPC listener to change the tray name when the preload sends the signal
+ipcMain.on('remote-play-ready', () => {
+  console.log('[IPC] Remote Play client signaled ready. Updating tray...');
+  updateTrayMenu(true);
+});
+
 if (gotTheLock) {
   app.whenReady().then(async () => {
     if (!isFFmpegInstalled()) {
@@ -884,6 +990,29 @@ if (gotTheLock) {
       app.quit();
       return;
     }
+
+    /**
+     * Intercepts the custom 'app://' protocol to serve local files from the public directory.
+     * Emulates a web server root path environment.
+     *
+     * @param {GlobalRequest} request - The intercepted network request.
+     * @returns {Promise<GlobalResponse>} The fetched local file response.
+     */
+    protocol.handle('app', (request) => {
+      /** @type {URL} */
+      const requestUrl = new URL(request.url);
+
+      /** @type {string} */
+      let targetPath = path.join(srcFolder, 'public', requestUrl.pathname);
+
+      // Fallback: If the path points to a directory, serve index.html by default
+      if (fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()) {
+        targetPath = path.join(targetPath, 'index.html');
+      }
+
+      // Convert the absolute file path to a valid file:// URL for net.fetch
+      return net.fetch(pathToFileURL(targetPath).href);
+    });
 
     // Expose gamepad status to the UI
     ipcMain.handle('get-gamepad-status', () => canAccessUinput());
@@ -1214,13 +1343,10 @@ if (gotTheLock) {
     try {
       tray = new Tray(icoImg);
       tray.setToolTip('Tiny Pony Clipper');
-      tray.setContextMenu(
-        Menu.buildFromTemplate([
-          { label: 'Settings', click: createConfigWindow },
-          { type: 'separator' },
-          { label: 'Quit', click: () => app.quit() },
-        ]),
-      );
+
+      // Initialize the tray menu with the window closed by default
+      updateTrayMenu(false);
+
       tray.on('click', toggleConfigWindow);
       console.log('[TRAY] Tray setup completed successfully.');
     } catch (error) {

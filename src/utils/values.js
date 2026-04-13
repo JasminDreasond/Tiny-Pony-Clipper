@@ -14,6 +14,8 @@ export const windowsCache = {
   configWindow: null,
   /** @type {Electron.CrossProcessExports.BrowserWindow | null} */
   captureWindow: null,
+  /** @type {Electron.CrossProcessExports.BrowserWindow | null} */
+  remotePlayWindow: null,
 };
 
 export const rootFolder = path.join(__dirname, '../../');

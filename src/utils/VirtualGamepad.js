@@ -296,13 +296,13 @@ const updateWindowsState = (pad, state, session, padType) => {
   state.buttons.forEach((btn, i) => {
     /**
      * @type {boolean}
-     * @description Identifies if the button corresponds to L2 or R2 analog triggers.
+     * Identifies if the button corresponds to L2 or R2 analog triggers.
      */
     const isTrigger = i === 6 || i === 7;
 
     /**
      * @type {boolean}
-     * @description Identifies if the button corresponds to the directional pad.
+     * Identifies if the button corresponds to the directional pad.
      */
     const isDpad = i >= 12 && i <= 15;
 
@@ -329,7 +329,7 @@ const updateWindowsState = (pad, state, session, padType) => {
 
       /**
        * @type {number}
-       * @description Scales the trigger value from 0.0-1.0 to 0-255 for both DS4 and X360 hardware.
+       * Scales the trigger value from 0.0-1.0 to 0-255 for both DS4 and X360 hardware.
        */
       const scaledValue = Math.floor(btn.value * 255);
 
@@ -420,7 +420,7 @@ const applyDpadState = (pad, index, isPressed) => {
 const getWindowsButtonName = (index, isDS4) => {
   /**
    * @type {Record<number, string>}
-   * @description Standard mapping for X360 buttons, excluding D-Pad and Triggers.
+   * Standard mapping for X360 buttons, excluding D-Pad and Triggers.
    */
   const x360Map = {
     0: 'A',
@@ -438,7 +438,7 @@ const getWindowsButtonName = (index, isDS4) => {
 
   /**
    * @type {Record<number, string>}
-   * @description Standard mapping for DS4 buttons, excluding D-Pad and Triggers.
+   * Standard mapping for DS4 buttons, excluding D-Pad and Triggers.
    */
   const ds4Map = {
     0: 'CROSS',
