@@ -40,6 +40,9 @@ sudo apt update
 sudo apt install ffmpeg pulseaudio-utils libnotify-bin
 ```
 
+### 🎮 Virtual Gamepad Support (uinput)
+To use the **Remote Play Server**, the application needs permission to write to `/dev/uinput`.
+
 #### Win32
 
 Ensure your system has the following packages installed:
@@ -52,9 +55,6 @@ On your machine, you can install ffmpeg via:
 ```bash
 choco install ffmpeg
 ```
-
-### 🎮 Virtual Gamepad Support (uinput)
-To use the **Remote Play Server**, the application needs permission to write to `/dev/uinput`.
 
 ## 🚀 How to Use
 
