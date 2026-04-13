@@ -28,6 +28,8 @@ export const sdpSection = document.getElementById('manualClientSection');
 export const clientIdHud = document.getElementById('clientIdHud');
 /** @type {HTMLElement} */
 export const dbgPing = document.getElementById('dbgPing');
+/** @type {HTMLButtonElement} */
+export const btnToggleTheme = document.getElementById('btnToggleTheme');
 
 // Keyboard Gamepad UI
 /** @type {HTMLInputElement} */

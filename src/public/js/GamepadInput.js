@@ -187,7 +187,7 @@ const profileAxesMap = {
 };
 
 /**
- * Creates a visual input box for the profile editor grid.
+ * Creates a visual input box for the profile editor grid using CSS variables.
  *
  * @param {number} index
  * @param {number} value
@@ -202,16 +202,16 @@ const createProfileInputItem = (index, value, isReadonly, info, limits, type) =>
   wrapper.style.display = 'flex';
   wrapper.style.flexDirection = 'column';
   wrapper.style.alignItems = 'center';
-  wrapper.style.background = '#181825';
+  wrapper.style.background = 'var(--bg-mantle)';
   wrapper.style.padding = '4px';
   wrapper.style.borderRadius = '4px';
-  wrapper.style.border = '1px solid #313244';
+  wrapper.style.border = '1px solid var(--bg-surface0)';
 
   /** @type {string} */
   const iconHtml =
     info && info.icon
       ? `<img src="${info.icon}" alt="${info.name}" title="${info.name}" style="height: 20px; margin-bottom: 4px;" />`
-      : `<span style="font-size: 11px; color: #bac2de; margin-bottom: 4px; font-weight: bold;">${info ? info.name : `IDX ${index}`}</span>`;
+      : `<span style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: bold;">${info ? info.name : `IDX ${index}`}</span>`;
 
   wrapper.innerHTML = `${iconHtml}<input type="number" min="${limits[0]}" max="${limits[1]}" style="width: 100%; text-align: center; box-sizing: border-box;" />`;
 
@@ -738,6 +738,25 @@ let awaitingBind = null;
 /** @type {number|null} */
 let animFrameId = null;
 
+// Dynamic Canvas Colors Holder
+export let parsedColors = {};
+
+/**
+ * Extracts CSS variables to paint the canvas dynamically according to the active theme.
+ * @returns {void}
+ */
+export const updateCanvasColors = () => {
+  const rs = getComputedStyle(document.documentElement);
+  parsedColors = {
+    bodyBase: rs.getPropertyValue('--bg-base').trim() || '#1e1e2e',
+    bodyTop: rs.getPropertyValue('--bg-surface0').trim() || '#313244',
+    btnBase: rs.getPropertyValue('--bg-surface1').trim() || '#45475a',
+    btnPressed: rs.getPropertyValue('--accent-mauve').trim() || '#cba6f7',
+    shadow: rs.getPropertyValue('--shadow-medium').trim() || 'rgba(0, 0, 0, 0.4)',
+    bgBase: rs.getPropertyValue('--bg-mantle').trim() || '#181825',
+  };
+};
+
 /**
  * @returns {void}
  */
@@ -776,36 +795,15 @@ const drawGamepadCanvas = () => {
   ctx.clearRect(0, 0, 300, 180);
 
   /**
-   * Catppuccin Palette
-   * @type {{
-   * bodyBase: string,
-   * bodyTop: string,
-   * btnBase: string,
-   * btnPressed: string,
-   * shadow: string,
-   * glow: string,
-   * bgBase: string
-   * }}
-   */
-  const colors = {
-    bodyBase: '#1e1e2e', // Darker Base (Mocha)
-    bodyTop: '#313244', // Surface (Surface 0)
-    btnBase: '#45475a', // Button (Surface 1)
-    btnPressed: '#cba6f7', // Pressed (Mauve)
-    shadow: 'rgba(0, 0, 0, 0.4)',
-    glow: 'rgba(203, 166, 247, 0.6)', // Mauve Brightness
-    bgBase: '#181825', // Cavity (Crust)
-  };
-
-  /**
    * Reusable style functions
    * @param {boolean} pressed
    * @returns {void}
    */
   const applyGlowOrShadow = (pressed) => {
-    ctx.shadowColor = pressed ? colors.glow : colors.shadow;
-    ctx.shadowBlur = pressed ? 12 : 5; // Bright glow if pressed
-    ctx.shadowOffsetY = pressed ? 0 : 3; // Depth if not pressed
+    // If pressed, use the accent color to glow. If not, use the theme shadow.
+    ctx.shadowColor = pressed ? parsedColors.btnPressed : parsedColors.shadow;
+    ctx.shadowBlur = pressed ? 12 : 5;
+    ctx.shadowOffsetY = pressed ? 0 : 3;
     ctx.shadowOffsetX = 0;
   };
 
@@ -828,7 +826,7 @@ const drawGamepadCanvas = () => {
    * @returns {void}
    */
   const drawShapeRect = (x, y, w, h, r, pressed) => {
-    ctx.fillStyle = pressed ? colors.btnPressed : colors.btnBase;
+    ctx.fillStyle = pressed ? parsedColors.btnPressed : parsedColors.btnBase;
     applyGlowOrShadow(pressed);
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
@@ -844,7 +842,7 @@ const drawGamepadCanvas = () => {
    * @returns {void}
    */
   const drawShapeBtn = (x, y, r, pressed) => {
-    ctx.fillStyle = pressed ? colors.btnPressed : colors.btnBase;
+    ctx.fillStyle = pressed ? parsedColors.btnPressed : parsedColors.btnBase;
     applyGlowOrShadow(pressed);
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -862,7 +860,7 @@ const drawGamepadCanvas = () => {
    */
   const drawAnalogStick = (baseX, baseY, offsetX, offsetY, pressed) => {
     // Stick Base Cavity
-    ctx.fillStyle = colors.bgBase;
+    ctx.fillStyle = parsedColors.bgBase;
     ctx.beginPath();
     ctx.arc(baseX, baseY, 18, 0, Math.PI * 2);
     ctx.fill();
@@ -898,11 +896,11 @@ const drawGamepadCanvas = () => {
 
   // Main Body
   const bodyGrad = ctx.createLinearGradient(0, 40, 0, 150);
-  bodyGrad.addColorStop(0, colors.bodyTop);
-  bodyGrad.addColorStop(1, colors.bodyBase);
+  bodyGrad.addColorStop(0, parsedColors.bodyTop);
+  bodyGrad.addColorStop(1, parsedColors.bodyBase);
 
   ctx.fillStyle = bodyGrad;
-  ctx.shadowColor = colors.shadow;
+  ctx.shadowColor = parsedColors.shadow;
   ctx.shadowBlur = 15;
   ctx.shadowOffsetY = 5;
   ctx.beginPath();
@@ -943,7 +941,7 @@ const drawGamepadCanvas = () => {
   drawShapeRect(dpX + 6, dpY - 6, 12, 12, 2, visualizerPad.buttons[15].pressed);
 
   // D-Pad Center Core
-  ctx.fillStyle = colors.btnBase;
+  ctx.fillStyle = parsedColors.btnBase;
   ctx.beginPath();
   ctx.rect(dpX - 6, dpY - 6, 12, 12);
   ctx.fill();
@@ -1058,6 +1056,7 @@ const openKbConfigModal = () => {
   renderProfileEditor();
   openModal(kbModal);
   generateKbUI();
+  updateCanvasColors(); // Ensure colors are fresh before opening
   drawGamepadCanvas();
 };
 
@@ -1125,7 +1124,7 @@ btnImportKbFile.addEventListener('change', (e) => {
 // --- POPUP TRANSMITTER ---
 
 btnOpenTx.addEventListener('click', () => {
-  const popupHtml = `<!DOCTYPE html><html><head><title>Input Transmitter</title><style>body{background:#1e1e2e;color:#cba6f7;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h3{margin:0;}</style></head><body><div><h3>Transmitter Active</h3><p>Keep this window focused to send keyboard and gamepad inputs to Tiny Pony Stream.</p></div><script>['keydown','keyup'].forEach(evt=>{window.addEventListener(evt,e=>{e.preventDefault();if(window.opener){window.opener.postMessage({type:'kb_event',event:evt,code:e.code},'*');}});});</script></body></html>`;
+  const popupHtml = `<!DOCTYPE html><html><head><title>Input Transmitter</title><style>body{background:var(--bg-base,#1e1e2e);color:var(--accent-mauve,#cba6f7);font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h3{margin:0;}</style></head><body><div><h3>Transmitter Active</h3><p>Keep this window focused to send keyboard and gamepad inputs to Tiny Pony Stream.</p></div><script>['keydown','keyup'].forEach(evt=>{window.addEventListener(evt,e=>{e.preventDefault();if(window.opener){window.opener.postMessage({type:'kb_event',event:evt,code:e.code},'*');}});});</script></body></html>`;
   const blob = new Blob([popupHtml], { type: 'text/html' });
   window.open(URL.createObjectURL(blob), 'InputTransmitter', 'width=350,height=250');
 });
@@ -1172,10 +1171,10 @@ const renderFilterList = () => {
       hasPads = true;
       const label = document.createElement('label');
       label.className = 'checkbox-container';
-      label.style.background = '#181825';
+      label.style.background = 'var(--bg-mantle)';
       label.style.padding = '8px';
       label.style.borderRadius = '6px';
-      label.style.border = '1px solid #313244';
+      label.style.border = '1px solid var(--bg-surface0)';
       label.style.cursor = 'pointer';
 
       const cb = document.createElement('input');
@@ -1203,7 +1202,7 @@ const renderFilterList = () => {
 
   if (!hasPads) {
     filterGrid.innerHTML =
-      '<span style="font-size: 13px; color: #a6adc8;">No gamepads connected. Plug one in!</span>';
+      '<span style="font-size: 13px; color: var(--text-sub);">No gamepads connected. Plug one in!</span>';
   }
 };
 

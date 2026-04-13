@@ -1,6 +1,102 @@
 :root {
+  /* Dark Theme (Catppuccin Mocha) - Default Base */
+  --bg-base: #1e1e2e;
+  --bg-mantle: #11111b;
+  --bg-surface0: #313244;
+  --bg-surface1: #45475a;
+  --bg-surface2: #585b70;
+
+  --text-main: #cdd6f4;
+  --text-muted: #bac2de;
+  --text-sub: #a6adc8;
+
+  --accent-mauve: #cba6f7;
+  --accent-blue: #89b4fa;
+  --accent-pink: #f5c2e7;
+  --accent-green: #a6e3a1;
+  --accent-teal: #94e2d5;
+  --accent-red: #f38ba8;
+  --accent-peach: #fab387;
+
+  /* Translucent & Functional Colors */
   --card-bg: rgba(30, 30, 46, 0.7);
-  --accent-gradient: linear-gradient(135deg, #cba6f7 0%, #89b4fa 100%);
+  --modal-overlay: rgba(17, 17, 27, 0.8);
+  --input-bg: rgba(17, 17, 27, 0.8);
+  --input-bg-focus: rgba(24, 24, 37, 0.9);
+  --btn-hover-bg: rgba(49, 50, 68, 0.9);
+  --hud-btn-bg: rgba(49, 50, 68, 0.6);
+
+  --shadow-strong: rgba(0, 0, 0, 0.8);
+  --shadow-medium: rgba(0, 0, 0, 0.6);
+  --shadow-light: rgba(0, 0, 0, 0.2);
+
+  --accent-gradient: linear-gradient(135deg, var(--accent-mauve) 0%, var(--accent-blue) 100%);
+}
+
+/* Light Theme Variables (Catppuccin Latte) applied via data attribute */
+[data-theme='light'] {
+  --bg-base: #eff1f5;
+  --bg-mantle: #e6e9ef;
+  --bg-surface0: #ccd0da;
+  --bg-surface1: #bcc0cc;
+  --bg-surface2: #acb0be;
+
+  --text-main: #4c4f69;
+  --text-muted: #5c5f77;
+  --text-sub: #6c6f85;
+
+  --accent-mauve: #8839ef;
+  --accent-blue: #1e66f5;
+  --accent-pink: #ea76cb;
+  --accent-green: #40a02b;
+  --accent-teal: #179299;
+  --accent-red: #d20f39;
+  --accent-peach: #fe640b;
+
+  --card-bg: rgba(239, 241, 245, 0.7);
+  --modal-overlay: rgba(204, 208, 218, 0.8);
+  --input-bg: rgba(204, 208, 218, 0.6);
+  --input-bg-focus: rgba(220, 224, 232, 0.9);
+  --btn-hover-bg: rgba(204, 208, 218, 0.9);
+  --hud-btn-bg: rgba(204, 208, 218, 0.6);
+
+  --shadow-strong: rgba(76, 79, 105, 0.3);
+  --shadow-medium: rgba(76, 79, 105, 0.2);
+  --shadow-light: rgba(76, 79, 105, 0.1);
+}
+
+/* System-level Light Theme Detection (Only applies if no manual override exists) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg-base: #eff1f5;
+    --bg-mantle: #e6e9ef;
+    --bg-surface0: #ccd0da;
+    --bg-surface1: #bcc0cc;
+    --bg-surface2: #acb0be;
+
+    --text-main: #4c4f69;
+    --text-muted: #5c5f77;
+    --text-sub: #6c6f85;
+
+    --accent-mauve: #8839ef;
+    --accent-blue: #1e66f5;
+    --accent-pink: #ea76cb;
+    --accent-green: #40a02b;
+    --accent-teal: #179299;
+    --accent-red: #d20f39;
+    --accent-peach: #fe640b;
+
+    --card-bg: rgba(239, 241, 245, 0.7);
+    --modal-overlay: rgba(204, 208, 218, 0.8);
+    --input-bg: rgba(204, 208, 218, 0.6);
+    --input-bg-focus: rgba(220, 224, 232, 0.9);
+    --btn-hover-bg: rgba(204, 208, 218, 0.9);
+    --hud-btn-bg: rgba(204, 208, 218, 0.6);
+
+    --shadow-strong: rgba(76, 79, 105, 0.3);
+    --shadow-medium: rgba(76, 79, 105, 0.2);
+    --shadow-light: rgba(76, 79, 105, 0.1);
+  }
 }
 
 /* --- Fonts --- */
@@ -33,39 +129,46 @@
   width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(30, 30, 46, 0.5);
+  background: var(--shadow-light);
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #cba6f7, #b4befe);
+  background: linear-gradient(180deg, var(--accent-mauve), var(--accent-blue));
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #b4befe, #89b4fa);
+  background: linear-gradient(180deg, var(--accent-blue), var(--accent-mauve));
 }
 
 ::selection {
-  background-color: #805ea8;
-  color: #fff;
+  background-color: var(--accent-mauve);
+  color: var(--bg-base);
 }
 
 /* --- Global Layout & Animated Retro Background --- */
 body {
   margin: 0;
   /* Animated Retro Gradient */
-  background: linear-gradient(-45deg, #1e1e2e, #11111b, #313244, #2a1f3d);
-  background-color: #1e1e2e;
+  background: linear-gradient(
+    -45deg,
+    var(--bg-base),
+    var(--bg-mantle),
+    var(--bg-surface0),
+    var(--bg-mantle)
+  );
+  background-color: var(--bg-base);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  color: white;
+  color: var(--text-main);
   font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   overflow: hidden;
   transition:
     background-color 1s ease,
-    background-image 2s ease;
+    background-image 2s ease,
+    color 0.5s ease;
 }
 
 @keyframes gradientShift {
@@ -78,6 +181,10 @@ body {
   100% {
     background-position: 0% 50%;
   }
+}
+
+textarea {
+  resize: vertical;
 }
 
 /* --- Video Stream --- */
@@ -103,7 +210,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(17, 17, 27, 0.8);
+  background: var(--modal-overlay);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   z-index: 900;
@@ -137,7 +244,7 @@ body {
 #clientIdHud {
   backdrop-filter: blur(12px);
   background: var(--card-bg);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 25px 60px var(--shadow-strong);
 }
 
 .modal-base {
@@ -158,28 +265,28 @@ body {
 }
 
 .modal-base.alert {
-  border: 2px solid #cba6f7;
+  border: 2px solid var(--accent-mauve);
   z-index: 9999;
   width: 400px;
   max-width: 95vw;
   text-align: center;
   box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.8),
-    0 0 30px rgba(203, 166, 247, 0.2);
+    0 25px 60px var(--shadow-strong),
+    0 0 30px var(--shadow-light);
 }
 
 .modal-base.auth {
-  border: 2px solid #f38ba8;
+  border: 2px solid var(--accent-red);
   z-index: 2000;
   width: 460px;
   max-width: 95vw;
   box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.8),
-    0 0 30px rgba(243, 139, 168, 0.2);
+    0 25px 60px var(--shadow-strong),
+    0 0 30px var(--shadow-light);
 }
 
 .modal-base.api {
-  border: 2px solid #cba6f7;
+  border: 2px solid var(--accent-mauve);
   z-index: 1500;
   width: 540px;
   max-width: 95vw;
@@ -202,7 +309,6 @@ body {
     opacity: 1;
   }
 }
-
 @keyframes fadeOut {
   from {
     opacity: 1;
@@ -247,10 +353,10 @@ body {
   -webkit-backdrop-filter: blur(16px);
   padding: 40px 30px;
   border-radius: 16px;
-  border: 1px solid rgba(203, 166, 247, 0.3);
+  border: 1px solid var(--shadow-light);
   box-shadow:
-    0 15px 35px rgba(0, 0, 0, 0.6),
-    0 0 20px rgba(203, 166, 247, 0.1);
+    0 15px 35px var(--shadow-medium),
+    0 0 20px var(--shadow-light);
   width: 100%;
   max-width: 560px;
   max-height: 95vh;
@@ -264,7 +370,7 @@ body {
   width: 100%;
   max-width: 150px;
   height: auto;
-  filter: drop-shadow(0 0 15px rgba(203, 166, 247, 0.4));
+  filter: drop-shadow(0 0 15px var(--shadow-light));
   animation: floatLogo 3s ease-in-out infinite;
   margin-bottom: 5px;
 }
@@ -283,7 +389,7 @@ body {
 
 #welcomeScreen h2 {
   margin: 0;
-  background: linear-gradient(90deg, #cba6f7, #f5c2e7);
+  background: linear-gradient(90deg, var(--accent-mauve), var(--accent-pink));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-size: 1.8rem;
@@ -293,17 +399,17 @@ body {
 
 .playtime-tracker {
   font-size: 12px;
-  color: #a6e3a1;
+  color: var(--accent-green);
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-top: -12px;
   margin-bottom: 8px;
-  text-shadow: 0 0 8px rgba(166, 227, 161, 0.4);
+  text-shadow: 0 0 8px var(--shadow-light);
 }
 
 #welcomeScreen p {
-  color: #bac2de;
+  color: var(--text-muted);
   font-size: 14px;
   line-height: 1.5;
   margin: 0 0 15px 0;
@@ -318,8 +424,8 @@ body {
   letter-spacing: 2px;
   border: none;
   cursor: pointer;
-  background: linear-gradient(135deg, #a6e3a1, #94e2d5);
-  color: #11111b;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-teal));
+  color: #11111b; /* Key contrast element, kept dark */
   border-radius: 12px;
   transition: transform 0.2s;
   animation: pulseBtn 2s infinite;
@@ -335,13 +441,13 @@ body {
 
 @keyframes pulseBtn {
   0% {
-    box-shadow: 0 0 0 0 rgba(166, 227, 161, 0.7);
+    box-shadow: 0 0 0 0 var(--shadow-light);
   }
   70% {
-    box-shadow: 0 0 0 15px rgba(166, 227, 161, 0);
+    box-shadow: 0 0 0 15px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(166, 227, 161, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -357,10 +463,10 @@ body {
   -webkit-backdrop-filter: blur(16px);
   padding: 28px;
   border-radius: 16px;
-  border: 1px solid rgba(203, 166, 247, 0.3);
+  border: 1px solid var(--shadow-light);
   box-shadow:
-    0 15px 35px rgba(0, 0, 0, 0.6),
-    0 0 20px rgba(203, 166, 247, 0.1);
+    0 15px 35px var(--shadow-medium),
+    0 0 20px var(--shadow-light);
   width: 100%;
   max-width: 420px;
   max-height: 95vh;
@@ -383,14 +489,14 @@ body {
 
 #login h2 {
   text-align: center;
-  background: linear-gradient(90deg, #cba6f7, #f5c2e7);
+  background: linear-gradient(90deg, var(--accent-mauve), var(--accent-pink));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0 0 8px 0;
   font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: 1px;
-  text-shadow: 0px 4px 10px rgba(203, 166, 247, 0.3);
+  text-shadow: 0px 4px 10px var(--shadow-light);
 }
 
 /* --- Inputs --- */
@@ -402,9 +508,9 @@ select {
   padding: 12px;
   font-size: 14px;
   border-radius: 8px;
-  border: 1px solid #45475a;
-  background: rgba(17, 17, 27, 0.8);
-  color: #cdd6f4;
+  border: 1px solid var(--bg-surface1);
+  background: var(--input-bg);
+  color: var(--text-main);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   outline: none;
   width: 100%;
@@ -416,11 +522,11 @@ input[type='password']:focus,
 input[type='number']:focus,
 textarea:focus,
 select:focus {
-  border-color: #cba6f7;
-  background: rgba(24, 24, 37, 0.9);
+  border-color: var(--accent-mauve);
+  background: var(--input-bg-focus);
   box-shadow:
-    0 0 0 3px rgba(203, 166, 247, 0.25),
-    inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    0 0 0 3px var(--shadow-light),
+    inset 0 2px 4px var(--shadow-medium);
   transform: translateY(-1px);
 }
 
@@ -438,17 +544,17 @@ input[type='number'] {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(24, 24, 37, 0.6);
+  background: var(--input-bg);
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(69, 71, 90, 0.5);
+  border: 1px solid var(--shadow-light);
   flex-wrap: wrap;
   gap: 10px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 2px 4px var(--shadow-light);
 }
 
 label.checkbox-container {
-  color: #bac2de;
+  color: var(--text-muted);
   font-size: 13px;
   display: flex;
   flex-direction: row !important;
@@ -460,7 +566,7 @@ label.checkbox-container {
 }
 
 label.checkbox-container:hover {
-  color: #cdd6f4;
+  color: var(--text-main);
 }
 
 /* --- Buttons --- */
@@ -479,26 +585,26 @@ button,
 button {
   padding: 14px;
   border: none;
-  background: linear-gradient(135deg, #cba6f7, #b4befe);
-  color: #11111b;
+  background: linear-gradient(135deg, var(--accent-mauve), var(--accent-blue));
+  color: var(--bg-base);
   margin-top: 6px;
-  box-shadow: 0 4px 10px rgba(203, 166, 247, 0.2);
+  box-shadow: 0 4px 10px var(--shadow-light);
 }
 
 button:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 8px 16px rgba(203, 166, 247, 0.4);
-  background: linear-gradient(135deg, #d2b3f8, #c4ccfe);
+  box-shadow: 0 8px 16px var(--shadow-medium);
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-mauve));
 }
 
 button:active {
   transform: translateY(1px) scale(0.98);
-  box-shadow: 0 2px 5px rgba(203, 166, 247, 0.4);
+  box-shadow: 0 2px 5px var(--shadow-light);
 }
 
 button:disabled {
-  background: #45475a;
-  color: #a6adc8;
+  background: var(--bg-surface1);
+  color: var(--text-sub);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -509,33 +615,33 @@ button:disabled {
 }
 
 .github-link-btn {
-  background: rgba(24, 24, 37, 0.5);
-  color: #bac2de;
+  background: var(--input-bg);
+  color: var(--text-muted);
   font-size: 13px;
   padding: 10px;
   margin-top: 10px;
-  border: 1px dashed #585b70;
+  border: 1px dashed var(--bg-surface2);
 }
 
 .github-link-btn:hover {
-  background: rgba(203, 166, 247, 0.1);
-  color: #cba6f7;
-  border-color: #cba6f7;
+  background: var(--shadow-light);
+  color: var(--accent-mauve);
+  border-color: var(--accent-mauve);
   transform: translateY(-2px);
 }
 
 .config-btn {
-  background: #313244;
-  color: #cba6f7;
+  background: var(--bg-surface0);
+  color: var(--accent-mauve);
   font-size: 12px;
   padding: 8px 12px;
-  border: 1px solid #cba6f7;
+  border: 1px solid var(--accent-mauve);
   width: 100%;
 }
 
 .config-btn:hover {
-  background: #cba6f7;
-  color: #11111b;
+  background: var(--accent-mauve);
+  color: var(--bg-base);
 }
 
 /* --- HUD Overlays --- */
@@ -544,19 +650,19 @@ button:disabled {
   top: 15px;
   left: 15px;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(203, 166, 247, 0.3);
+  border: 1px solid var(--shadow-light);
   padding: 18px;
   border-radius: 12px;
   font-family: 'Courier New', Courier, monospace;
   font-size: 13px;
-  color: #cdd6f4;
+  color: var(--text-main);
   pointer-events: none;
   min-width: 290px;
   z-index: 100;
   transition:
     opacity 0.4s ease,
     transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px var(--shadow-medium);
 }
 #debugPanel.hidden {
   opacity: 0;
@@ -584,27 +690,27 @@ body.is-playing:not(.gamepad-only-mode) .hud-buttons:hover {
 .hud-btn {
   padding: 10px 14px;
   font-size: 13px;
-  background: rgba(49, 50, 68, 0.6);
+  background: var(--hud-btn-bg);
   backdrop-filter: blur(5px);
-  color: #cdd6f4;
-  border: 1px solid #585b70;
+  color: var(--text-main);
+  border: 1px solid var(--bg-surface2);
   border-radius: 8px;
   cursor: pointer;
 }
 .hud-btn:hover {
-  background: rgba(203, 166, 247, 0.15);
-  border-color: #cba6f7;
-  color: #fff;
+  background: var(--shadow-light);
+  border-color: var(--accent-mauve);
+  color: var(--accent-mauve);
 }
 
 /* --- Debug Info Text --- */
 .debug-section {
   margin-bottom: 12px;
-  border-bottom: 1px dashed #45475a;
+  border-bottom: 1px dashed var(--bg-surface1);
   padding-bottom: 8px;
 }
 .debug-header {
-  color: #cba6f7;
+  color: var(--accent-mauve);
   font-weight: bold;
   margin-bottom: 8px;
   display: block;
@@ -619,23 +725,23 @@ body.is-playing:not(.gamepad-only-mode) .hud-buttons:hover {
 }
 .debug-val {
   font-weight: bold;
-  color: #a6e3a1;
+  color: var(--accent-green);
   text-align: right;
-  text-shadow: 0 0 5px rgba(166, 227, 161, 0.4);
+  text-shadow: 0 0 5px var(--shadow-light);
 }
 .debug-err {
-  color: #f38ba8;
-  text-shadow: 0 0 5px rgba(243, 139, 168, 0.4);
+  color: var(--accent-red);
+  text-shadow: 0 0 5px var(--shadow-light);
 }
 .debug-warn {
-  color: #fab387;
-  text-shadow: 0 0 5px rgba(250, 179, 135, 0.4);
+  color: var(--accent-peach);
+  text-shadow: 0 0 5px var(--shadow-light);
 }
 
 #dbgInput {
   margin-top: 10px;
   font-size: 12px;
-  color: #bac2de;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
@@ -645,14 +751,13 @@ body.is-playing:not(.gamepad-only-mode) .hud-buttons:hover {
   left: 50%;
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
-  color: #cba6f7;
+  color: var(--accent-mauve);
   padding: 8px 20px;
   border-radius: 24px;
   font-weight: bold;
-  border: 1px solid rgba(203, 166, 247, 0.5);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--shadow-light);
+  box-shadow: 0 4px 15px var(--shadow-medium);
   z-index: 50;
-  /* Smooth transition for hiding */
   transition:
     opacity 0.4s ease,
     transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -670,14 +775,14 @@ body.is-playing:not(.gamepad-only-mode) .hud-buttons:hover {
   top: 25px;
   left: 50%;
   transform: translate(-50%, -30px);
-  background: rgba(243, 139, 168, 0.95);
+  background: var(--accent-red);
   backdrop-filter: blur(5px);
-  color: #11111b;
+  color: #11111b; /* Enforced contrast */
   padding: 14px 28px;
   border-radius: 10px;
   font-weight: bold;
-  border: 2px solid #f38ba8;
-  box-shadow: 0 10px 30px rgba(243, 139, 168, 0.4);
+  border: 2px solid var(--shadow-strong);
+  box-shadow: 0 10px 30px var(--shadow-medium);
   z-index: 2000;
   opacity: 0;
   transition:
@@ -695,12 +800,12 @@ body.is-playing:not(.gamepad-only-mode) .hud-buttons:hover {
   display: none;
   position: absolute;
   top: 20%;
-  color: #cba6f7;
+  color: var(--accent-mauve);
   font-size: 28px;
   font-weight: 800;
   text-align: center;
   width: 100%;
-  text-shadow: 0px 5px 20px rgba(203, 166, 247, 0.6);
+  text-shadow: 0px 5px 20px var(--shadow-light);
   z-index: 5;
   letter-spacing: 1px;
 }
@@ -710,8 +815,8 @@ body.gamepad-only-mode.is-playing {
   animation: none;
   background-position: 0%;
   background-image:
-    radial-gradient(circle at 20% 20%, rgba(137, 180, 250, 0.1) 0%, transparent 40%),
-    radial-gradient(circle at 80% 80%, rgba(203, 166, 247, 0.1) 0%, transparent 40%);
+    radial-gradient(circle at 20% 20%, var(--shadow-light) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, var(--shadow-light) 0%, transparent 40%);
 }
 
 body.gamepad-only-mode.is-playing #streamView {
@@ -772,8 +877,8 @@ label.checkbox-container input[type='checkbox'] {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
-  background-color: rgba(17, 17, 27, 0.8);
-  border: 2px solid #45475a;
+  background-color: var(--bg-mantle);
+  border: 2px solid var(--bg-surface1);
   border-radius: 4px;
   cursor: pointer;
   display: grid; /* Grid is perfect for centralizing the checkmark after */
@@ -784,16 +889,16 @@ label.checkbox-container input[type='checkbox'] {
 
 /* Hover effect (passing mouse) glowing in purple */
 label.checkbox-container input[type='checkbox']:hover {
-  border-color: #cba6f7;
-  background-color: rgba(24, 24, 37, 0.9);
-  box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.15);
+  border-color: var(--accent-mauve);
+  background-color: var(--bg-surface0);
+  box-shadow: 0 0 0 3px var(--shadow-light);
 }
 
 /* When it's marked, the bottom turns totally purple */
 label.checkbox-container input[type='checkbox']:checked {
-  background-color: #cba6f7;
-  border-color: #cba6f7;
-  box-shadow: 0 0 10px rgba(203, 166, 247, 0.4);
+  background-color: var(--accent-mauve);
+  border-color: var(--accent-mauve);
+  box-shadow: 0 0 10px var(--shadow-light);
 }
 
 /* Drawing invisible "Tique" (✓) with edges and rotation */
@@ -801,7 +906,7 @@ label.checkbox-container input[type='checkbox']::before {
   content: '';
   width: 5px;
   height: 9px;
-  border: solid #11111b; /* Dark background color to contrast with purple */
+  border: solid var(--bg-base); /* Dark background color to contrast with purple */
   border-width: 0 2.5px 2.5px 0;
   transform: rotate(45deg) scale(0); /* It is scale 0 (invisible) by default */
   transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);

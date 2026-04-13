@@ -934,7 +934,7 @@ const createRemotePlayWindow = () => {
   if (windowsCache.remotePlayWindow) {
     if (windowsCache.remotePlayWindow.isMinimized()) windowsCache.remotePlayWindow.restore();
     if (!windowsCache.remotePlayWindow.isVisible()) windowsCache.remotePlayWindow.show();
-    
+
     windowsCache.remotePlayWindow.maximize();
     windowsCache.remotePlayWindow.focus();
     return;

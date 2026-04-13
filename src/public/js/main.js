@@ -879,3 +879,47 @@ const pollGamepad = () => {
 
 requestAnimationFrame(pollGamepad);
 btnConnect.addEventListener('click', initConnection);
+
+/**
+ * Initializes the theme system. Checks for saved user preference or matches
+ * the browser's default color scheme. Sets up the toggle button listener.
+ *
+ * @returns {void}
+ */
+const initTheme = () => {
+  /** @type {string | null} */
+  const savedTheme = localStorage.getItem('pony_theme');
+
+  // Apply saved theme if it exists
+  if (savedTheme) {
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }
+
+  btnToggleTheme.addEventListener('click', () => {
+    /** @type {string | null} */
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+
+    /** @type {boolean} */
+    const isSystemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+
+    /** @type {string} */
+    let newTheme = 'dark';
+
+    // Determine the next theme state
+    if (currentTheme === 'light') {
+      newTheme = 'dark';
+    } else if (currentTheme === 'dark') {
+      newTheme = 'light';
+    } else {
+      // If no override is set, invert the current system preference
+      newTheme = isSystemLight ? 'dark' : 'light';
+    }
+
+    // Apply and save
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('pony_theme', newTheme);
+  });
+};
+
+// Execute theme initialization
+initTheme();
