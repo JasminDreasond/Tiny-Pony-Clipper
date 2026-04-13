@@ -98,7 +98,7 @@
   font-weight: bold;
 }
 .tab-btn:hover {
-  color: var(--text-main) !important;
+  color: var(--text-dark) !important;
 }
 .tab-btn.active {
   color: var(--accent-mauve);
