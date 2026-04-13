@@ -396,6 +396,7 @@ body {
 /* --- Inputs --- */
 input[type='text'],
 input[type='password'],
+input[type='number'],
 textarea,
 select {
   padding: 12px;
@@ -412,6 +413,7 @@ select {
 
 input[type='text']:focus,
 input[type='password']:focus,
+input[type='number']:focus,
 textarea:focus,
 select:focus {
   border-color: #cba6f7;
@@ -420,6 +422,16 @@ select:focus {
     0 0 0 3px rgba(203, 166, 247, 0.25),
     inset 0 2px 4px rgba(0, 0, 0, 0.5);
   transform: translateY(-1px);
+}
+
+/* Hide default browser arrows for numeric inputs */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
 }
 
 .options-row {
@@ -439,6 +451,7 @@ label.checkbox-container {
   color: #bac2de;
   font-size: 13px;
   display: flex;
+  flex-direction: row !important;
   align-items: center;
   gap: 6px;
   cursor: pointer;
@@ -754,7 +767,7 @@ body.gamepad-only-mode.is-playing #btnToggleDebug {
 /* --- Custom Checkboxes --- */
 
 /* Removes the default ugly look from the browser and creates our own box */
-label.checkbox-container input[type="checkbox"] {
+label.checkbox-container input[type='checkbox'] {
   appearance: none;
   -webkit-appearance: none;
   width: 18px;
@@ -770,22 +783,22 @@ label.checkbox-container input[type="checkbox"] {
 }
 
 /* Hover effect (passing mouse) glowing in purple */
-label.checkbox-container input[type="checkbox"]:hover {
+label.checkbox-container input[type='checkbox']:hover {
   border-color: #cba6f7;
   background-color: rgba(24, 24, 37, 0.9);
   box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.15);
 }
 
 /* When it's marked, the bottom turns totally purple */
-label.checkbox-container input[type="checkbox"]:checked {
+label.checkbox-container input[type='checkbox']:checked {
   background-color: #cba6f7;
   border-color: #cba6f7;
   box-shadow: 0 0 10px rgba(203, 166, 247, 0.4);
 }
 
 /* Drawing invisible "Tique" (✓) with edges and rotation */
-label.checkbox-container input[type="checkbox"]::before {
-  content: "";
+label.checkbox-container input[type='checkbox']::before {
+  content: '';
   width: 5px;
   height: 9px;
   border: solid #11111b; /* Dark background color to contrast with purple */
@@ -796,6 +809,6 @@ label.checkbox-container input[type="checkbox"]::before {
 }
 
 /* When marked, tick "grows" and appears */
-label.checkbox-container input[type="checkbox"]:checked::before {
+label.checkbox-container input[type='checkbox']:checked::before {
   transform: rotate(45deg) scale(1);
 }
