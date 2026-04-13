@@ -1343,6 +1343,51 @@ if (gotTheLock) {
         // If null, it's an unknown application, prompt the user!
         return await promptUserForAuth(callerApp);
       },
+
+      /**
+       * Bridges API requests from the local CLI directly to the active Remote Play Client window.
+       *
+       * @param {Object} payload - The request payload containing action and parameters.
+       * @returns {Promise<Object>} The response from the client window or a timeout error.
+       */
+      (payload) =>
+        new Promise((resolve) => {
+          // Check if the client window is actually open and ready
+          if (!windowsCache.remotePlayWindow || windowsCache.remotePlayWindow.isDestroyed()) {
+            return resolve({
+              status: 'error',
+              error: 'Remote Play Client is not currently open or active.',
+            });
+          }
+
+          // Generate a quick random ID for the request
+          /** @type {string} */
+          const requestId = Date.now().toString(36) + String(Math.random());
+
+          // Setup a 10-second timeout so the CLI doesn't hang if the window ignores the request
+          /** @type {NodeJS.Timeout} */
+          const timeout = setTimeout(() => {
+            if (pendingCliResolves.has(requestId)) {
+              pendingCliResolves.delete(requestId);
+              resolve({
+                status: 'error',
+                error: 'Timeout: Client window took too long to respond.',
+              });
+            }
+          }, 60000);
+
+          // Store the resolver in the map to be called by the IPC listener
+          pendingCliResolves.set(requestId, (responseData) => {
+            clearTimeout(timeout);
+            resolve(responseData);
+          });
+
+          // Dispatch the event to the preload-public.js!
+          windowsCache.remotePlayWindow.webContents.send('dispatch-api-request', {
+            ...payload,
+            requestId: requestId,
+          });
+        }),
     );
 
     // --- WAYLAND PORTAL HANDLER ---
