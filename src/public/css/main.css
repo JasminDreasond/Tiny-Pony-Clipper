@@ -32,6 +32,7 @@
   --shadow-light: rgba(0, 0, 0, 0.2);
 
   --accent-gradient: linear-gradient(135deg, var(--accent-mauve) 0%, var(--accent-blue) 100%);
+  --kd-map-icon-filter: none;
 }
 
 /* Light Theme Variables (Catppuccin Latte) applied via data attribute */
@@ -65,6 +66,8 @@
   --shadow-strong: rgba(76, 79, 105, 0.3);
   --shadow-medium: rgba(76, 79, 105, 0.2);
   --shadow-light: rgba(76, 79, 105, 0.1);
+
+  --kd-map-icon-filter: invert(1);
 }
 
 /* System-level Light Theme Detection (Only applies if no manual override exists) */
@@ -98,6 +101,8 @@
     --shadow-strong: rgba(76, 79, 105, 0.3);
     --shadow-medium: rgba(76, 79, 105, 0.2);
     --shadow-light: rgba(76, 79, 105, 0.1);
+
+    --kd-map-icon-filter: invert(1);
   }
 }
 
@@ -124,6 +129,11 @@
 
 .kb-map-icon {
   height: 24px;
+}
+
+.kb-map-icon,
+.mapping-grids img {
+  filter: var(--kd-map-icon-filter);
 }
 
 /* --- Global Scrollbar --- */
@@ -442,14 +452,14 @@ textarea {
 }
 
 @keyframes pulseBtn {
-  0% { 
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 70%, transparent); 
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 70%, transparent);
   }
-  70% { 
-    box-shadow: 0 0 0 15px color-mix(in srgb, var(--accent-green) 0%, transparent); 
+  70% {
+    box-shadow: 0 0 0 15px color-mix(in srgb, var(--accent-green) 0%, transparent);
   }
-  100% { 
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 0%, transparent); 
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 0%, transparent);
   }
 }
 
