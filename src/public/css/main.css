@@ -750,3 +750,52 @@ body.gamepad-only-mode.is-playing #btnToggleDebug {
     visibility: hidden;
   }
 }
+
+/* --- Custom Checkboxes --- */
+
+/* Removes the default ugly look from the browser and creates our own box */
+label.checkbox-container input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background-color: rgba(17, 17, 27, 0.8);
+  border: 2px solid #45475a;
+  border-radius: 4px;
+  cursor: pointer;
+  display: grid; /* Grid is perfect for centralizing the checkmark after */
+  place-content: center;
+  margin: 0; /* Zerates the margins for the label flexbox perfectly align with text */
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Hover effect (passing mouse) glowing in purple */
+label.checkbox-container input[type="checkbox"]:hover {
+  border-color: #cba6f7;
+  background-color: rgba(24, 24, 37, 0.9);
+  box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.15);
+}
+
+/* When it's marked, the bottom turns totally purple */
+label.checkbox-container input[type="checkbox"]:checked {
+  background-color: #cba6f7;
+  border-color: #cba6f7;
+  box-shadow: 0 0 10px rgba(203, 166, 247, 0.4);
+}
+
+/* Drawing invisible "Tique" (✓) with edges and rotation */
+label.checkbox-container input[type="checkbox"]::before {
+  content: "";
+  width: 5px;
+  height: 9px;
+  border: solid #11111b; /* Dark background color to contrast with purple */
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) scale(0); /* It is scale 0 (invisible) by default */
+  transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  margin-bottom: 2px; /* Optical adjustment for tic look very centralized */
+}
+
+/* When marked, tick "grows" and appears */
+label.checkbox-container input[type="checkbox"]:checked::before {
+  transform: rotate(45deg) scale(1);
+}
