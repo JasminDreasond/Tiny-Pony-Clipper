@@ -21,6 +21,14 @@ const sdpAnswerInput = document.getElementById('sdpAnswer');
 /** @type {HTMLButtonElement} */
 const btnConnectSdp = document.getElementById('btnConnectSdp');
 
+// Optional Settings Elements
+/** @type {HTMLSelectElement} */
+const optVideo = document.getElementById('optVideo');
+/** @type {HTMLSelectElement} */
+const optAudio = document.getElementById('optAudio');
+/** @type {HTMLSelectElement} */
+const optKbPad = document.getElementById('optKbPad');
+
 /** @type {HTMLElement} */
 const iframeContainer = document.getElementById('iframeContainer');
 
@@ -158,6 +166,18 @@ const sendPayload = (payload) => {
   }
 };
 
+/**
+ * Helper para extrair apenas as configurações que não estão marcadas como "default".
+ * @returns {Object}
+ */
+const extractOptionalSettings = () => {
+  const settings = {};
+  if (optVideo.value !== 'default') settings.video = optVideo.value === 'true';
+  if (optAudio.value !== 'default') settings.audio = optAudio.value === 'true';
+  if (optKbPad.value !== 'default') settings.kbpad = optKbPad.value === 'true';
+  return settings;
+};
+
 // --- BUTTON LISTENERS ---
 
 btnSendIp.addEventListener('click', async () => {
@@ -167,6 +187,7 @@ btnSendIp.addEventListener('click', async () => {
     requestId: String(Math.random()),
     host: hostIpInput.value,
     pass: hostPassInput.value,
+    ...extractOptionalSettings(),
   });
 });
 
@@ -184,6 +205,7 @@ btnConnectSdp.addEventListener('click', async () => {
     action: 'connect_sdp',
     requestId: String(Math.random()),
     answer: sdpAnswerInput.value,
+    ...extractOptionalSettings(),
   });
 });
 

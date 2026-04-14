@@ -117,6 +117,15 @@
         margin-bottom: 20px;
       }
 
+      .flex-row {
+        display: flex;
+        gap: 10px;
+      }
+
+      .flex-row > div {
+        flex: 1;
+      }
+
       label {
         display: block;
         font-size: 14px;
@@ -127,7 +136,8 @@
       }
 
       input,
-      textarea {
+      textarea,
+      select {
         width: 100%;
         padding: 14px 18px;
         box-sizing: border-box;
@@ -141,6 +151,12 @@
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       }
 
+      /* Fixes for option backgrounds so they don't turn invisible */
+      select option {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+      }
+
       textarea {
         resize: vertical;
         min-height: 80px;
@@ -149,7 +165,8 @@
       }
 
       input:focus,
-      textarea:focus {
+      textarea:focus,
+      select:focus {
         border-color: #cba6f7;
         box-shadow: 0 0 15px var(--glow);
         background: rgba(30, 30, 46, 0.9);
@@ -339,6 +356,38 @@
         <input type="text" id="targetUrl" value="http://localhost:8080" spellcheck="false" />
       </div>
 
+      <div class="divider" style="margin: 20px 0"></div>
+
+      <h4 style="color: #89b4fa">Optional Client Settings</h4>
+      <div class="input-group flex-row">
+        <div>
+          <label>Video</label>
+          <select id="optVideo">
+            <option value="default">Default</option>
+            <option value="true">Enable</option>
+            <option value="false">Disable</option>
+          </select>
+        </div>
+        <div>
+          <label>Audio</label>
+          <select id="optAudio">
+            <option value="default">Default</option>
+            <option value="true">Enable</option>
+            <option value="false">Disable</option>
+          </select>
+        </div>
+        <div>
+          <label>KB Pad</label>
+          <select id="optKbPad">
+            <option value="default">Default</option>
+            <option value="true">Enable</option>
+            <option value="false">Disable</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider" style="margin: 20px 0"></div>
+
       <h4>Method 1: Auto IP Connect</h4>
       <div class="input-group">
         <label>Server IP Address</label>
@@ -368,8 +417,8 @@
       <button id="btnConnectSdp">2. Connect via SDP</button>
       <br />
       <br />
-      <button id="btnCheckStatus">Check Session Status</button>
-      <button id="btnPingClient">Ping Client</button>
+      <button id="btnCheckStatus" class="secondary">Check Session Status</button>
+      <button id="btnPingClient" class="secondary">Ping Client</button>
     </div>
 
     <div id="iframeContainer"></div>
