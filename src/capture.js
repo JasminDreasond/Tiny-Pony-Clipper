@@ -81,7 +81,14 @@ electronAPI.onCaptureCommand(async (data) => {
       /** @type {MediaStream} */
       const rawStream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: 'always', frameRate: { ideal: targetFps, max: targetFps } },
-        audio: data.streamEnabled ? { suppressLocalAudioPlayback: false } : false,
+        audio: data.streamEnabled
+          ? {
+              suppressLocalAudioPlayback: false,
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+            }
+          : false,
       });
 
       activeStream = rawStream;
@@ -131,7 +138,27 @@ const createPeerConnection = (clientId) => {
   // GLITCH FIX 1: Attach video stream BEFORE creating the answer
   if (activeStream) {
     activeStream.getTracks().forEach((track) => {
-      pc.addTrack(track, activeStream);
+      /** @type {RTCRtpSender} */
+      const sender = pc.addTrack(track, activeStream);
+
+      if (track.kind === 'video') {
+        /** @type {RTCRtpSendParameters} */
+        const parameters = sender.getParameters();
+
+        if (!parameters.encodings) {
+          parameters.encodings = [{}];
+        }
+
+        // 'maintain-resolution' or 'maintain-framerate'
+        parameters.degradationPreference = 'maintain-framerate';
+
+        // Limit the max bitrate natively via sender (e.g., 15 Mbps)
+        parameters.encodings[0].maxBitrate = 15000000;
+
+        sender.setParameters(parameters).catch((err) => {
+          electronAPI.error('[WEBRTC] Failed to set video parameters:', err);
+        });
+      }
     });
     electronAPI.log(`[WEBRTC HOST] Video track attached for client [${clientId}].`);
   } else {
@@ -286,7 +313,7 @@ electronAPI.onSignal(async (data) => {
     /** @type {RTCPeerConnection} */
     const pc = createPeerConnection(clientId);
 
-    // Fulfill the WebRTC handshake
+    // Apply remote offer
     await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
 
     /** @type {RTCSessionDescriptionInit} */
