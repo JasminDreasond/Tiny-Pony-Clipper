@@ -170,6 +170,8 @@ body {
   background-color: var(--bg-base);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
+  user-select: none;
+  -webkit-user-select: none;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -193,6 +195,16 @@ body {
   100% {
     background-position: 0% 50%;
   }
+}
+
+/* Re-enable selection for inputs, textareas, and specific info fields */
+input,
+textarea,
+.raw-debug,
+#apiAuthOriginText {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 textarea {
