@@ -16,6 +16,8 @@ import {
   sdpSection,
   clientIdHud,
   dbgPing,
+  btnToggleMute,
+  btnManageApiOrigins,
 
   // Keyboard Gamepad UI
   useKbPadInput,
@@ -221,6 +223,16 @@ export const applyServerAnswer = async (answerString) => {
 };
 
 /**
+ * @returns {boolean}
+ */
+const canToggleMute = () => {
+  btnToggleMute.textContent = video.muted ? '🔇' : '🔊';
+  btnToggleMute.title = video.muted ? 'Unmute Audio' : 'Mute Audio';
+  btnToggleMute.style.display = wantsAudioInput.checked ? 'inline-block' : 'none';
+  return wantsAudioInput.checked;
+};
+
+/**
  * @returns {void}
  */
 const updateHudButtons = () => {
@@ -230,6 +242,7 @@ const updateHudButtons = () => {
   btnHudKbConfig.style.display = isPlaying ? 'inline-block' : 'none';
   btnOpenTx.style.display = isPlaying ? 'inline-block' : 'none';
   btnManageApiOrigins.style.display = isPlaying ? 'none' : 'inline-block';
+  canToggleMute();
 };
 
 useKbPadInput.addEventListener('change', (e) => {
@@ -378,8 +391,7 @@ btnToggleDebug.addEventListener('click', toggleDebug);
 // Logic to switch mute and button icon
 btnToggleMute.addEventListener('click', () => {
   video.muted = !video.muted;
-  btnToggleMute.textContent = video.muted ? '🔇' : '🔊';
-  btnToggleMute.title = video.muted ? 'Unmute Audio' : 'Mute Audio';
+  canToggleMute();
 
   // Makes the button lose focus to prevent pressing "Space" on the keyboard press the button again
   btnToggleMute.blur();
@@ -668,9 +680,7 @@ const setupWebRTCEvents = () => {
             updateDebug(dbgVidPlay, 'Playing', 'ok');
             // Explicitly unmute the video if the browser allowed autoplay!
             video.muted = false;
-
-            btnToggleMute.style.display = 'inline-block';
-            btnToggleMute.textContent = '🔊';
+            canToggleMute();
           })
           .catch((error) => {
             console.error('[VIDEO ERROR] Autoplay blocked:', error);
@@ -682,9 +692,7 @@ const setupWebRTCEvents = () => {
               () => {
                 video.play();
                 video.muted = false; // Tries to unmute after click
-
-                btnToggleMute.style.display = 'inline-block';
-                btnToggleMute.textContent = '🔊';
+                canToggleMute();
               },
               { once: true },
             );
