@@ -1,6 +1,6 @@
 # 🐴 Tiny Pony Stream - API Integration Guide
 
-*The Web API is fully implemented and available since version 1.1.5.*
+*The Web API is fully implemented and available since version 1.1.5. Media configuration flags added in 1.2.0.*
 
 Welcome to the Tiny Pony Stream API documentation! This guide explains how third-party websites can programmatically send connection requests and check client status using our secure API Bridge.
 
@@ -25,7 +25,7 @@ The secure communication flow works as follows:
 Before you begin, please note our strict security policies:
 * **HTTPS Only:** The API will outright reject requests originating from non-secure `http://` pages (with exceptions for `localhost` and `127.0.0.1` during development).
 * **Point-to-Point Tunneling:** You MUST use the `MessageChannel` API to communicate. Global `window.postMessage` payloads will be ignored to prevent interception by malicious browser extensions or cross-site scripts.
-* **Rate Limiting:** Do not spam requests. There is a strict cooldown of 1.5 seconds between requests. Spamming will result in an `ERR_RATE_LIMIT` rejection.
+* **Rate Limiting:** Do not spam requests. There is a strict cooldown of 1.5 seconds between requests (status ping checks bypass this cooldown). Spamming will result in an `ERR_RATE_LIMIT` rejection.
 * **Unique Requests:** Every payload must have a unique `requestId`. Reusing an ID that is currently being processed or was processed in the last 10 minutes will trigger an `ERR_DUPLICATE_REQUEST`.
 * **User Consent:** The user always has the final say. Connection requests will trigger a modal on their client asking them to "Allow" or "Deny" your website.
 * **Strict Validation:** Hosts and Base64 SDP strings are heavily sanitized and validated using Regex.
@@ -106,23 +106,29 @@ apiPort.postMessage({
 ```
 
 #### Action: Connect via IP Address
-Prompts the user to connect to a specific server.
+Prompts the user to connect to a specific server. You can optionally force media toggles to bypass the user's UI checkboxes.
 ```javascript
 apiPort.postMessage({
   action: 'connect_ip',
   requestId: 'req_' + Date.now(),
   host: '192.168.1.10:8080', 
-  pass: 'secret_password'
+  pass: 'secret_password',
+  // Optional configuration overrides:
+  video: false, // Forces video feed OFF
+  audio: true,  // Forces audio feed ON
+  kbpad: true   // Forces Virtual Keyboard ON
 });
 ```
 
 #### Action: Connect via Manual SDP (Base64)
-Prompts the user to apply a server WebRTC answer.
+Prompts the user to apply a server WebRTC answer. Optional media overrides are also supported here.
 ```javascript
 apiPort.postMessage({
   action: 'connect_sdp',
   requestId: 'req_' + Date.now(),
-  answer: base64Answer // The Base64 encoded WebRTC answer
+  answer: base64Answer, // The Base64 encoded WebRTC answer
+  // Optional configuration overrides:
+  video: true
 });
 ```
 

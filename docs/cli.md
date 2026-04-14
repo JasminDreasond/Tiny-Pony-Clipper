@@ -1,10 +1,10 @@
 # 🐎 Tiny Pony Clipper - CLI Integration Guide
 
-*The Command Line Interface (CLI) is fully implemented and available since version 1.1.5.*
+*The Command Line Interface (CLI) is fully implemented and available since version 1.1.5. Remote Client Control added in version 1.2.0.*
 
-Welcome to the Tiny Pony Clipper CLI documentation! If you are developing a third-party application, a launcher, or a custom script, you can use our built-in CLI to securely communicate with the Tiny Pony Clipper engine. 
+Welcome to the Tiny Pony Clipper CLI documentation! If you are developing a third-party application, a launcher, or a custom script, you can use our built-in CLI to securely communicate with the Tiny Pony Clipper engine and its local client.
 
-The CLI allows you to start the background engine with custom configuration overrides, forcefully shut down the server, and safely exchange WebRTC SDP payloads to establish Remote Play P2P connections without requiring the user to open the graphical interface.
+The CLI allows you to start the background engine with custom configuration overrides, forcefully shut down the server, safely exchange WebRTC SDP payloads, and actively control the local Remote Play Client window—all without requiring the user to navigate the graphical interface manually.
 
 ---
 
@@ -14,19 +14,36 @@ Tiny Pony Clipper takes user security very seriously. To prevent malicious scrip
 
 When your application sends its first CLI command, Tiny Pony Clipper will pause the execution and display a secure graphical prompt to the user asking for permission. If the user clicks "Allow", your application's executable path will be safely registered in a root-protected firewall whitelist, and all future CLI commands will run instantly.
 
+*(Note: Internal CLI commands targeting the client window will clearly identify as coming from the "Local System (CLI)" to reassure users).*
+
 ---
 
 ## 🛠️ Available Commands
 
 You can append these arguments when launching the `tiny-pony-clipper` executable from your terminal or child process.
 
-### Core Commands
+### Core Server Commands
 * `--help`: Displays the list of available commands directly in the terminal output.
-* `--process-sdp [base64]`: Sends a Base64-encoded SDP Offer to the WebRTC engine. The CLI will wait for the ICE gathering to finish and return a JSON containing the Base64-encoded SDP Answer.
-* `--exit` (or `exit`): Safely closes the Tiny Pony Clipper application and shuts down the background socket servers.
+* `--process-sdp [base64]`: Sends a Base64-encoded SDP Offer to the WebRTC Server engine (Host mode). The CLI will wait for the ICE gathering to finish and return a JSON containing the Base64-encoded SDP Answer.
+* `--exit` (or `exit`): Safely closes the Tiny Pony Clipper application and shuts down the background socket servers. If used on the very first startup, it will kill the process immediately without spawning windows.
+
+### Local Client Control Commands
+*Use these commands to remotely control the active Tiny Pony Stream client window running on the local machine.*
+
+* `--client-status`: Checks if the local Remote Play Client is currently actively playing in a session.
+* `--client-offer`: Generates a WebRTC Offer directly from the local Remote Play Client.
+* `--client-connect-ip [ip] [pass]`: Forces the local Remote Play Client to connect to a specific Host server via IP.
+* `--client-connect-sdp [base64]`: Forces the local Remote Play Client to apply a Server Answer via manual SDP.
+
+**Optional Client Media Flags:**
+When using `--client-connect-ip` or `--client-connect-sdp`, you can append these optional flags to force the client to enable/disable specific features, bypassing the user's saved UI preferences:
+* `--video [true/false]`: Enables or disables the incoming video feed.
+* `--audio [true/false]`: Enables or disables the incoming audio feed.
+* `--kbpad [true/false]`: Enables or disables the virtual keyboard gamepad.
+*(Example: `--client-connect-ip 192.168.1.10:8080 mypass --video false --kbpad true`)*
 
 ### Configuration Overrides
-*Using these flags will temporarily override the user's saved JSON settings for that specific session.*
+*Using these flags will temporarily override the user's saved JSON settings for that specific server session.*
 
 * `--force-stream [true/false]`: Forces the Remote Play WebRTC server to start upon initialization, even if the user disabled it in the UI.
 * `--stream-port [port]`: Sets a custom local port for the internal WebSocket/HTTP server.
