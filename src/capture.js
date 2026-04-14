@@ -183,11 +183,20 @@ electronAPI.onCaptureCommand(async (data) => {
           /** @type {MediaStream} */
           const fallbackAudio = await navigator.mediaDevices.getUserMedia(audioConstraints);
 
-          fallbackAudio.getAudioTracks().forEach((track) => {
-            rawStream.addTrack(track);
-          });
+          const audioTracks = fallbackAudio.getAudioTracks();
 
-          electronAPI.log('[CAPTURE] Fallback audio track successfully attached to active stream.');
+          if (audioTracks.length > 0) {
+            audioTracks.forEach((track) => {
+              rawStream.addTrack(track);
+            });
+            electronAPI.log(
+              '[CAPTURE] Fallback audio track successfully attached to active stream.',
+            );
+          } else
+            electronAPI.error(
+              '[CAPTURE ERROR] Fallback audio capture failed:',
+              new Error('getUserMedia returned no audio track.'),
+            );
         } catch (audioErr) {
           electronAPI.error('[CAPTURE ERROR] Fallback audio capture failed:', audioErr);
         }
