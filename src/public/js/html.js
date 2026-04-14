@@ -30,6 +30,8 @@ export const clientIdHud = document.getElementById('clientIdHud');
 export const dbgPing = document.getElementById('dbgPing');
 /** @type {HTMLButtonElement} */
 export const btnToggleTheme = document.getElementById('btnToggleTheme');
+/** @type {HTMLButtonElement} */
+export const btnToggleMute = document.getElementById('btnToggleMute');
 
 // Keyboard Gamepad UI
 /** @type {HTMLInputElement} */

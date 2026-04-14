@@ -374,6 +374,16 @@ const toggleDebug = () => {
 
 btnToggleDebug.addEventListener('click', toggleDebug);
 
+// Logic to switch mute and button icon
+btnToggleMute.addEventListener('click', () => {
+  video.muted = !video.muted;
+  btnToggleMute.textContent = video.muted ? '🔇' : '🔊';
+  btnToggleMute.title = video.muted ? 'Unmute Audio' : 'Mute Audio';
+
+  // Makes the button lose focus to prevent pressing "Space" on the keyboard press the button again
+  btnToggleMute.blur();
+});
+
 // F2 keyboard shortcut to toggle
 window.addEventListener('keydown', (e) => {
   if (e.key === 'F2' && !kbModal.classList.contains('modal-enter')) {
@@ -657,6 +667,9 @@ const setupWebRTCEvents = () => {
             updateDebug(dbgVidPlay, 'Playing', 'ok');
             // Explicitly unmute the video if the browser allowed autoplay!
             video.muted = false;
+
+            btnToggleMute.style.display = 'inline-block';
+            btnToggleMute.textContent = '🔊';
           })
           .catch((error) => {
             console.error('[VIDEO ERROR] Autoplay blocked:', error);
@@ -668,6 +681,9 @@ const setupWebRTCEvents = () => {
               () => {
                 video.play();
                 video.muted = false; // Tries to unmute after click
+
+                btnToggleMute.style.display = 'inline-block';
+                btnToggleMute.textContent = '🔊';
               },
               { once: true },
             );
