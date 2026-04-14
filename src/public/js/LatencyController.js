@@ -5,6 +5,7 @@ import {
   latencySlider,
   latencyNumberDisplay,
   latencyStatusText,
+  wantsVideoInput,
 } from './html.js';
 import { openModal, closeModal } from './Modal.js';
 
@@ -19,6 +20,12 @@ const DEFAULT_LATENCY = 100;
  * @type {RTCPeerConnection | null}
  */
 let activeConnection = null;
+
+/**
+ * The remote stream reference to check for active tracks.
+ * @type {MediaStream | null}
+ */
+let remoteStreamRef = null;
 
 /**
  * References for the manual Web Audio API fallback delay.
@@ -37,6 +44,24 @@ let fallbackDelayNode = null;
 let usesNativeDelay = true;
 
 /**
+ * Checks if the video transmission is active based on client settings
+ * and actual stream tracks.
+ * @returns {boolean} True if video is being received and desired.
+ */
+const isVideoActive = () => {
+  /** @type {boolean} */
+  const userWantsVideo = wantsVideoInput.checked;
+
+  /** @type {boolean} */
+  const hasVideoTrack =
+    remoteStreamRef &&
+    remoteStreamRef.getVideoTracks().length > 0 &&
+    remoteStreamRef.getVideoTracks()[0].enabled;
+
+  return userWantsVideo && hasVideoTrack;
+};
+
+/**
  * Ensures the value is within the 0-2000ms safe operating range.
  * @param {number} val
  * @returns {number}
@@ -45,7 +70,7 @@ const clampLatency = (val) => Math.max(0, Math.min(2000, val));
 
 /**
  * Updates the visual UI of the latency controller based on the selected value,
- * applying color codes to guide lay users regarding connection stability.
+ * applying color codes or warning messages if video is inactive.
  *
  * @param {number} ms - The latency in milliseconds.
  * @returns {void}
@@ -54,6 +79,15 @@ const updateLatencyUI = (ms) => {
   // Sync both inputs
   /** @type {HTMLInputElement} */ (latencyNumberDisplay).value = ms.toString();
   latencySlider.value = ms.toString();
+
+  // If video is inactive, we override the UI with a warning
+  if (!isVideoActive()) {
+    latencyStatusText.textContent =
+      '⚠️ This setting has no effect because no video transmission is being received.';
+    latencyStatusText.style.color = 'var(--accent-peach)';
+    latencyNumberDisplay.style.color = 'var(--text-muted)';
+    return;
+  }
 
   if (ms < 50) {
     latencyStatusText.textContent = 'Too low. High risk of audio/video stuttering.';
@@ -75,8 +109,8 @@ const updateLatencyUI = (ms) => {
 };
 
 /**
- * Injects the chosen latency directly into the active WebRTC receivers.
- * Falls back to a custom Web Audio API delayer if native support is missing.
+ * Injects the chosen latency into the active WebRTC receivers if video is active.
+ * Otherwise, it resets the delay to zero for maximum performance.
  *
  * @param {number} ms - The latency in milliseconds.
  * @returns {void}
@@ -84,8 +118,11 @@ const updateLatencyUI = (ms) => {
 const applyLatencyToStream = (ms) => {
   if (!activeConnection) return;
 
+  // Deactivate the system if no video is present
   /** @type {number} */
-  const delayInSeconds = ms / 1000;
+  const effectiveMs = isVideoActive() ? ms : 0;
+  /** @type {number} */
+  const delayInSeconds = effectiveMs / 1000;
 
   /** @type {boolean} */
   let nativeSupportFound = false;
@@ -93,7 +130,7 @@ const applyLatencyToStream = (ms) => {
   activeConnection.getReceivers().forEach((receiver) => {
     // 1. Try the modern W3C standard (jitterBufferTarget uses milliseconds)
     if ('jitterBufferTarget' in receiver) {
-      receiver.jitterBufferTarget = ms;
+      receiver.jitterBufferTarget = effectiveMs;
       nativeSupportFound = true;
     }
     // 2. Try the older Chromium standard (playoutDelayHint uses seconds)
@@ -153,7 +190,7 @@ const setupManualAudioDelay = (stream) => {
     fallbackDelayNode = fallbackAudioContext.createDelay(2.0);
 
     /** @type {number} */
-    const currentMs = parseInt(latencySlider.value, 10) || DEFAULT_LATENCY;
+    const currentMs = isVideoActive() ? parseInt(latencySlider.value, 10) || DEFAULT_LATENCY : 0;
     fallbackDelayNode.delayTime.value = currentMs / 1000;
 
     /** @type {MediaStreamAudioDestinationNode} */
@@ -187,6 +224,7 @@ const setupManualAudioDelay = (stream) => {
  */
 export const setLatencyConnection = (pc, remoteStream) => {
   activeConnection = pc;
+  remoteStreamRef = remoteStream;
 
   /** @type {number} */
   const currentMs = parseInt(latencySlider.value, 10) || DEFAULT_LATENCY;
@@ -244,12 +282,27 @@ export const initLatencyController = () => {
     { passive: false },
   ); // Requires passive:false to allow e.preventDefault()
 
-  btnOpenSettings.addEventListener('click', () => openModal(settingsModal));
+  btnOpenSettings.addEventListener('click', () => {
+    // Refresh UI state when opening to check if video track was lost/disabled meanwhile
+    const currentMs = parseInt(latencySlider.value, 10) || DEFAULT_LATENCY;
+    updateLatencyUI(currentMs);
+    openModal(settingsModal);
+  });
+
   btnCloseSettings.addEventListener('click', () => closeModal(settingsModal));
 
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && settingsModal.classList.contains('modal-enter')) {
       closeModal(settingsModal);
+    }
+  });
+
+  // Listener to react when the user toggles video checkbox on the main login screen
+  wantsVideoInput.addEventListener('change', () => {
+    const currentMs = parseInt(latencySlider.value, 10) || DEFAULT_LATENCY;
+    applyLatencyToStream(currentMs);
+    if (settingsModal.classList.contains('modal-enter')) {
+      updateLatencyUI(currentMs);
     }
   });
 };
