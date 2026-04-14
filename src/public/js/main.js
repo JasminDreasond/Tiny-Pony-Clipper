@@ -229,6 +229,7 @@ const updateHudButtons = () => {
 
   btnHudKbConfig.style.display = isPlaying ? 'inline-block' : 'none';
   btnOpenTx.style.display = isPlaying ? 'inline-block' : 'none';
+  btnManageApiOrigins.style.display = isPlaying ? 'none' : 'inline-block';
 };
 
 useKbPadInput.addEventListener('change', (e) => {
