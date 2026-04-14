@@ -145,7 +145,7 @@ electronAPI.onCaptureCommand(async (data) => {
       // --- LINUX/WAYLAND AUDIO GLITCH FIX ---
       /**
        * Checks if the Wayland portal failed to attach an audio track despite our request.
-       * If true, triggers a fallback using standard getUserMedia with the mapped Chrome Device ID.
+       * If true, triggers a fallback using standard getUserMedia.
        */
       if (data.streamEnabled && rawStream.getAudioTracks().length === 0) {
         electronAPI.log(
@@ -153,7 +153,18 @@ electronAPI.onCaptureCommand(async (data) => {
         );
         try {
           /** @type {string | undefined} */
-          const chromeDeviceId = await getChromeAudioDeviceId(data.sysInput);
+          let targetDeviceId;
+
+          // If the user manually selected something in the UI, we use this ID!
+          if (data.chromeAudioDevice && data.chromeAudioDevice !== 'auto') {
+            targetDeviceId = data.chromeAudioDevice;
+            electronAPI.log(
+              `[WEBRTC AUDIO] Using manual Chrome device ID from settings: ${targetDeviceId}`,
+            );
+          } else {
+            // If it's auto, we use our smart search function
+            targetDeviceId = await getChromeAudioDeviceId(data.sysInput);
+          }
 
           /** @type {MediaStreamConstraints} */
           const audioConstraints = {
@@ -165,8 +176,8 @@ electronAPI.onCaptureCommand(async (data) => {
             video: false,
           };
 
-          if (chromeDeviceId) {
-            audioConstraints.audio.deviceId = { exact: chromeDeviceId };
+          if (targetDeviceId) {
+            audioConstraints.audio.deviceId = { exact: targetDeviceId };
           }
 
           /** @type {MediaStream} */

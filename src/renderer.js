@@ -80,6 +80,15 @@ const gamepadSlotsInfo = document.getElementById('gamepadSlotsInfo');
 /** @type {HTMLDivElement} */
 const authListContainer = document.getElementById('authListContainer');
 
+/** @type {HTMLSelectElement} */
+const streamMaxBitrateSelect = document.getElementById('streamMaxBitrate');
+
+/** @type {HTMLSelectElement} */
+const streamDegradationSelect = document.getElementById('streamDegradation');
+
+/** @type {HTMLSelectElement} */
+const chromeAudioDeviceSelect = document.getElementById('chromeAudioDevice');
+
 /**
  * Renders the firewall/permissions list dynamically based on saved configurations.
  *
@@ -396,11 +405,23 @@ const init = async () => {
   document.getElementById('separateAudio').checked = config.separateAudio;
   savePathInput.value = config.savePath;
 
-  /** @type {HTMLSelectElement} */
-  const streamMaxBitrateSelect = document.getElementById('streamMaxBitrate');
+  try {
+    /** @type {MediaDeviceInfo[]} */
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    /** @type {MediaDeviceInfo[]} */
+    const audioInputs = devices.filter((d) => d.kind === 'audioinput');
 
-  /** @type {HTMLSelectElement} */
-  const streamDegradationSelect = document.getElementById('streamDegradation');
+    for (const device of audioInputs) {
+      /** @type {HTMLOptionElement} */
+      const option = document.createElement('option');
+      option.value = device.deviceId;
+      // If Electron accidentally hides the name by permission, we show part of the ID
+      option.textContent = device.label || `Unknown Device (${device.deviceId.substring(0, 8)}...)`;
+      chromeAudioDeviceSelect.appendChild(option);
+    }
+  } catch (e) {
+    console.error('[UI] Failed to enumerate Chrome audio devices:', e);
+  }
 
   videoCodecInput.value = config.videoCodec ?? 'h264_nvenc';
   audioCodecInput.value = config.audioCodec ?? 'aac';
@@ -412,6 +433,7 @@ const init = async () => {
   iceServersInput.value = config.iceServers ?? 'stun:stun.l.google.com:19302';
   frameRateInput.value = String(config.frameRate ?? 60);
   streamVideoEnabledInput.checked = config.streamVideoEnabled ?? true;
+  chromeAudioDeviceSelect.value = config.chromeAudioDevice ?? 'auto';
 
   streamMaxBitrateSelect.value = config.streamMaxBitrate
     ? String(config.streamMaxBitrate)
@@ -493,6 +515,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     frameRate: Number(frameRateInput.value) > 0 ? Number(frameRateInput.value) : 60,
     streamVideoEnabled: streamVideoEnabledInput.checked,
     // Stream values
+    chromeAudioDevice: chromeAudioDeviceSelect.value || 'auto',
     streamMaxBitrate: Number(streamMaxBitrateSelect.value) || 15000000,
     streamDegradation: streamDegradationSelect.value || 'maintain-framerate',
     streamEnabled: streamEnabledInput.checked,

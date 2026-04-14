@@ -252,6 +252,7 @@ const getDefaultConfig = () => ({
   audioCodec: 'aac',
   frameRate: 60,
   // Stream Settings
+  chromeAudioDevice: 'auto',
   streamMaxBitrate: 15000000,
   streamDegradation: 'maintain-framerate',
   streamEnabled: false,
@@ -451,6 +452,7 @@ const startRecording = (config) => {
     streamMaxBitrate: config.streamMaxBitrate, // Sent to capture.js
     streamDegradation: config.streamDegradation, // Sent to capture.js
     sysInput: config.sysInput, // Let capture.js know the audio source
+    chromeAudioDevice: config.chromeAudioDevice,
   });
   startGarbageCollector(config.minutes);
 };
