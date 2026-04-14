@@ -90,6 +90,11 @@ if (!gotTheLock) {
     app.quit();
   }
 } else {
+  if (process.argv.includes('--exit') || process.argv.includes('exit')) {
+    console.log('[CLI] Exit command received on startup. Shutting down immediately.');
+    app.quit();
+    process.exit(0);
+  }
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     // Prevents the config window from opening if the execution is just a CLI command
     if (isCLICommand(commandLine)) return;

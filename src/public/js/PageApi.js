@@ -13,6 +13,9 @@ import {
   btnConnect,
   connectManualBtn,
   serverAnswerInput,
+  wantsVideoInput,
+  wantsAudioInput,
+  useKbPadInput,
 } from './html.js';
 import { openModal, closeModal } from './Modal.js';
 import { sendBackgroundNotification } from './Notification.js';
@@ -216,14 +219,35 @@ const sanitizePassword = (pass) => {
  * @param {string} [payload.pass]
  * @param {string} [payload.answer]
  * @param {string} [payload.requestId]
+ * @param {boolean|string} [payload.video]
+ * @param {boolean|string} [payload.audio]
+ * @param {boolean|string} [payload.kbpad]
  * @returns {Promise<{ valid: boolean, error?: string, data?: any }>}
  */
 const executeApiPayload = async (payload) => {
   console.log('[API PAYLOAD RECEIVED]', payload);
 
+  /**
+   * Applies optional media and input preferences if they were provided in the API payload.
+   */
+  const applyPreferences = () => {
+    if (payload.video !== undefined) {
+      wantsVideoInput.checked = String(payload.video) === 'true';
+      wantsVideoInput.dispatchEvent(new Event('change'));
+    }
+    if (payload.audio !== undefined) {
+      wantsAudioInput.checked = String(payload.audio) === 'true';
+      wantsAudioInput.dispatchEvent(new Event('change'));
+    }
+    if (payload.kbpad !== undefined) {
+      useKbPadInput.checked = String(payload.kbpad) === 'true';
+      useKbPadInput.dispatchEvent(new Event('change'));
+    }
+  };
+
   if (payload.action === 'connect_ip') {
     if (!isValidHost(payload.host)) return { valid: false, error: 'Invalid host format' };
-
+    applyPreferences();
     serverInput.value = payload.host.trim();
     passInput.value = sanitizePassword(payload.pass);
     connMethodSelect.value = 'ip';
@@ -232,7 +256,7 @@ const executeApiPayload = async (payload) => {
     return { valid: true };
   } else if (payload.action === 'connect_sdp') {
     if (!isValidBase64(payload.answer)) return { valid: false, error: 'Invalid SDP Base64 format' };
-
+    applyPreferences();
     serverAnswerInput.value = payload.answer.trim();
     connMethodSelect.value = 'sdp';
     connMethodSelect.dispatchEvent(new Event('change'));

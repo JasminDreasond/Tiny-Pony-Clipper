@@ -90,9 +90,9 @@ export const runCLIClient = (args) => {
           '--exit': 'Closes the application and shuts down the server.',
           '--client-status': 'Checks the active playing status of the local Remote Play Client.',
           '--client-connect-ip [ip] [pass]':
-            'Forces the local Remote Play Client to connect to an IP.',
+            'Forces the local Remote Play Client connection. Optional: --video, --audio, --kbpad [true/false]',
           '--client-connect-sdp [base64]':
-            'Forces the local Remote Play Client to connect using SDP.',
+            'Forces the local Remote Play Client SDP connection. Optional: --video, --audio, --kbpad [true/false]',
           '--client-offer': 'Generates a WebRTC Offer from the local Remote Play Client.',
           '--force-stream [true/false]': 'Forces the server to start on initialization.',
           '--stream-port [port]': 'Sets the WebSocket/HTTP server port.',
@@ -112,6 +112,17 @@ export const runCLIClient = (args) => {
     const callerApp = getCallerExecutable();
     /** @type {{ cmd: string; action?: string; data?: string; host?: string; past?: string; } | null} */
     let commandPayload = null;
+
+    // Helper to safely extract boolean optional flags
+    const getOptionalBool = (flagName) => {
+      const idx = args.indexOf(flagName);
+      if (idx !== -1 && args.length > idx + 1) return args[idx + 1] === 'true';
+      return undefined;
+    };
+
+    /** @type {boolean|undefined} */ const optVideo = getOptionalBool('--video');
+    /** @type {boolean|undefined} */ const optAudio = getOptionalBool('--audio');
+    /** @type {boolean|undefined} */ const optKbPad = getOptionalBool('--kbpad');
 
     if (args.includes('--exit') || args.includes('exit')) {
       commandPayload = { cmd: 'CMD_EXIT' };
@@ -139,6 +150,13 @@ export const runCLIClient = (args) => {
       if (idx !== -1 && args.length >= idx + 2) {
         commandPayload = { cmd: 'CMD_API', action: 'connect_sdp', answer: args[idx + 1] };
       }
+    }
+
+    // Attach optional API overrides if they exist and an API command was formed
+    if (commandPayload && commandPayload.cmd === 'CMD_API') {
+      if (optVideo !== undefined) commandPayload.video = optVideo;
+      if (optAudio !== undefined) commandPayload.audio = optAudio;
+      if (optKbPad !== undefined) commandPayload.kbpad = optKbPad;
     }
 
     if (!commandPayload) {
