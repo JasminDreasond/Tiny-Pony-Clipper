@@ -70,9 +70,6 @@ const serverAnswerOutput = document.getElementById('serverAnswerOutput');
 const processOfferBtn = document.getElementById('processOfferBtn');
 
 /** @type {HTMLDivElement} */
-const manualSdpContainer = document.getElementById('manualSdpContainer');
-
-/** @type {HTMLDivElement} */
 const clientListContainer = document.getElementById('clientList');
 /** @type {HTMLDivElement} */
 const gamepadSlotsInfo = document.getElementById('gamepadSlotsInfo');
@@ -88,6 +85,18 @@ const streamDegradationSelect = document.getElementById('streamDegradation');
 
 /** @type {HTMLSelectElement} */
 const chromeAudioDeviceSelect = document.getElementById('chromeAudioDevice');
+
+/** @type {HTMLInputElement} */
+const echoCancellationInput = document.getElementById('echoCancellation');
+
+/** @type {HTMLInputElement} */
+const noiseSuppressionInput = document.getElementById('noiseSuppression');
+
+/** @type {HTMLInputElement} */
+const autoGainControlInput = document.getElementById('autoGainControl');
+
+/** @type {HTMLInputElement} */
+const suppressLocalAudioPlaybackInput = document.getElementById('suppressLocalAudioPlayback');
 
 /**
  * Renders the firewall/permissions list dynamically based on saved configurations.
@@ -435,6 +444,11 @@ const init = async () => {
   streamVideoEnabledInput.checked = config.streamVideoEnabled ?? true;
   chromeAudioDeviceSelect.value = config.chromeAudioDevice ?? 'auto';
 
+  echoCancellationInput.checked = config.echoCancellation ?? false;
+  noiseSuppressionInput.checked = config.noiseSuppression ?? false;
+  autoGainControlInput.checked = config.autoGainControl ?? false;
+  suppressLocalAudioPlaybackInput.checked = config.suppressLocalAudioPlayback ?? false;
+
   streamMaxBitrateSelect.value = config.streamMaxBitrate
     ? String(config.streamMaxBitrate)
     : '15000000';
@@ -515,6 +529,10 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     frameRate: Number(frameRateInput.value) > 0 ? Number(frameRateInput.value) : 60,
     streamVideoEnabled: streamVideoEnabledInput.checked,
     // Stream values
+    echoCancellation: echoCancellationInput.checked,
+    noiseSuppression: noiseSuppressionInput.checked,
+    autoGainControl: autoGainControlInput.checked,
+    suppressLocalAudioPlayback: suppressLocalAudioPlaybackInput.checked,
     chromeAudioDevice: chromeAudioDeviceSelect.value || 'auto',
     streamMaxBitrate: Number(streamMaxBitrateSelect.value) || 15000000,
     streamDegradation: streamDegradationSelect.value || 'maintain-framerate',

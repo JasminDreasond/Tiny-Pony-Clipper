@@ -111,126 +111,142 @@ const recordSegment = (stream) => {
   }, 60000);
 };
 
-electronAPI.onCaptureCommand(async (data) => {
-  if (data.action === 'start') {
-    try {
-      /** @type {number} */
-      const targetFps = data.frameRate ?? 60;
-      currentMaxBitrate = data.streamMaxBitrate ?? 15000000;
-      currentDegradationPreference = data.streamDegradation ?? 'maintain-framerate';
+electronAPI.onCaptureCommand(
+  /**
+   * @param {Object} data
+   * @param {boolean} data.streamEnabled
+   * @param {number} data.frameRate
+   * @param {string} data.iceServers
+   * @param {number} data.streamMaxBitrate
+   * @param {string} data.streamDegradation
+   * @param {string} data.sysInput
+   * @param {string} data.chromeAudioDevice
+   * @param {boolean} data.echoCancellation
+   * @param {boolean} data.noiseSuppression
+   * @param {boolean} data.autoGainControl
+   * @param {boolean} data.suppressLocalAudioPlayback
+   */
+  async (data) => {
+    if (data.action === 'start') {
+      try {
+        /** @type {number} */
+        const targetFps = data.frameRate ?? 60;
+        currentMaxBitrate = data.streamMaxBitrate ?? 15000000;
+        currentDegradationPreference = data.streamDegradation ?? 'maintain-framerate';
 
-      if (data.iceServers) {
-        /** @type {string[]} */
-        const parsedUrls = data.iceServers
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s) => s);
-        if (parsedUrls.length > 0) hostIceServers = parsedUrls;
-        electronAPI.log('[HOST ICE SERVERS]', parsedUrls);
+        if (data.iceServers) {
+          /** @type {string[]} */
+          const parsedUrls = data.iceServers
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s);
+          if (parsedUrls.length > 0) hostIceServers = parsedUrls;
+          electronAPI.log('[HOST ICE SERVERS]', parsedUrls);
+        }
+
+        /** @type {MediaStream} */
+        const rawStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: 'always', frameRate: { ideal: targetFps, max: targetFps } },
+          audio: data.streamEnabled
+            ? {
+                suppressLocalAudioPlayback: data.suppressLocalAudioPlayback ?? false,
+                echoCancellation: data.echoCancellation ?? false,
+                noiseSuppression: data.noiseSuppression ?? false,
+                autoGainControl: data.autoGainControl ?? false,
+              }
+            : false,
+        });
+
+        // --- LINUX/WAYLAND AUDIO GLITCH FIX ---
+        /**
+         * Checks if the Wayland portal failed to attach an audio track despite our request.
+         * If true, triggers a fallback using standard getUserMedia.
+         */
+        if (data.streamEnabled && rawStream.getAudioTracks().length === 0) {
+          electronAPI.log(
+            '[CAPTURE WARN] getDisplayMedia returned no audio track. Attempting fallback capture...',
+          );
+          try {
+            /** @type {string | undefined} */
+            let targetDeviceId;
+
+            // If the user manually selected something in the UI, we use this ID!
+            if (data.chromeAudioDevice && data.chromeAudioDevice !== 'auto') {
+              targetDeviceId = data.chromeAudioDevice;
+              electronAPI.log(
+                `[WEBRTC AUDIO] Using manual Chrome device ID from settings: ${targetDeviceId}`,
+              );
+            } else {
+              // If it's auto, we use our smart search function
+              targetDeviceId = await getChromeAudioDeviceId(data.sysInput);
+            }
+
+            /** @type {MediaStreamConstraints} */
+            const audioConstraints = {
+              audio: {
+                echoCancellation: data.echoCancellation ?? false,
+                noiseSuppression: data.noiseSuppression ?? false,
+                autoGainControl: data.autoGainControl ?? false,
+              },
+              video: false,
+            };
+
+            if (targetDeviceId) {
+              audioConstraints.audio.deviceId = { exact: targetDeviceId };
+            }
+
+            /** @type {MediaStream} */
+            const fallbackAudio = await navigator.mediaDevices.getUserMedia(audioConstraints);
+
+            const audioTracks = fallbackAudio.getAudioTracks();
+
+            if (audioTracks.length > 0) {
+              audioTracks.forEach((track) => {
+                rawStream.addTrack(track);
+              });
+              electronAPI.log(
+                '[CAPTURE] Fallback audio track successfully attached to active stream.',
+              );
+            } else
+              electronAPI.error(
+                '[CAPTURE ERROR] Fallback audio capture failed:',
+                new Error('getUserMedia returned no audio track.'),
+              );
+          } catch (audioErr) {
+            electronAPI.error('[CAPTURE ERROR] Fallback audio capture failed:', audioErr);
+          }
+        }
+        // --------------------------------------
+
+        activeStream = rawStream;
+
+        electronAPI.log(`[CAPTURE] Video engine started: @ ${targetFps}fps`);
+        recordSegment(activeStream);
+
+        rawStream.getVideoTracks()[0].onended = () => {
+          electronAPI.log('[CAPTURE] Wayland stream ended by user.');
+        };
+      } catch (error) {
+        electronAPI.error('[CAPTURE ERROR] Wayland Portal denied or failed.', error);
+      }
+    } else if (data.action === 'stop') {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      if (segmentTimer) clearTimeout(segmentTimer);
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop());
       }
 
-      /** @type {MediaStream} */
-      const rawStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always', frameRate: { ideal: targetFps, max: targetFps } },
-        audio: data.streamEnabled
-          ? {
-              suppressLocalAudioPlayback: false,
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-            }
-          : false,
+      peers.forEach((pc, clientId) => {
+        pc.close();
+        peers.delete(clientId);
       });
 
-      // --- LINUX/WAYLAND AUDIO GLITCH FIX ---
-      /**
-       * Checks if the Wayland portal failed to attach an audio track despite our request.
-       * If true, triggers a fallback using standard getUserMedia.
-       */
-      if (data.streamEnabled && rawStream.getAudioTracks().length === 0) {
-        electronAPI.log(
-          '[CAPTURE WARN] getDisplayMedia returned no audio track. Attempting fallback capture...',
-        );
-        try {
-          /** @type {string | undefined} */
-          let targetDeviceId;
-
-          // If the user manually selected something in the UI, we use this ID!
-          if (data.chromeAudioDevice && data.chromeAudioDevice !== 'auto') {
-            targetDeviceId = data.chromeAudioDevice;
-            electronAPI.log(
-              `[WEBRTC AUDIO] Using manual Chrome device ID from settings: ${targetDeviceId}`,
-            );
-          } else {
-            // If it's auto, we use our smart search function
-            targetDeviceId = await getChromeAudioDeviceId(data.sysInput);
-          }
-
-          /** @type {MediaStreamConstraints} */
-          const audioConstraints = {
-            audio: {
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-            },
-            video: false,
-          };
-
-          if (targetDeviceId) {
-            audioConstraints.audio.deviceId = { exact: targetDeviceId };
-          }
-
-          /** @type {MediaStream} */
-          const fallbackAudio = await navigator.mediaDevices.getUserMedia(audioConstraints);
-
-          const audioTracks = fallbackAudio.getAudioTracks();
-
-          if (audioTracks.length > 0) {
-            audioTracks.forEach((track) => {
-              rawStream.addTrack(track);
-            });
-            electronAPI.log(
-              '[CAPTURE] Fallback audio track successfully attached to active stream.',
-            );
-          } else
-            electronAPI.error(
-              '[CAPTURE ERROR] Fallback audio capture failed:',
-              new Error('getUserMedia returned no audio track.'),
-            );
-        } catch (audioErr) {
-          electronAPI.error('[CAPTURE ERROR] Fallback audio capture failed:', audioErr);
-        }
-      }
-      // --------------------------------------
-
-      activeStream = rawStream;
-
-      electronAPI.log(`[CAPTURE] Video engine started: @ ${targetFps}fps`);
-      recordSegment(activeStream);
-
-      rawStream.getVideoTracks()[0].onended = () => {
-        electronAPI.log('[CAPTURE] Wayland stream ended by user.');
-      };
-    } catch (error) {
-      electronAPI.error('[CAPTURE ERROR] Wayland Portal denied or failed.', error);
+      electronAPI.log('[CAPTURE] Video engine completely stopped and peers cleared.');
     }
-  } else if (data.action === 'stop') {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    }
-    if (segmentTimer) clearTimeout(segmentTimer);
-    if (activeStream) {
-      activeStream.getTracks().forEach((track) => track.stop());
-    }
-
-    peers.forEach((pc, clientId) => {
-      pc.close();
-      peers.delete(clientId);
-    });
-
-    electronAPI.log('[CAPTURE] Video engine completely stopped and peers cleared.');
-  }
-});
+  },
+);
 
 // --- WebRTC Host Signaling ---
 

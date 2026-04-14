@@ -533,7 +533,7 @@
             </div>
           </div>
 
-          <div class="row" style="margin-top: 10px">
+          <div class="row">
             <div class="form-group-sm" style="flex: 1">
               <label class="label-sm" for="chromeAudioDevice">Audio Fallback (Chrome)</label>
               <select id="chromeAudioDevice">
@@ -542,7 +542,37 @@
             </div>
           </div>
 
-          <div class="row" style="margin-top: 10px">
+          <div
+            class="stream-section"
+            style="
+              padding: 10px;
+              border: 1px dashed var(--border-color);
+              border-radius: 6px;
+              background-color: rgba(0, 0, 0, 0.05);
+            "
+          >
+            <h4 style="margin-top: 0; margin-bottom: 10px">Advanced Audio Constraints</h4>
+            <div class="row">
+              <div class="col">
+                <label class="checkbox-label" style="font-size: 13px">
+                  <input type="checkbox" id="echoCancellation" /> Echo Cancellation
+                </label>
+                <label class="checkbox-label" style="font-size: 13px">
+                  <input type="checkbox" id="noiseSuppression" /> Noise Suppression
+                </label>
+              </div>
+              <div class="col">
+                <label class="checkbox-label" style="font-size: 13px">
+                  <input type="checkbox" id="autoGainControl" /> Auto Gain Control
+                </label>
+                <label class="checkbox-label" style="font-size: 13px">
+                  <input type="checkbox" id="suppressLocalAudioPlayback" /> Suppress Local Playback
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 20px">
             <div class="form-group-sm" style="flex: 1">
               <label class="label-sm" for="maxGamepads">Max Gamepads</label>
               <input type="number" id="maxGamepads" min="0" max="12" placeholder="12" />

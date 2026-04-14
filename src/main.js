@@ -229,6 +229,13 @@ const getConfigPath = () => path.join(app.getPath('userData'), 'config.json');
  * @property {number} frameRate
  * @property {boolean} streamVideoEnabled
  * @property {string} signalingMethod
+ * @property {string} streamDegradation
+ * @property {number} streamMaxBitrate
+ * @property {string} chromeAudioDevice
+ * @property {boolean} echoCancellation
+ * @property {boolean} noiseSuppression
+ * @property {boolean} autoGainControl
+ * @property {boolean} suppressLocalAudioPlayback
  */
 
 // Update your default config function
@@ -252,6 +259,10 @@ const getDefaultConfig = () => ({
   audioCodec: 'aac',
   frameRate: 60,
   // Stream Settings
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+  suppressLocalAudioPlayback: false,
   chromeAudioDevice: 'auto',
   streamMaxBitrate: 15000000,
   streamDegradation: 'maintain-framerate',
@@ -453,6 +464,10 @@ const startRecording = (config) => {
     streamDegradation: config.streamDegradation, // Sent to capture.js
     sysInput: config.sysInput, // Let capture.js know the audio source
     chromeAudioDevice: config.chromeAudioDevice,
+    echoCancellation: config.echoCancellation,
+    noiseSuppression: config.noiseSuppression,
+    autoGainControl: config.autoGainControl,
+    suppressLocalAudioPlayback: config.suppressLocalAudioPlayback,
   });
   startGarbageCollector(config.minutes);
 };
