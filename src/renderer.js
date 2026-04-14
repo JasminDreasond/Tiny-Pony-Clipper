@@ -115,7 +115,7 @@ const renderAuthList = async () => {
 
   if (keys.length === 0) {
     authListContainer.innerHTML =
-      '<div class="muted-text" style="font-style: italic;">No applications have requested permissions yet.</div>';
+      '<div class="muted-text" style="font-style: italic; background-color: transparent;">No applications have requested permissions yet.</div>';
     return;
   }
 
@@ -194,7 +194,7 @@ const updateStreamUIState = () => {
     gamepadSlotsInfo.textContent = 'Available Gamepad Slots: Remote Play Disabled';
   } else {
     clientListContainer.innerHTML =
-      '<div class="muted-text" style="font-style: italic;">No players connected yet.</div>';
+      '<div class="muted-text" style="font-style: italic; background-color: transparent;">No players connected yet.</div>';
     gamepadSlotsInfo.textContent = 'Available Gamepad Slots: Waiting for server...';
   }
 };
