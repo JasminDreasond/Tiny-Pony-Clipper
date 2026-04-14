@@ -653,7 +653,11 @@ const setupWebRTCEvents = () => {
         // Tries to force playback. Browsers require 'muted' for autoplay without user interaction.
         video
           .play()
-          .then(() => updateDebug(dbgVidPlay, 'Playing', 'ok'))
+          .then(() => {
+            updateDebug(dbgVidPlay, 'Playing', 'ok');
+            // Explicitly unmute the video if the browser allowed autoplay!
+            video.muted = false;
+          })
           .catch((error) => {
             console.error('[VIDEO ERROR] Autoplay blocked:', error);
             updateDebug(dbgVidPlay, 'Blocked (Click Video)', 'error');

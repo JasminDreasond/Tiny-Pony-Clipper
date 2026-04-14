@@ -183,6 +183,14 @@ const setupManualAudioDelay = (stream) => {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     fallbackAudioContext = new AudioCtx();
 
+    // Browsers often start AudioContext in a 'suspended' state.
+    // We must try to resume it to guarantee audio flow.
+    if (fallbackAudioContext.state === 'suspended') {
+      fallbackAudioContext.resume().catch((err) => {
+        console.warn('[LATENCY WARN] Could not immediately resume AudioContext:', err);
+      });
+    }
+
     /** @type {MediaStreamAudioSourceNode} */
     const source = fallbackAudioContext.createMediaStreamSource(stream);
 
