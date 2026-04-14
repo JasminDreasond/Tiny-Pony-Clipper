@@ -37,6 +37,13 @@ let fallbackDelayNode = null;
 let usesNativeDelay = true;
 
 /**
+ * Ensures the value is within the 0-2000ms safe operating range.
+ * @param {number} val
+ * @returns {number}
+ */
+const clampLatency = (val) => Math.max(0, Math.min(2000, val));
+
+/**
  * Updates the visual UI of the latency controller based on the selected value,
  * applying color codes to guide lay users regarding connection stability.
  *
@@ -44,7 +51,8 @@ let usesNativeDelay = true;
  * @returns {void}
  */
 const updateLatencyUI = (ms) => {
-  latencyNumberDisplay.textContent = `${ms} ms`;
+  // Sync both inputs
+  /** @type {HTMLInputElement} */ (latencyNumberDisplay).value = ms.toString();
   latencySlider.value = ms.toString();
 
   if (ms < 50) {
@@ -111,18 +119,16 @@ const applyLatencyToStream = (ms) => {
 };
 
 /**
- * Event handler triggered when the user moves the latency slider.
- *
- * @param {Event} e - The HTML input event.
+ * Master controller that receives input from either the slider, text box, or scroll wheel,
+ * clamps it safely, updates the UI, applies it to the stream, and saves it.
+ * @param {number} rawMs
  * @returns {void}
  */
-const handleSliderChange = (e) => {
-  /** @type {number} */
-  const ms = parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10) || 0;
-
-  updateLatencyUI(ms);
-  applyLatencyToStream(ms);
-  localStorage.setItem('pony_stream_latency', ms.toString());
+const processNewLatency = (rawMs) => {
+  const safeMs = clampLatency(rawMs);
+  updateLatencyUI(safeMs);
+  applyLatencyToStream(safeMs);
+  localStorage.setItem('pony_stream_latency', safeMs.toString());
 };
 
 /**
@@ -209,7 +215,34 @@ export const initLatencyController = () => {
 
   updateLatencyUI(initialLatency);
 
-  latencySlider.addEventListener('input', handleSliderChange);
+  // 1. Listen for Slider dragging
+  latencySlider.addEventListener('input', (e) => {
+    processNewLatency(parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10) || 0);
+  });
+
+  // 2. Listen for Manual Text Input typing
+  latencyNumberDisplay.addEventListener('input', (e) => {
+    processNewLatency(parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10) || 0);
+  });
+
+  // 3. Listen for Mouse Scroll Wheel over the slider
+  latencySlider.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault(); // Prevents the whole page/modal from scrolling
+
+      /** @type {number} */
+      const currentMs = parseInt(latencySlider.value, 10) || 0;
+
+      // e.deltaY is positive when scrolling down (towards user), negative when scrolling up
+      // We want scroll UP = increase latency, scroll DOWN = decrease latency
+      /** @type {number} */
+      const step = e.deltaY < 0 ? 10 : -10;
+
+      processNewLatency(currentMs + step);
+    },
+    { passive: false },
+  ); // Requires passive:false to allow e.preventDefault()
 
   btnOpenSettings.addEventListener('click', () => openModal(settingsModal));
   btnCloseSettings.addEventListener('click', () => closeModal(settingsModal));

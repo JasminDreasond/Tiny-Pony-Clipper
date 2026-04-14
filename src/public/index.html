@@ -250,12 +250,33 @@
           style="
             display: flex;
             justify-content: space-between;
+            align-items: center;
             font-size: 13px;
             color: var(--text-main);
           "
         >
           <span>Audio & Video Jitter Buffer:</span>
-          <span id="latencyNumberDisplay" style="font-weight: bold">100 ms</span>
+
+          <div style="display: flex; align-items: center; gap: 5px">
+            <input
+              type="number"
+              id="latencyNumberDisplay"
+              min="0"
+              max="2000"
+              value="100"
+              style="
+                width: 70px;
+                padding: 4px 8px;
+                text-align: center;
+                font-weight: bold;
+                background: var(--input-bg);
+                border: 1px solid var(--bg-surface1);
+                border-radius: 4px;
+                color: var(--text-main);
+              "
+            />
+            <span style="font-weight: bold; color: var(--text-muted)">ms</span>
+          </div>
         </label>
 
         <input
@@ -265,15 +286,16 @@
           max="2000"
           step="10"
           value="100"
-          style="width: 100%; margin-top: 12px; cursor: pointer"
+          style="width: 100%; margin-top: 15px; cursor: pointer"
         />
 
         <p
           id="latencyStatusText"
-          style="font-size: 12px; margin-top: 8px; text-align: center; font-weight: bold"
+          style="font-size: 12px; margin-top: 10px; text-align: center; font-weight: bold"
         ></p>
         <p style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 5px">
-          Adjusts the intentional delay to smooth out connection stutters.
+          Adjusts the intentional delay to smooth out connection stutters.<br />
+          <span style="opacity: 0.7">(You can use the mouse scroll on the slider)</span>
         </p>
       </div>
 
