@@ -21,6 +21,22 @@ const DEFAULT_LATENCY = 100;
 let activeConnection = null;
 
 /**
+ * References for the manual Web Audio API fallback delay.
+ * @type {AudioContext | null}
+ */
+let fallbackAudioContext = null;
+
+/**
+ * @type {DelayNode | null}
+ */
+let fallbackDelayNode = null;
+
+/**
+ * @type {boolean}
+ */
+let usesNativeDelay = true;
+
+/**
  * Updates the visual UI of the latency controller based on the selected value,
  * applying color codes to guide lay users regarding connection stability.
  *
@@ -52,6 +68,7 @@ const updateLatencyUI = (ms) => {
 
 /**
  * Injects the chosen latency directly into the active WebRTC receivers.
+ * Falls back to a custom Web Audio API delayer if native support is missing.
  *
  * @param {number} ms - The latency in milliseconds.
  * @returns {void}
@@ -62,12 +79,35 @@ const applyLatencyToStream = (ms) => {
   /** @type {number} */
   const delayInSeconds = ms / 1000;
 
+  /** @type {boolean} */
+  let nativeSupportFound = false;
+
   activeConnection.getReceivers().forEach((receiver) => {
-    // Check if the browser supports the API before applying
-    if ('playoutDelayHint' in receiver) {
+    // 1. Try the modern W3C standard (jitterBufferTarget uses milliseconds)
+    if ('jitterBufferTarget' in receiver) {
+      receiver.jitterBufferTarget = ms;
+      nativeSupportFound = true;
+    }
+    // 2. Try the older Chromium standard (playoutDelayHint uses seconds)
+    else if ('playoutDelayHint' in receiver) {
       receiver.playoutDelayHint = delayInSeconds;
+      nativeSupportFound = true;
     }
   });
+
+  // 3. The "Caseira" (Homemade) Alternative for unsupported browsers
+  if (!nativeSupportFound) {
+    usesNativeDelay = false;
+    if (fallbackDelayNode) {
+      // Smoothly ramps up/down the delay to prevent audio cracking noises
+      fallbackDelayNode.delayTime.linearRampToValueAtTime(
+        delayInSeconds,
+        fallbackAudioContext.currentTime + 0.2,
+      );
+    }
+  } else {
+    usesNativeDelay = true;
+  }
 };
 
 /**
@@ -86,15 +126,74 @@ const handleSliderChange = (e) => {
 };
 
 /**
- * Exposes the currently active PeerConnection to the controller so changes apply immediately.
- * * @param {RTCPeerConnection} pc - The active WebRTC connection.
- * @returns {void}
+ * Applies a manual delay to the audio track using the Web Audio API.
+ * This is only engaged if the browser doesn't support WebRTC jitter buffers.
+ *
+ * @param {MediaStream} stream - The incoming remote stream.
+ * @returns {MediaStream} A new stream with the delayed audio track.
  */
-export const setLatencyConnection = (pc) => {
+const setupManualAudioDelay = (stream) => {
+  if (!stream.getAudioTracks().length) return stream;
+
+  try {
+    /** @type {typeof window.AudioContext} */
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    fallbackAudioContext = new AudioCtx();
+
+    /** @type {MediaStreamAudioSourceNode} */
+    const source = fallbackAudioContext.createMediaStreamSource(stream);
+
+    // Create a delay node with a maximum buffer of 2 seconds (2000ms)
+    fallbackDelayNode = fallbackAudioContext.createDelay(2.0);
+
+    /** @type {number} */
+    const currentMs = parseInt(latencySlider.value, 10) || DEFAULT_LATENCY;
+    fallbackDelayNode.delayTime.value = currentMs / 1000;
+
+    /** @type {MediaStreamAudioDestinationNode} */
+    const destination = fallbackAudioContext.createMediaStreamDestination();
+
+    source.connect(fallbackDelayNode);
+    fallbackDelayNode.connect(destination);
+
+    // Create a fresh stream combining the original video and the new delayed audio
+    /** @type {MediaStream} */
+    const delayedStream = new MediaStream();
+
+    stream.getVideoTracks().forEach((track) => delayedStream.addTrack(track));
+    destination.stream.getAudioTracks().forEach((track) => delayedStream.addTrack(track));
+
+    console.log('[LATENCY] Native buffer not supported. Applying manual Audio Delay fallback.');
+    return delayedStream;
+  } catch (err) {
+    console.error('[LATENCY] Failed to setup manual audio delay:', err);
+    return stream;
+  }
+};
+
+/**
+ * Exposes the currently active PeerConnection to the controller.
+ * Also intercepts the media stream to setup fallbacks if necessary.
+ *
+ * @param {RTCPeerConnection} pc - The active WebRTC connection.
+ * @param {MediaStream} remoteStream - The raw stream received from the host.
+ * @returns {MediaStream} The processed stream to be attached to the video element.
+ */
+export const setLatencyConnection = (pc, remoteStream) => {
   activeConnection = pc;
+
   /** @type {number} */
   const currentMs = parseInt(latencySlider.value, 10) || DEFAULT_LATENCY;
+
+  // Try applying natively first to check support
   applyLatencyToStream(currentMs);
+
+  // If native failed, we wrap the stream in our manual audio delayer
+  if (!usesNativeDelay && remoteStream) {
+    return setupManualAudioDelay(remoteStream);
+  }
+
+  return remoteStream;
 };
 
 /**

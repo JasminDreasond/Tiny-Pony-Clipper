@@ -645,10 +645,10 @@ const setupWebRTCEvents = () => {
     pc.ontrack = (event) => {
       console.log('[WEBRTC] Video track received:', event.track);
       updateDebug(dbgVidTrack, `Recv (${event.track.kind})`, 'ok');
-      setLatencyConnection(pc);
+      const processedStream = setLatencyConnection(pc, event.streams[0]);
 
-      if (video.srcObject !== event.streams[0]) {
-        video.srcObject = event.streams[0];
+      if (video.srcObject !== processedStream) {
+        video.srcObject = processedStream;
 
         // Tries to force playback. Browsers require 'muted' for autoplay without user interaction.
         video
