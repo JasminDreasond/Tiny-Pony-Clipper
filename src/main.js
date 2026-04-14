@@ -252,6 +252,8 @@ const getDefaultConfig = () => ({
   audioCodec: 'aac',
   frameRate: 60,
   // Stream Settings
+  streamMaxBitrate: 15000000,
+  streamDegradation: 'maintain-framerate',
   streamEnabled: false,
   streamVideoEnabled: true,
   streamPort: 8080,
@@ -446,6 +448,9 @@ const startRecording = (config) => {
     streamEnabled: config.streamEnabled,
     frameRate: config.frameRate,
     iceServers: config.iceServers,
+    streamMaxBitrate: config.streamMaxBitrate, // Sent to capture.js
+    streamDegradation: config.streamDegradation, // Sent to capture.js
+    sysInput: config.sysInput, // Let capture.js know the audio source
   });
   startGarbageCollector(config.minutes);
 };

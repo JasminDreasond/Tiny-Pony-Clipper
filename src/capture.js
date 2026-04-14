@@ -10,6 +10,12 @@ let segmentTimer = null;
 /** @type {MediaStream | null} */
 let activeStream = null;
 
+/** @type {number} */
+let currentMaxBitrate = 15000000;
+
+/** @type {string} */
+let currentDegradationPreference = 'maintain-framerate';
+
 /** @type {Map<string, RTCPeerConnection>} */
 const peers = new Map();
 
@@ -18,6 +24,49 @@ const dataChannels = new Map();
 
 /** @type {string[]} */
 let hostIceServers = ['stun:stun.l.google.com:19302'];
+
+/**
+ * Attempts to find the correct WebRTC deviceId for the system audio.
+ * Maps the OS audio string to a Chrome device label if possible,
+ * prioritizing "Monitor" devices on Linux for desktop audio capture.
+ *
+ * @param {string} ffmpegInput - The OS/FFMPEG device string (e.g., 'default').
+ * @returns {Promise<string | undefined>} The WebRTC deviceId, or undefined if not found.
+ */
+const getChromeAudioDeviceId = async (ffmpegInput) => {
+  try {
+    /** @type {MediaDeviceInfo[]} */
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    /** @type {MediaDeviceInfo[]} */
+    const audioInputs = devices.filter((d) => d.kind === 'audioinput');
+
+    electronAPI.log(
+      '[WEBRTC AUDIO] Available Chrome Audio Inputs:',
+      audioInputs.map((d) => d.label),
+    );
+
+    // 1. Try to find a loopback/monitor device for system audio (Standard Linux behavior)
+    let targetDevice = audioInputs.find((d) => d.label.toLowerCase().includes('monitor'));
+
+    // 2. If not found, try a basic heuristic match against the FFMPEG input name
+    if (!targetDevice && ffmpegInput !== 'default') {
+      targetDevice = audioInputs.find((d) =>
+        d.label.toLowerCase().includes(ffmpegInput.toLowerCase()),
+      );
+    }
+
+    if (targetDevice) {
+      electronAPI.log(`[WEBRTC AUDIO] Matched Chrome device: ${targetDevice.label}`);
+      return targetDevice.deviceId;
+    }
+
+    electronAPI.log('[WEBRTC AUDIO] No specific Chrome device mapped. Falling back to default.');
+    return undefined;
+  } catch (err) {
+    electronAPI.error('[WEBRTC AUDIO ERROR] Failed to enumerate Chrome devices:', err);
+    return undefined;
+  }
+};
 
 /**
  * Starts recording a specific media stream segment, saving data chunks and restarting automatically
@@ -67,6 +116,8 @@ electronAPI.onCaptureCommand(async (data) => {
     try {
       /** @type {number} */
       const targetFps = data.frameRate ?? 60;
+      currentMaxBitrate = data.streamMaxBitrate ?? 15000000;
+      currentDegradationPreference = data.streamDegradation ?? 'maintain-framerate';
 
       if (data.iceServers) {
         /** @type {string[]} */
@@ -90,6 +141,47 @@ electronAPI.onCaptureCommand(async (data) => {
             }
           : false,
       });
+
+      // --- LINUX/WAYLAND AUDIO GLITCH FIX ---
+      /**
+       * Checks if the Wayland portal failed to attach an audio track despite our request.
+       * If true, triggers a fallback using standard getUserMedia with the mapped Chrome Device ID.
+       */
+      if (data.streamEnabled && rawStream.getAudioTracks().length === 0) {
+        electronAPI.log(
+          '[CAPTURE WARN] getDisplayMedia returned no audio track. Attempting fallback capture...',
+        );
+        try {
+          /** @type {string | undefined} */
+          const chromeDeviceId = await getChromeAudioDeviceId(data.sysInput);
+
+          /** @type {MediaStreamConstraints} */
+          const audioConstraints = {
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+            },
+            video: false,
+          };
+
+          if (chromeDeviceId) {
+            audioConstraints.audio.deviceId = { exact: chromeDeviceId };
+          }
+
+          /** @type {MediaStream} */
+          const fallbackAudio = await navigator.mediaDevices.getUserMedia(audioConstraints);
+
+          fallbackAudio.getAudioTracks().forEach((track) => {
+            rawStream.addTrack(track);
+          });
+
+          electronAPI.log('[CAPTURE] Fallback audio track successfully attached to active stream.');
+        } catch (audioErr) {
+          electronAPI.error('[CAPTURE ERROR] Fallback audio capture failed:', audioErr);
+        }
+      }
+      // --------------------------------------
 
       activeStream = rawStream;
 
@@ -149,11 +241,11 @@ const createPeerConnection = (clientId) => {
           parameters.encodings = [{}];
         }
 
-        // 'maintain-resolution' or 'maintain-framerate'
-        parameters.degradationPreference = 'maintain-framerate';
+        // Sets how the WebRTC engine handles network drops
+        parameters.degradationPreference = currentDegradationPreference;
 
-        // Limit the max bitrate natively via sender (e.g., 15 Mbps)
-        parameters.encodings[0].maxBitrate = 15000000;
+        // Hard limits the WebRTC max bitrate transmission
+        parameters.encodings[0].maxBitrate = currentMaxBitrate;
 
         sender.setParameters(parameters).catch((err) => {
           electronAPI.error('[WEBRTC] Failed to set video parameters:', err);

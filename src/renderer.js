@@ -396,6 +396,12 @@ const init = async () => {
   document.getElementById('separateAudio').checked = config.separateAudio;
   savePathInput.value = config.savePath;
 
+  /** @type {HTMLSelectElement} */
+  const streamMaxBitrateSelect = document.getElementById('streamMaxBitrate');
+
+  /** @type {HTMLSelectElement} */
+  const streamDegradationSelect = document.getElementById('streamDegradation');
+
   videoCodecInput.value = config.videoCodec ?? 'h264_nvenc';
   audioCodecInput.value = config.audioCodec ?? 'aac';
   videoPresetInput.value = config.videoPreset ?? 'p6';
@@ -406,6 +412,11 @@ const init = async () => {
   iceServersInput.value = config.iceServers ?? 'stun:stun.l.google.com:19302';
   frameRateInput.value = String(config.frameRate ?? 60);
   streamVideoEnabledInput.checked = config.streamVideoEnabled ?? true;
+
+  streamMaxBitrateSelect.value = config.streamMaxBitrate
+    ? String(config.streamMaxBitrate)
+    : '15000000';
+  streamDegradationSelect.value = config.streamDegradation ?? 'maintain-framerate';
 
   if (isWaylandEnvironment) {
     console.log('[RENDERER] Wayland detected. Forcing F10 shortcut and hiding input.');
@@ -482,6 +493,8 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     frameRate: Number(frameRateInput.value) > 0 ? Number(frameRateInput.value) : 60,
     streamVideoEnabled: streamVideoEnabledInput.checked,
     // Stream values
+    streamMaxBitrate: Number(streamMaxBitrateSelect.value) || 15000000,
+    streamDegradation: streamDegradationSelect.value || 'maintain-framerate',
     streamEnabled: streamEnabledInput.checked,
     streamPort: Number(streamPortInput.value) || 8080,
     streamPassword: streamPasswordInput.value || 'pony',

@@ -514,6 +514,27 @@
 
           <div class="row" style="margin-top: 10px">
             <div class="form-group-sm" style="flex: 1">
+              <label class="label-sm" for="streamMaxBitrate">Max Video Bitrate</label>
+              <select id="streamMaxBitrate">
+                <option value="5000000">5 Mbps (Low Bandwidth)</option>
+                <option value="10000000">10 Mbps (Standard)</option>
+                <option value="15000000">15 Mbps (High Quality - Default)</option>
+                <option value="25000000">25 Mbps (Ultra Quality)</option>
+                <option value="50000000">50 Mbps (LAN / Localhost only)</option>
+              </select>
+            </div>
+            <div class="form-group-sm" style="flex: 1">
+              <label class="label-sm" for="streamDegradation">Degradation Preference</label>
+              <select id="streamDegradation">
+                <option value="maintain-framerate">Maintain Framerate</option>
+                <option value="maintain-resolution">Maintain Resolution</option>
+                <option value="balanced">Balanced</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 10px">
+            <div class="form-group-sm" style="flex: 1">
               <label class="label-sm" for="maxGamepads">Max Gamepads</label>
               <input type="number" id="maxGamepads" min="0" max="12" placeholder="12" />
             </div>
