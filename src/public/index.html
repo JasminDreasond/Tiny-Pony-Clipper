@@ -58,6 +58,7 @@
       <button id="btnHudKbConfig" class="hud-btn" style="display: none">Gamepad Config</button>
       <button id="btnManageApiOrigins" class="hud-btn">Manage API Origins</button>
       <button id="btnToggleDebug" class="hud-btn">Hide Debug (F2)</button>
+      <button id="btnOpenSettings" class="hud-btn" title="Stream Settings">⚙️</button>
       <button id="btnToggleTheme" class="hud-btn" title="Toggle Theme">🌗</button>
     </div>
 
@@ -230,6 +231,54 @@
       >
         <button id="btnCancelKb">Cancel</button>
         <button id="btnCloseKb">Save & Close</button>
+      </div>
+    </div>
+
+    <div id="settingsModal" class="modal-base settings">
+      <h3 style="margin: 0; color: var(--accent-mauve); text-align: center">Stream Settings</h3>
+
+      <div
+        style="
+          margin-top: 20px;
+          background: var(--bg-mantle);
+          padding: 15px;
+          border-radius: 8px;
+          border: 1px solid var(--bg-surface0);
+        "
+      >
+        <label
+          style="
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-main);
+          "
+        >
+          <span>Audio & Video Jitter Buffer:</span>
+          <span id="latencyNumberDisplay" style="font-weight: bold">100 ms</span>
+        </label>
+
+        <input
+          type="range"
+          id="latencySlider"
+          min="0"
+          max="2000"
+          step="10"
+          value="100"
+          style="width: 100%; margin-top: 12px; cursor: pointer"
+        />
+
+        <p
+          id="latencyStatusText"
+          style="font-size: 12px; margin-top: 8px; text-align: center; font-weight: bold"
+        ></p>
+        <p style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 5px">
+          Adjusts the intentional delay to smooth out connection stutters.
+        </p>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 20px">
+        <button id="btnCloseSettings">Close</button>
       </div>
     </div>
 

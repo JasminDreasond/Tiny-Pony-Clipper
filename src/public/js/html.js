@@ -168,3 +168,17 @@ export const customAlertModal = document.getElementById('customAlertModal');
 export const customAlertText = document.getElementById('customAlertText');
 /** @type {HTMLButtonElement} */
 export const btnCustomAlertOk = document.getElementById('btnCustomAlertOk');
+
+// Stream Settings Elements
+/** @type {HTMLButtonElement} */
+export const btnOpenSettings = document.getElementById('btnOpenSettings');
+/** @type {HTMLElement} */
+export const settingsModal = document.getElementById('settingsModal');
+/** @type {HTMLButtonElement} */
+export const btnCloseSettings = document.getElementById('btnCloseSettings');
+/** @type {HTMLInputElement} */
+export const latencySlider = document.getElementById('latencySlider');
+/** @type {HTMLElement} */
+export const latencyNumberDisplay = document.getElementById('latencyNumberDisplay');
+/** @type {HTMLElement} */
+export const latencyStatusText = document.getElementById('latencyStatusText');

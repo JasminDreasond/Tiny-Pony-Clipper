@@ -59,6 +59,7 @@ import {
   updateCanvasColors,
 } from './GamepadInput.js';
 import { startPlayTimer, stopPlayTimer, bypassWelcome } from './Welcome.js';
+import { initLatencyController, setLatencyConnection } from './LatencyController.js';
 
 /** @type {NodeJS.Timeout | null} */
 let notificationTimer = null;
@@ -644,6 +645,7 @@ const setupWebRTCEvents = () => {
     pc.ontrack = (event) => {
       console.log('[WEBRTC] Video track received:', event.track);
       updateDebug(dbgVidTrack, `Recv (${event.track.kind})`, 'ok');
+      setLatencyConnection(pc);
 
       if (video.srcObject !== event.streams[0]) {
         video.srcObject = event.streams[0];
@@ -941,3 +943,4 @@ const initTheme = () => {
 
 // Execute theme initialization
 initTheme();
+initLatencyController();
