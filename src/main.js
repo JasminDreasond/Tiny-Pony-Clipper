@@ -52,6 +52,7 @@ import {
 } from './cli.js';
 
 import { checkAuth, setAuth, loadAuthList, removeAuth } from './utils/AuthManager.js';
+import { createTemporaryAudioMirror, destroyTemporaryAudioMirror } from './utils/VirtualAudio.js';
 
 /**
  * Register custom protocols as standard and secure before the app is ready.
@@ -409,15 +410,26 @@ const startGarbageCollector = (maxMinutes) => {
  * and signals the capture window to begin recording the screen and audio.
  *
  * @param {AppConfig} config - The current application configuration.
- * @returns {void}
  */
-const startRecording = (config) => {
+const startRecording = async (config) => {
   console.log('[SYSTEM] Waking up capture engine...');
 
   // Notify the capture window to stop any current stream capture
   if (windowsCache.captureWindow) {
     windowsCache.captureWindow.webContents.send('capture-command', { action: 'stop' });
   }
+
+  // --- VIRTUAL AUDIO INTEGRATION ---
+  destroyTemporaryAudioMirror(); // Always clean up before starting a new one
+  if (config.chromeAudioDevice === 'virtual_output' && config.virtualOutputSink) {
+    /** @type {boolean} */
+    const mirrorCreated = await createTemporaryAudioMirror(config.virtualOutputSink);
+    if (mirrorCreated) {
+      // Give PulseAudio and Chrome 800ms to register the new virtual device
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+  }
+  // ---------------------------------
 
   if (audioProcess) {
     audioProcess.stdin.write('q\n');
@@ -752,9 +764,8 @@ const saveClip = (saveDir) => {
  * the streaming server, or both depending on the settings.
  *
  * @param {AppConfig} config - The configuration object to apply.
- * @returns {void}
  */
-const applyConfigurationAndStart = (config) => {
+const applyConfigurationAndStart = async (config) => {
   if (!isDirectoryValid(config.savePath)) {
     console.error(`[SYSTEM ERROR] Configured save path is invalid or missing: ${config.savePath}`);
     if (cleanupInterval) {
@@ -826,7 +837,7 @@ const applyConfigurationAndStart = (config) => {
   }
 
   if (config.enableClipping) {
-    startRecording(config);
+    await startRecording(config);
     /** @type {string} */
     const readyMessage = isWaylandEnv
       ? 'Engine is active! Ready to save clips.'
@@ -851,8 +862,6 @@ const applyConfigurationAndStart = (config) => {
 
 /**
  * Creates and displays the main graphical user interface window for settings configuration.
- *
- * @returns {void}
  */
 const createHiddenCaptureWindow = async () => {
   windowsCache.captureWindow = new BrowserWindow({
@@ -1518,8 +1527,7 @@ if (gotTheLock) {
       finalConfig = { ...finalConfig, ...cliOverrides };
     }
 
-    applyConfigurationAndStart(finalConfig);
-
+    await applyConfigurationAndStart(finalConfig);
     ipcMain.handle('is-wayland', () => isWaylandEnv);
 
     ipcMain.handle('select-folder', async () => {
@@ -1556,6 +1564,7 @@ if (gotTheLock) {
 
   app.on('will-quit', () => {
     destroyAllGamepads();
+    destroyTemporaryAudioMirror();
     globalShortcut.unregisterAll();
     console.log('[SYSTEM] Application is quitting.');
 

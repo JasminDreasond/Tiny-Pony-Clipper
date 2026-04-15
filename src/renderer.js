@@ -1,7 +1,10 @@
 import { decompressFromBase64, compressToBase64 } from './public/js/gzipBase64.js';
 
+/** @type {HTMLDivElement} */
+const virtualOutputContainer = document.getElementById('virtualOutputContainer');
+
 /** @type {HTMLSelectElement} */
-const monitorSelect = document.getElementById('monitorId');
+const virtualOutputSinkSelect = document.getElementById('virtualOutputSink');
 
 /** @type {HTMLSelectElement} */
 const sysInputSelect = document.getElementById('sysInput');
@@ -420,17 +423,33 @@ const init = async () => {
     /** @type {MediaDeviceInfo[]} */
     const audioInputs = devices.filter((d) => d.kind === 'audioinput');
 
+    // 1. Add our custom Virtual Output option first
+    /** @type {HTMLOptionElement} */
+    const virtualOpt = document.createElement('option');
+    virtualOpt.value = 'virtual_output';
+    virtualOpt.textContent = 'Virtual Output Mirror';
+    chromeAudioDeviceSelect.appendChild(virtualOpt);
+
+    // 2. Add standard Chrome devices
     for (const device of audioInputs) {
       /** @type {HTMLOptionElement} */
       const option = document.createElement('option');
       option.value = device.deviceId;
-      // If Electron accidentally hides the name by permission, we show part of the ID
       option.textContent = device.label || `Unknown Device (${device.deviceId.substring(0, 8)}...)`;
       chromeAudioDeviceSelect.appendChild(option);
     }
   } catch (e) {
     console.error('[UI] Failed to enumerate Chrome audio devices:', e);
   }
+
+  // Populate the virtual sink dropdown with system outputs
+  populateSelect(virtualOutputSinkSelect, hardware.audioOutputs, config.virtualOutputSink);
+
+  // Toggle visibility listener
+  chromeAudioDeviceSelect.addEventListener('change', () => {
+    virtualOutputContainer.style.display =
+      chromeAudioDeviceSelect.value === 'virtual_output' ? 'block' : 'none';
+  });
 
   videoCodecInput.value = config.videoCodec ?? 'h264_nvenc';
   audioCodecInput.value = config.audioCodec ?? 'aac';
@@ -443,6 +462,8 @@ const init = async () => {
   frameRateInput.value = String(config.frameRate ?? 60);
   streamVideoEnabledInput.checked = config.streamVideoEnabled ?? true;
   chromeAudioDeviceSelect.value = config.chromeAudioDevice ?? 'auto';
+  virtualOutputContainer.style.display =
+    chromeAudioDeviceSelect.value === 'virtual_output' ? 'block' : 'none';
 
   echoCancellationInput.checked = config.echoCancellation ?? false;
   noiseSuppressionInput.checked = config.noiseSuppression ?? false;
@@ -534,6 +555,7 @@ document.getElementById('btnApply').addEventListener('click', async () => {
     autoGainControl: autoGainControlInput.checked,
     suppressLocalAudioPlayback: suppressLocalAudioPlaybackInput.checked,
     chromeAudioDevice: chromeAudioDeviceSelect.value || 'auto',
+    virtualOutputSink: virtualOutputSinkSelect.value,
     streamMaxBitrate: Number(streamMaxBitrateSelect.value) || 15000000,
     streamDegradation: streamDegradationSelect.value || 'maintain-framerate',
     streamEnabled: streamEnabledInput.checked,

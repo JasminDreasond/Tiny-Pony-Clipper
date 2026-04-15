@@ -171,7 +171,11 @@ electronAPI.onCaptureCommand(
             let targetDeviceId;
 
             // If the user manually selected something in the UI, we use this ID!
-            if (data.chromeAudioDevice && data.chromeAudioDevice !== 'auto') {
+            if (data.chromeAudioDevice === 'virtual_output') {
+              // Intercept the request and look for our Virtual Microphone created by the Main Process!
+              targetDeviceId = await getChromeAudioDeviceId('tiny_pony_clipper_virtual_mic');
+              electronAPI.log('[WEBRTC AUDIO] Injecting Virtual Microphone into stream!');
+            } else if (data.chromeAudioDevice && data.chromeAudioDevice !== 'auto') {
               targetDeviceId = data.chromeAudioDevice;
               electronAPI.log(
                 `[WEBRTC AUDIO] Using manual Chrome device ID from settings: ${targetDeviceId}`,
