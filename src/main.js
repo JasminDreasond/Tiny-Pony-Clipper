@@ -27,6 +27,7 @@ import {
   appIconProcessingPath,
   windowsCache,
   isFFmpegInstalled,
+  isWaylandEnv,
 } from './utils/values.js';
 
 import {
@@ -78,9 +79,6 @@ app.setAppUserModelId('com.jasmindreasond.tinyponyclipper');
 
 const icoImg = nativeImage.createFromPath(appIconPath);
 const icoProcessingImg = nativeImage.createFromPath(appIconProcessingPath);
-
-/** @type {boolean} */
-const isWaylandEnv = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
 
 if (!gotTheLock) {
   // If the app is already running, we check if it's a CLI request

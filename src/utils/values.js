@@ -9,6 +9,10 @@ const __filename = fileURLToPath(import.meta.url);
 /** @type {string} */
 const __dirname = path.dirname(__filename);
 
+/** @type {boolean} */
+export const isWaylandEnv =
+  process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+
 export const windowsCache = {
   /** @type {Electron.CrossProcessExports.BrowserWindow | null} */
   configWindow: null,
