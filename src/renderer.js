@@ -435,6 +435,7 @@ const init = async () => {
       /** @type {HTMLOptionElement} */
       const option = document.createElement('option');
       option.value = device.deviceId;
+      // If Electron accidentally hides the name by permission, we show part of the ID
       option.textContent = device.label || `Unknown Device (${device.deviceId.substring(0, 8)}...)`;
       chromeAudioDeviceSelect.appendChild(option);
     }
