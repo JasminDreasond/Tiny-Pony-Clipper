@@ -146,6 +146,19 @@
 
           <div class="row" style="margin-top: 10px">
             <div class="form-group-sm" style="flex: 1">
+              <label class="label-sm" for="maxGamepads">Max Gamepads</label>
+              <input type="number" id="maxGamepads" min="0" max="12" placeholder="12" />
+            </div>
+            <div class="form-group-sm" style="flex: 2">
+              <label class="label-sm" for="iceServers"
+                >Custom ICE Servers URLs (Comma separated)</label
+              >
+              <input type="text" id="iceServers" placeholder="stun:stun.l.google.com:19302" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 10px">
+            <div class="form-group-sm" style="flex: 1">
               <label class="label-sm" for="streamMaxBitrate">Max Video Bitrate</label>
               <select id="streamMaxBitrate">
                 <option value="5000000">5 Mbps (Low Bandwidth)</option>
@@ -212,20 +225,7 @@
             </div>
           </div>
 
-          <div class="row" style="margin-top: 20px">
-            <div class="form-group-sm" style="flex: 1">
-              <label class="label-sm" for="maxGamepads">Max Gamepads</label>
-              <input type="number" id="maxGamepads" min="0" max="12" placeholder="12" />
-            </div>
-            <div class="form-group-sm" style="flex: 2">
-              <label class="label-sm" for="iceServers"
-                >Custom ICE Servers URLs (Comma separated)</label
-              >
-              <input type="text" id="iceServers" placeholder="stun:stun.l.google.com:19302" />
-            </div>
-          </div>
-
-          <div id="manualSdpContainer" class="manual-sdp-container">
+          <div id="manualSdpContainer" class="manual-sdp-container" style="margin-top: 10px">
             <h3>Manual SDP Signaling</h3>
 
             <div
