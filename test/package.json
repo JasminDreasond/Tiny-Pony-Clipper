@@ -1,0 +1,5 @@
+{
+"scripts": {
+    "build:webrtc": "bash scripts/build-webrtc.sh"
+  }
+}
