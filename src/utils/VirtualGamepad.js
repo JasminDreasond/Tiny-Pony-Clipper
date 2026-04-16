@@ -139,7 +139,7 @@ export const getOrInitGamepad = (clientId, padIndex, padType) => {
   } else {
     /** @type {number} */
     const typeCode = padType === 'ds4' ? 1 : 0;
-    device = uinput.setup(typeCode);
+    device = uinput.setupVg(typeCode);
     if (device === -1) return -1;
   }
 
@@ -164,7 +164,7 @@ export const destroyAllGamepads = () => {
     if (isWin) {
       session.device.disconnect();
     } else {
-      uinput.destroy(session.device);
+      uinput.destroyVg(session.device);
     }
   }
   persistentGamepads.clear();
@@ -183,7 +183,7 @@ export const destroyGamepadsForClient = (clientId) => {
       if (isWin) {
         session.device.disconnect();
       } else {
-        uinput.destroy(session.device);
+        uinput.destroyVg(session.device);
       }
       persistentGamepads.delete(key);
       console.log(`[GAMEPAD] Destroyed and released gamepad [${key}] due to client disconnect.`);
@@ -245,7 +245,7 @@ const updateLinuxState = (id, state, session) => {
     // Safety check to prevent undefined exceptions crashing the loop
     if (code !== undefined && code !== null && isPressed !== session.previousButtons[i]) {
       session.previousButtons[i] = isPressed;
-      uinput.emit(id, EV_KEY, code, isPressed ? 1 : 0);
+      uinput.emitVg(id, EV_KEY, code, isPressed ? 1 : 0);
       needsSync = true;
     }
 
@@ -260,7 +260,7 @@ const updateLinuxState = (id, state, session) => {
 
       if (scaledValue !== session.previousAxes[cacheIdx]) {
         session.previousAxes[cacheIdx] = scaledValue;
-        uinput.emit(id, EV_ABS, axisCode, scaledValue);
+        uinput.emitVg(id, EV_ABS, axisCode, scaledValue);
         needsSync = true;
       }
     }
@@ -272,12 +272,12 @@ const updateLinuxState = (id, state, session) => {
     const val = Math.floor((state.axes[i] || 0) * 32767);
     if (val !== session.previousAxes[i]) {
       session.previousAxes[i] = val;
-      uinput.emit(id, EV_ABS, code, val);
+      uinput.emitVg(id, EV_ABS, code, val);
       needsSync = true;
     }
   });
 
-  if (needsSync) uinput.emit(id, EV_SYN, SYN_REPORT, 0);
+  if (needsSync) uinput.emitVg(id, EV_SYN, SYN_REPORT, 0);
 };
 
 /**
@@ -463,7 +463,7 @@ const getWindowsButtonName = (index, isDS4) => {
  * @returns {boolean} True if the system grants access, false otherwise.
  */
 export const canAccessUinput = () => {
-  return isWin ? isVigemConnected : uinput.checkPermissions();
+  return isWin ? isVigemConnected : uinput.checkPermissionsVg();
 };
 
 if (gotTheLock) {
