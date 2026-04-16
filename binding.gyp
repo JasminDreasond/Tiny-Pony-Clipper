@@ -3,7 +3,7 @@
     ["OS=='linux'", {
       "targets": [
         {
-          "target_name": "uinput_gamepad",
+          "target_name": "tiny_pony_clipper",
           "cflags!": [ "-fno-exceptions" ],
           "cflags_cc!": [ "-fno-exceptions" ],
           "sources": [ "src/native/uinput_gamepad.cpp" ],
@@ -17,7 +17,7 @@
     ["OS=='win'", {
       "targets": [
         {
-          "target_name": "uinput_gamepad",
+          "target_name": "tiny_pony_clipper",
           "libraries": [],
           "sources": [],
           "include_dirs": [],

@@ -10,4 +10,11 @@ package-lock.json
 LICENSE
 README.md
 *.ini
+*.jpg
+*.png
+*.gif
+*.webp
+*.webm
+*.kra
+krita
 yarn.lock

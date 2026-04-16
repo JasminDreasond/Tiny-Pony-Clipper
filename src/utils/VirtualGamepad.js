@@ -16,7 +16,7 @@ import { keyCodes } from './keyCodes.js';
 /** @type {NodeJS.Require} */
 const require = createRequire(import.meta.url);
 /** @type {Object | null} */
-const uinput = !isWin ? require(`../../build/Release/uinput_gamepad.node`) : null;
+const uinput = !isWin ? require(`../../build/Release/tiny_pony_clipper.node`) : null;
 
 /** @type {ViGEmClient | null} */
 const vigem = isWin ? new ViGEmClient() : null;
