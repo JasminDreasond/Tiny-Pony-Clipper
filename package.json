@@ -117,6 +117,6 @@
   },
   "dependencies": {
     "node-addon-api": "^8.6.0",
-    "ws": "^8.20.0"
+    "ws": "^8.20.1"
   }
 }
